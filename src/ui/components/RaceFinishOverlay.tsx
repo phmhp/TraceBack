@@ -1,0 +1,2 @@
+import { useRaceHud } from '../state/raceHud.ts'
+export function RaceFinishOverlay() { const finished = useRaceHud((state) => state.raceFinished); if (!finished) return null; return <div className="finish-celebration" role="status" aria-live="assertive"><div className="firework firework-a">✦</div><div className="firework firework-b">✦</div><div className="firework firework-c">✦</div><div className="finish-fanfare">🎺</div><strong>FINISH!</strong><small>GREAT DRIVE!</small></div> }

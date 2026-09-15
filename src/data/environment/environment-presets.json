@@ -1,0 +1,44 @@
+[
+  {
+    "presetId": "MEADOW_SOFT",
+    "groundColor": "#9dcc83",
+    "foliageColor": "#72b86f",
+    "accentColor": "#f6d788",
+    "density": 0.45
+  },
+  {
+    "presetId": "FOREST_SOFT",
+    "groundColor": "#78aa70",
+    "foliageColor": "#438c62",
+    "accentColor": "#b9d980",
+    "density": 0.85
+  },
+  {
+    "presetId": "URBAN_SOFT",
+    "groundColor": "#c6c7b8",
+    "foliageColor": "#7baa79",
+    "accentColor": "#efb19b",
+    "density": 0.25
+  },
+  {
+    "presetId": "DIRT_SOFT",
+    "groundColor": "#d7aa70",
+    "foliageColor": "#87ad65",
+    "accentColor": "#f0c77d",
+    "density": 0.3
+  },
+  {
+    "presetId": "SERVICE_SOFT",
+    "groundColor": "#b8b8a8",
+    "foliageColor": "#77a877",
+    "accentColor": "#f2c66f",
+    "density": 0.2
+  },
+  {
+    "presetId": "CONSTRUCTION_SOFT",
+    "groundColor": "#c9ae83",
+    "foliageColor": "#8aa06d",
+    "accentColor": "#ed9671",
+    "density": 0.18
+  }
+]

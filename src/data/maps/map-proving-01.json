@@ -1,0 +1,1018 @@
+{
+  "mapId": "MAP_PROVING_01",
+  "displayName": "Green Valley Circuit",
+  "worldBounds": {
+    "minX": -700,
+    "maxX": 700,
+    "minZ": -800,
+    "maxZ": 800
+  },
+  "defaultSurfaceType": "ASPHALT_DRY",
+  "capabilities": [
+    "LONG_STRAIGHT",
+    "CURVE",
+    "INTERSECTION",
+    "LEAD_VEHICLE_ALLOWED",
+    "LOW_GRIP_AVAILABLE",
+    "HIGH_SPEED_AVAILABLE"
+  ],
+  "spawnPoints": [
+    {
+      "id": "SPAWN_EGO_START",
+      "position": {
+        "x": 0,
+        "y": 0.9,
+        "z": 650
+      },
+      "rotationY": 0,
+      "tags": [
+        "EGO",
+        "START"
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "routeId": "MAIN_ROUTE",
+      "orderedPoints": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 650
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 100
+        },
+        {
+          "x": -35,
+          "y": 0,
+          "z": 45
+        },
+        {
+          "x": -90,
+          "y": 0,
+          "z": 0
+        },
+        {
+          "x": -180,
+          "y": 0,
+          "z": -20
+        },
+        {
+          "x": -300,
+          "y": 0,
+          "z": -80
+        },
+        {
+          "x": -380,
+          "y": 0,
+          "z": -180
+        },
+        {
+          "x": -315,
+          "y": 0,
+          "z": -245
+        },
+        {
+          "x": -250,
+          "y": 0,
+          "z": -280
+        },
+        {
+          "x": -285,
+          "y": 0,
+          "z": -330
+        },
+        {
+          "x": -350,
+          "y": 0,
+          "z": -380
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": -380
+        },
+        {
+          "x": 220,
+          "y": 0,
+          "z": -380
+        },
+        {
+          "x": 320,
+          "y": 0,
+          "z": -420
+        },
+        {
+          "x": 380,
+          "y": 0,
+          "z": -500
+        },
+        {
+          "x": 400,
+          "y": 0,
+          "z": -650
+        }
+      ],
+      "checkpoints": [
+        {
+          "id": "CP_STRAIGHT",
+          "pointIndex": 1
+        },
+        {
+          "id": "CP_CURVE",
+          "pointIndex": 6
+        },
+        {
+          "id": "CP_INTERSECTION",
+          "pointIndex": 11
+        },
+        {
+          "id": "CP_DIRT",
+          "pointIndex": 14
+        }
+      ],
+      "startPoint": {
+        "x": 0,
+        "y": 0,
+        "z": 650
+      },
+      "finishPoint": {
+        "x": 400,
+        "y": 0,
+        "z": -650
+      },
+      "closedLoop": false
+    }
+  ],
+  "roadSegments": [
+    {
+      "id": "SEG_LONG_01",
+      "type": "STRAIGHT",
+      "points": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 650
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": 100
+        }
+      ],
+      "width": 12,
+      "surfaceType": "ASPHALT_DRY",
+      "tags": [
+        "LONG_STRAIGHT",
+        "HIGH_SPEED_AVAILABLE"
+      ]
+    },
+    {
+      "id": "SEG_CURVE_WIDE",
+      "type": "CURVE",
+      "points": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": 100
+        },
+        {
+          "x": -35,
+          "y": 0,
+          "z": 45
+        },
+        {
+          "x": -90,
+          "y": 0,
+          "z": 0
+        },
+        {
+          "x": -180,
+          "y": 0,
+          "z": -20
+        },
+        {
+          "x": -300,
+          "y": 0,
+          "z": -80
+        },
+        {
+          "x": -380,
+          "y": 0,
+          "z": -180
+        }
+      ],
+      "width": 12,
+      "surfaceType": "ASPHALT_DRY",
+      "tags": [
+        "CURVE",
+        "WIDE_CURVE"
+      ]
+    },
+    {
+      "id": "SEG_S_CURVE",
+      "type": "CURVE",
+      "points": [
+        {
+          "x": -380,
+          "y": 0,
+          "z": -180
+        },
+        {
+          "x": -315,
+          "y": 0,
+          "z": -245
+        },
+        {
+          "x": -250,
+          "y": 0,
+          "z": -280
+        },
+        {
+          "x": -285,
+          "y": 0,
+          "z": -330
+        },
+        {
+          "x": -350,
+          "y": 0,
+          "z": -380
+        }
+      ],
+      "width": 11,
+      "surfaceType": "ASPHALT_LOW_GRIP",
+      "tags": [
+        "CURVE",
+        "S_CURVE",
+        "LOW_GRIP_AVAILABLE"
+      ]
+    },
+    {
+      "id": "SEG_INTERSECTION_MAIN",
+      "type": "INTERSECTION",
+      "points": [
+        {
+          "x": -350,
+          "y": 0,
+          "z": -380
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": -380
+        },
+        {
+          "x": 220,
+          "y": 0,
+          "z": -380
+        }
+      ],
+      "width": 18,
+      "surfaceType": "ASPHALT_DRY",
+      "tags": [
+        "INTERSECTION"
+      ]
+    },
+    {
+      "id": "SEG_INTERSECTION_CROSS",
+      "type": "TWO_LANE",
+      "points": [
+        {
+          "x": 0,
+          "y": 0,
+          "z": -550
+        },
+        {
+          "x": 0,
+          "y": 0,
+          "z": -200
+        }
+      ],
+      "width": 10,
+      "surfaceType": "ASPHALT_DRY",
+      "tags": [
+        "INTERSECTION",
+        "CROSS_ROUTE"
+      ]
+    },
+    {
+      "id": "SEG_DIRT",
+      "type": "DIRT_SECTION",
+      "points": [
+        {
+          "x": 220,
+          "y": 0,
+          "z": -380
+        },
+        {
+          "x": 320,
+          "y": 0,
+          "z": -420
+        },
+        {
+          "x": 380,
+          "y": 0,
+          "z": -500
+        },
+        {
+          "x": 400,
+          "y": 0,
+          "z": -650
+        }
+      ],
+      "width": 11,
+      "surfaceType": "DIRT",
+      "tags": [
+        "DIRT_SECTION",
+        "LOW_GRIP_AVAILABLE"
+      ]
+    }
+  ],
+  "surfaceZones": [
+    {
+      "id": "SURFACE_LOW_GRIP",
+      "bounds": {
+        "minX": -430,
+        "maxX": -220,
+        "minZ": -410,
+        "maxZ": -130
+      },
+      "surfaceType": "ASPHALT_LOW_GRIP"
+    },
+    {
+      "id": "SURFACE_DIRT",
+      "bounds": {
+        "minX": 180,
+        "maxX": 470,
+        "minZ": -710,
+        "maxZ": -330
+      },
+      "surfaceType": "DIRT"
+    }
+  ],
+  "environmentZones": [
+    {
+      "id": "ENV_MEADOW_EAST",
+      "type": "MEADOW",
+      "bounds": {
+        "minX": 20,
+        "maxX": 650,
+        "minZ": 0,
+        "maxZ": 750
+      },
+      "visualPreset": "MEADOW_SOFT"
+    },
+    {
+      "id": "ENV_FOREST_WEST",
+      "type": "FOREST",
+      "bounds": {
+        "minX": -650,
+        "maxX": -120,
+        "minZ": -350,
+        "maxZ": 300
+      },
+      "visualPreset": "FOREST_SOFT"
+    },
+    {
+      "id": "ENV_URBAN_CROSS",
+      "type": "URBAN",
+      "bounds": {
+        "minX": -170,
+        "maxX": 170,
+        "minZ": -560,
+        "maxZ": -200
+      },
+      "visualPreset": "URBAN_SOFT"
+    },
+    {
+      "id": "ENV_DIRT_SOUTH",
+      "type": "DIRT_FIELD",
+      "bounds": {
+        "minX": 170,
+        "maxX": 620,
+        "minZ": -760,
+        "maxZ": -320
+      },
+      "visualPreset": "DIRT_SOFT"
+    },
+    {
+      "id": "ENV_START_LEFT",
+      "type": "MEADOW",
+      "bounds": {
+        "minX": -90,
+        "maxX": -14,
+        "minZ": 80,
+        "maxZ": 700
+      },
+      "visualPreset": "MEADOW_SOFT"
+    },
+    {
+      "id": "ENV_SERVICE_AREA",
+      "type": "SERVICE_AREA",
+      "bounds": {
+        "minX": 35,
+        "maxX": 180,
+        "minZ": 380,
+        "maxZ": 620
+      },
+      "visualPreset": "SERVICE_SOFT"
+    },
+    {
+      "id": "ENV_CONSTRUCTION",
+      "type": "CONSTRUCTION",
+      "bounds": {
+        "minX": -130,
+        "maxX": -25,
+        "minZ": -300,
+        "maxZ": -180
+      },
+      "visualPreset": "CONSTRUCTION_SOFT"
+    }
+  ],
+  "staticObjects": [
+    {
+      "id": "BARRIER_START_L",
+      "objectType": "BARRIER",
+      "position": {
+        "x": -9.0,
+        "y": 0.35,
+        "z": 580.0
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": true,
+      "assetId": "BARRIER_PASTEL"
+    },
+    {
+      "id": "BARRIER_START_R",
+      "objectType": "BARRIER",
+      "position": {
+        "x": 9.0,
+        "y": 0.35,
+        "z": 580.0
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": true,
+      "assetId": "BARRIER_PASTEL"
+    },
+    {
+      "id": "CONE_CROSS_01",
+      "objectType": "CONE",
+      "position": {
+        "x": 15.0,
+        "y": 0.4,
+        "z": -365.0
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "CONE_CORAL"
+    },
+    {
+      "id": "CONE_CROSS_02",
+      "objectType": "CONE",
+      "position": {
+        "x": 20.0,
+        "y": 0.4,
+        "z": -395.0
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "CONE_CORAL"
+    },
+    {
+      "id": "ROCK_FOREST_01",
+      "objectType": "ROCK",
+      "position": {
+        "x": -470.0,
+        "y": 0.45,
+        "z": -20.0
+      },
+      "rotationY": 0.4,
+      "scale": {
+        "x": 2.0,
+        "y": 2.0,
+        "z": 2.0
+      },
+      "collidable": true,
+      "assetId": "ROCK_SOFT"
+    },
+    {
+      "id": "BUILDING_CROSS_01",
+      "objectType": "BUILDING",
+      "position": {
+        "x": 70.0,
+        "y": 2.5,
+        "z": -470.0
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 2.0,
+        "y": 2.0,
+        "z": 2.0
+      },
+      "collidable": true,
+      "assetId": "BUILDING_SMALL"
+    },
+    {
+      "id": "ROAD_BLOCK_SIDE",
+      "objectType": "ROAD_BLOCK",
+      "position": {
+        "x": -26.0,
+        "y": 0.5,
+        "z": -250.0
+      },
+      "rotationY": 1.57,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": true,
+      "assetId": "ROAD_BLOCK_CREAM"
+    },
+    {
+      "id": "APT_A_01",
+      "objectType": "BUILDING",
+      "position": {
+        "x": -48,
+        "y": 14.0,
+        "z": -455
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "APARTMENT_BLOCK_A"
+    },
+    {
+      "id": "APT_A_02",
+      "objectType": "BUILDING",
+      "position": {
+        "x": -78,
+        "y": 14.0,
+        "z": -475
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "APARTMENT_BLOCK_A"
+    },
+    {
+      "id": "APT_B_01",
+      "objectType": "BUILDING",
+      "position": {
+        "x": -55,
+        "y": 11.0,
+        "z": -290
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "APARTMENT_BLOCK_B"
+    },
+    {
+      "id": "APT_B_02",
+      "objectType": "BUILDING",
+      "position": {
+        "x": -85,
+        "y": 11.0,
+        "z": -315
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "APARTMENT_BLOCK_B"
+    },
+    {
+      "id": "APT_A_03",
+      "objectType": "BUILDING",
+      "position": {
+        "x": 55,
+        "y": 14.0,
+        "z": -470
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "APARTMENT_BLOCK_A"
+    },
+    {
+      "id": "OFFICE_01",
+      "objectType": "BUILDING",
+      "position": {
+        "x": 65,
+        "y": 6.0,
+        "z": -285
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "OFFICE_OR_COMMERCIAL_A"
+    },
+    {
+      "id": "SHOP_01",
+      "objectType": "BUILDING",
+      "position": {
+        "x": 65.0,
+        "y": 3.0,
+        "z": -285.0
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "SMALL_BUILDING_A"
+    },
+    {
+      "id": "WAREHOUSE_01",
+      "objectType": "BUILDING",
+      "position": {
+        "x": 38,
+        "y": 4.0,
+        "z": 500
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "WAREHOUSE_A"
+    },
+    {
+      "id": "TEST_GARAGE_01",
+      "objectType": "BUILDING",
+      "position": {
+        "x": -38,
+        "y": 3.5,
+        "z": 555
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "GARAGE_OR_TEST_FACILITY_A"
+    },
+    {
+      "id": "RETAINING_01",
+      "objectType": "BARRIER",
+      "position": {
+        "x": -405.0,
+        "y": 1.5,
+        "z": -205.0
+      },
+      "rotationY": 0.5,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 2.0
+      },
+      "collidable": false,
+      "assetId": "RETAINING_WALL"
+    },
+    {
+      "id": "RETAINING_02",
+      "objectType": "BARRIER",
+      "position": {
+        "x": -350.0,
+        "y": 1.5,
+        "z": -270.0
+      },
+      "rotationY": 1.0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.5
+      },
+      "collidable": false,
+      "assetId": "RETAINING_WALL"
+    },
+    {
+      "id": "SOUND_LEFT_01",
+      "objectType": "BARRIER",
+      "position": {
+        "x": -11,
+        "y": 2.0,
+        "z": 500
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 4
+      },
+      "collidable": false,
+      "assetId": "SOUND_BARRIER"
+    },
+    {
+      "id": "SOUND_RIGHT_01",
+      "objectType": "BARRIER",
+      "position": {
+        "x": 11,
+        "y": 2.0,
+        "z": 390
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 4
+      },
+      "collidable": false,
+      "assetId": "SOUND_BARRIER"
+    },
+    {
+      "id": "ROAD_SIGN_LARGE_01",
+      "objectType": "ROAD_BLOCK",
+      "position": {
+        "x": 18.0,
+        "y": 3.8,
+        "z": 470.0
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 1.0
+      },
+      "collidable": false,
+      "assetId": "LARGE_ROAD_SIGN"
+    },
+    {
+      "id": "HW_BARRIER_01",
+      "objectType": "BARRIER",
+      "position": {
+        "x": -8.0,
+        "y": 0.4,
+        "z": 430.0
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 3.0
+      },
+      "collidable": false,
+      "assetId": "HIGHWAY_BARRIER"
+    },
+    {
+      "id": "HW_BARRIER_02",
+      "objectType": "BARRIER",
+      "position": {
+        "x": 8.0,
+        "y": 0.4,
+        "z": 360.0
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1.0,
+        "y": 1.0,
+        "z": 3.0
+      },
+      "collidable": false,
+      "assetId": "HIGHWAY_BARRIER"
+    },
+    {
+      "id": "SERVICE_OFFICE_02",
+      "objectType": "BUILDING",
+      "position": {
+        "x": 34,
+        "y": 3,
+        "z": 610
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "collidable": false,
+      "assetId": "SMALL_BUILDING_A"
+    },
+    {
+      "id": "SERVICE_GARAGE_02",
+      "objectType": "BUILDING",
+      "position": {
+        "x": -34,
+        "y": 3.5,
+        "z": 470
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "collidable": false,
+      "assetId": "GARAGE_OR_TEST_FACILITY_A"
+    },
+    {
+      "id": "URBAN_SHOP_02",
+      "objectType": "BUILDING",
+      "position": {
+        "x": 45,
+        "y": 3,
+        "z": -330
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "collidable": false,
+      "assetId": "SMALL_BUILDING_A"
+    },
+    {
+      "id": "URBAN_OFFICE_02",
+      "objectType": "BUILDING",
+      "position": {
+        "x": 78,
+        "y": 6,
+        "z": -430
+      },
+      "rotationY": 0,
+      "scale": {
+        "x": 1,
+        "y": 1,
+        "z": 1
+      },
+      "collidable": false,
+      "assetId": "OFFICE_OR_COMMERCIAL_A"
+    }
+  ],
+  "actorSpawnPoints": [
+    {
+      "id": "ACTOR_LEAD_01",
+      "position": {
+        "x": 0,
+        "y": 0.9,
+        "z": 380
+      },
+      "rotationY": 0,
+      "routeId": "MAIN_ROUTE",
+      "allowedActorTypes": [
+        "LEAD_VEHICLE",
+        "GENERIC_TRAFFIC"
+      ],
+      "tags": [
+        "LEAD_VEHICLE_ALLOWED"
+      ]
+    },
+    {
+      "id": "ACTOR_CROSS_01",
+      "position": {
+        "x": 0,
+        "y": 0.9,
+        "z": -500
+      },
+      "rotationY": 0,
+      "routeId": "MAIN_ROUTE",
+      "allowedActorTypes": [
+        "CROSS_TRAFFIC"
+      ],
+      "tags": [
+        "INTERSECTION"
+      ]
+    },
+    {
+      "id": "ACTOR_GENERIC_01",
+      "position": {
+        "x": -335,
+        "y": 0.9,
+        "z": -365
+      },
+      "rotationY": -1.57,
+      "routeId": "MAIN_ROUTE",
+      "allowedActorTypes": [
+        "GENERIC_TRAFFIC"
+      ],
+      "tags": [
+        "CURVE"
+      ]
+    }
+  ],
+  "scenarioTriggerZones": [
+    {
+      "id": "ZONE_STRAIGHT_01",
+      "bounds": {
+        "minX": -20,
+        "maxX": 20,
+        "minZ": 180,
+        "maxZ": 520
+      },
+      "tags": [
+        "LONG_STRAIGHT",
+        "HIGH_SPEED_AVAILABLE"
+      ],
+      "allowedScenarioTypes": [
+        "LONGITUDINAL"
+      ]
+    },
+    {
+      "id": "ZONE_CURVE_02",
+      "bounds": {
+        "minX": -420,
+        "maxX": -220,
+        "minZ": -350,
+        "maxZ": -80
+      },
+      "tags": [
+        "CURVE",
+        "LOW_GRIP_AVAILABLE"
+      ],
+      "allowedScenarioTypes": [
+        "LATERAL",
+        "SURFACE_CHANGE"
+      ]
+    },
+    {
+      "id": "ZONE_INTERSECTION_01",
+      "bounds": {
+        "minX": -90,
+        "maxX": 90,
+        "minZ": -440,
+        "maxZ": -320
+      },
+      "tags": [
+        "INTERSECTION"
+      ],
+      "allowedScenarioTypes": [
+        "INTERSECTION"
+      ]
+    },
+    {
+      "id": "ZONE_DIRT_01",
+      "bounds": {
+        "minX": 250,
+        "maxX": 450,
+        "minZ": -690,
+        "maxZ": -390
+      },
+      "tags": [
+        "LOW_GRIP_AVAILABLE"
+      ],
+      "allowedScenarioTypes": [
+        "SURFACE_CHANGE"
+      ]
+    }
+  ],
+  "minimapConfig": {
+    "routeId": "MAIN_ROUTE",
+    "width": 210,
+    "height": 160,
+    "padding": 14
+  }
+}

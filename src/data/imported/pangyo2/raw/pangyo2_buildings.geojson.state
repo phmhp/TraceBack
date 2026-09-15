@@ -1,0 +1,14 @@
+{
+  "last_release": "2026-08-19.0",
+  "last_run": "2026-09-04T08:22:23.553089+00:00",
+  "theme": "buildings",
+  "type": "building",
+  "bbox": {
+    "xmin": 127.076,
+    "ymin": 37.398,
+    "xmax": 127.098,
+    "ymax": 37.415
+  },
+  "backend": "geojson",
+  "output": "C:\\Users\\user\\Desktop\\Traceback\\src\\data\\imported\\pangyo2\\raw\\pangyo2_buildings.geojson"
+}

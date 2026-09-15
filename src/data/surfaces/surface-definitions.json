@@ -1,0 +1,6 @@
+[
+  { "surfaceType": "ASPHALT_DRY", "friction": 2.2, "rollingResistance": 0.012, "displayMaterial": "ASPHALT_SOFT" },
+  { "surfaceType": "ASPHALT_LOW_GRIP", "friction": 1.15, "rollingResistance": 0.018, "displayMaterial": "ASPHALT_PALE" },
+  { "surfaceType": "GRAVEL", "friction": 0.95, "rollingResistance": 0.035, "displayMaterial": "GRAVEL_SOFT" },
+  { "surfaceType": "DIRT", "friction": 0.72, "rollingResistance": 0.045, "displayMaterial": "DIRT_PASTEL" }
+]
