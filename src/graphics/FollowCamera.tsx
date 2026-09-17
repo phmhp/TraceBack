@@ -17,9 +17,10 @@ export function FollowCamera({ readPose, readState }: { readPose: VehiclePoseRea
     // Constant follow distance: smoothing translation separately caused apparent scale "breathing".
     // Position smoothing already happened in the shared render pose; only heading lags gently.
     const speed = readState?.().speed ?? 0
-    const distance = 7 + Math.min(1.35, speed * .065)
-    camera.position.set(position.x + sin * distance, position.y + 3.1, position.z + cos * distance)
-    camera.lookAt(position.x - sin * 4, position.y + 0.8, position.z - cos * 4)
+    const distance = 9 + Math.min(1.35, speed * .065)
+    camera.position.set(position.x + sin * distance, position.y + 4.3, position.z + cos * distance)
+    // Keep the vehicle above the lower dialogue/HUD region without moving the world.
+    camera.lookAt(position.x - sin * 2, position.y + 0.7, position.z - cos * 2)
     if (camera instanceof PerspectiveCamera) {
       const targetFov = 42 + Math.min(7, speed * .32)
       camera.fov += (targetFov - camera.fov) * (1 - Math.exp(-3 * Math.min(delta, .1)))

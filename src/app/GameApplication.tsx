@@ -10,13 +10,21 @@ import { PANGYO2_MAP_ID, loadMapDefinition } from '../registries/MapRegistry'
 import { createLoadedMap } from '../world/MapLoader'
 import { WorldViewContext } from '../ui/state/WorldViewContext'
 import { TRACKBACK_SIMULATION_CALIBRATION_V0_1 } from '../data/calibration/TrackbackSimulationCalibration'
+import { WasmVehicleSw } from '../runtime/c/WasmVehicleSw'
+import { PropulsionCase } from '../runtime/case/PropulsionCase'
+import { CaseContext } from '../ui/state/CaseContext'
+import buildInfo from '../runtime/c/generated/build.json'
 
 /** Composition root: wires browser input, runtime, engine adapter and UI without reverse imports. */
-export function GameApplication() {
+export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssembly.Module }) {
+  const [incident] = useState(() => new PropulsionCase(
+    () => new WasmVehicleSw(vehicleSwModule, TRACKBACK_SIMULATION_CALIBRATION_V0_1), buildInfo.binaryHash,
+    { forward: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxForwardTorqueNm.value, reverse: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxReverseTorqueNm.value }))
   const [runtime] = useState(() => new SimulationRuntime(TRACKBACK_SIMULATION_CALIBRATION_V0_1, (telemetry) => {
     publishRaceHud(telemetry)
     if (telemetry.raceFinished) useNavigation.getState().finishRace()
-  }))
+  }, undefined, new WasmVehicleSw(vehicleSwModule, TRACKBACK_SIMULATION_CALIBRATION_V0_1)))
+  useLayoutEffect(() => { runtime.configureCase(incident) }, [runtime, incident])
   const [map] = useState(() => createLoadedMap(loadMapDefinition(PANGYO2_MAP_ID)))
   useEffect(() => { const route = map.definition.routes.find((candidate) => candidate.routeId === map.definition.minimapConfig.routeId)!; runtime.configureFinish(route.finishPoint, route.finishHeading ?? 0) }, [map, runtime])
   const screen = useNavigation((s) => s.screen)
@@ -47,7 +55,7 @@ export function GameApplication() {
     if (phase === 'RACE_NORMAL') {
       if (!runtime.clock.running) runtime.start()
       else if (runtime.clock.paused) runtime.resume()
-    } else if (phase === 'PAUSE_MENU') runtime.pause()
+    } else if (phase === 'PAUSE_MENU' || phase === 'XRAY_MODE') runtime.pause()
     else if (phase === 'DEBRIEF') runtime.pause()
     else if (phase === 'MAIN' || phase === 'SESSION_SETUP') runtime.reset()
   }, [completeCountdown, phase, runtime, sessionConfig])
@@ -59,7 +67,7 @@ export function GameApplication() {
   }, [openDebrief, phase])
 
   useEffect(() => {
-    if (screen !== 'race' && screen !== 'xray') return
+    if (screen !== 'race') return
     const lifecycle = {
       acceptsDrivingInput: runtime.acceptsDrivingInput.bind(runtime),
       togglePause: () => phase === 'PAUSE_MENU' ? actions.resume() : actions.pause(),
@@ -73,7 +81,7 @@ export function GameApplication() {
   }, [actions, phase, runtime, screen])
 
   useEffect(() => {
-    if ((screen !== 'race' && screen !== 'xray') || !new URLSearchParams(window.location.search).has('debug')) return
+    if (screen !== 'race' && screen !== 'xray') return
     const onDebugKey = (event: KeyboardEvent) => {
       if (event.code !== 'F9' || event.repeat) return
       event.preventDefault()
@@ -85,7 +93,7 @@ export function GameApplication() {
   }, [enterDebugXRay, screen])
 
   const worldView = useMemo(() => ({ map, readVehicleState: runtime.readVehicleState }), [map, runtime])
-  return <WorldViewContext.Provider value={worldView}><RaceActionsContext.Provider value={actions}>
+  return <CaseContext.Provider value={incident}><WorldViewContext.Provider value={worldView}><RaceActionsContext.Provider value={actions}>
     <App scene={<GameViewport screen={screen} runtime={runtime} map={map} />} />
-  </RaceActionsContext.Provider></WorldViewContext.Provider>
+  </RaceActionsContext.Provider></WorldViewContext.Provider></CaseContext.Provider>
 }

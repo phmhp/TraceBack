@@ -7,5 +7,5 @@ export interface SessionConfig {
 }
 
 export const DEFAULT_SESSION_CONFIG: SessionConfig = {
-  raceLength: 'MEDIUM', incidentCount: 1, difficulty: 'STANDARD',
+  raceLength: 'MEDIUM', incidentCount: 1, difficulty: 'GUIDED',
 }

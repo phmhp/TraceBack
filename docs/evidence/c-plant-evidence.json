@@ -1,0 +1,61 @@
+{
+  "binaryHash": "e1d5c153524ce4850757bb4971831878c770a74cd23c7ba07717fa05f6178aff",
+  "evidence": [
+    {
+      "testCaseId": "TC-PROP-NORMAL-011",
+      "requirementIds": [
+        "SYSR-PROP-010",
+        "SYSR-PROP-011",
+        "SWR-PHY-001",
+        "SWR-PHY-002"
+      ],
+      "testObject": "C SW + TS force adapter + Rapier Plant",
+      "input": {
+        "gear": "D",
+        "accelerator": 1,
+        "initialVelocity": 0,
+        "responseWindow": 1
+      },
+      "expected": {
+        "velocitySign": 1,
+        "accelerationSignedMinimum": 0.05,
+        "nonnegativeVectorSpeed": true
+      },
+      "actual": {
+        "longitudinalVelocity": 5.071441650390625,
+        "longitudinalAcceleration": 5.877599716186523,
+        "vehicleSpeed": 5.071810778787454,
+        "vectorMagnitude": 5.071810778787454
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-012",
+      "requirementIds": [
+        "SYSR-PROP-010",
+        "SYSR-PROP-011",
+        "SWR-PHY-001",
+        "SWR-PHY-002"
+      ],
+      "testObject": "C SW + TS force adapter + Rapier Plant",
+      "input": {
+        "gear": "R",
+        "accelerator": 1,
+        "initialVelocity": 0,
+        "responseWindow": 1
+      },
+      "expected": {
+        "velocitySign": -1,
+        "accelerationSignedMinimum": 0.05,
+        "nonnegativeVectorSpeed": true
+      },
+      "actual": {
+        "longitudinalVelocity": -3.48075795173645,
+        "longitudinalAcceleration": -3.8083934783935547,
+        "vehicleSpeed": 3.4812957474314574,
+        "vectorMagnitude": 3.4812957474314574
+      },
+      "verdict": "PASS"
+    }
+  ]
+}

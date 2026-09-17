@@ -8,10 +8,10 @@ import { DriverInputRuntime } from './driver/DriverInputRuntime.ts'
 import type { Gear } from '../domain/driver/DriverInputTypes.ts'
 import type { SessionConfig } from '../domain/session/SessionConfig.ts'
 import type { DriveTorqueRequest, EDriveCommand, PropulsionRequest, PropulsionState } from '../domain/propulsion/PropulsionTypes.ts'
-import { GearLogic } from './gear/GearLogic.ts'
-import { evaluatePropulsion } from './propulsion/PropulsionFunction.ts'
-import { createDriveTorqueRequest } from './vmc/PropulsionVmc.ts'
-import { createEDriveCommand } from './edrive/EDrive.ts'
+import { LegacyVehicleSw } from './c/LegacyVehicleSw.ts'
+import { calibrationSlots } from './c/VehicleSwPort.ts'
+import type { VehicleSwPort, VehicleSwSnapshot } from './c/VehicleSwPort.ts'
+import type { PropulsionCase } from './case/PropulsionCase.ts'
 
 export interface SimulationPropulsionCalibration {
   keyboardPedalResponse: {
@@ -30,6 +30,7 @@ export interface SimulationPropulsionCalibration {
 
 export type RaceStatus = 'idle' | 'loading' | 'running' | 'paused' | 'error'
 export interface RaceTelemetry {
+  vehicleSw: VehicleSwSnapshot | null
   kind: 'LIVE_SIMULATION'
   speedKmh: number
   simulationTime: number
@@ -54,6 +55,7 @@ export interface RaceTelemetry {
   raceFinished: boolean
 }
 export const INITIAL_TELEMETRY: RaceTelemetry = {
+  vehicleSw: null,
   kind: 'LIVE_SIMULATION', speedKmh: 0, simulationTime: 0,
   accelerator: 0, acceleratorValidity: 'VALID', brake: 0, steering: 0, gear: 'D', gearRequest: 'D', gearStateValidity: 'VALID', transitionAccepted: true,
   propulsionState: 'PROP_DISABLED', propulsionRequest: { magnitude: 0, direction: 'NONE', validity: 'VALID' },
@@ -70,7 +72,10 @@ export class SimulationRuntime {
   private readonly vehicle = createVehicleState()
   private readonly previousPose = createVehiclePose()
   private readonly command: VehiclePhysicsCommand = { driveForce: 0, brakeForce: 0, steering: 0 }
-  private readonly gearLogic = new GearLogic()
+  private readonly vehicleSw: VehicleSwPort
+  private swSnapshot: VehicleSwSnapshot | null = null
+  private executionStep = 0
+  private incident: PropulsionCase | null = null
   private propulsionState: PropulsionState = 'PROP_DISABLED'
   private propulsionRequest: PropulsionRequest = { magnitude: 0, direction: 'NONE', validity: 'VALID' }
   private driveTorqueRequest: DriveTorqueRequest = { magnitudeNm: 0, direction: 'NONE', validity: 'VALID' }
@@ -93,10 +98,12 @@ export class SimulationRuntime {
     calibration: Readonly<SimulationPropulsionCalibration>,
     publish: (telemetry: RaceTelemetry) => void = () => {},
     driverInput = new DriverInputRuntime(),
+    vehicleSw: VehicleSwPort = new LegacyVehicleSw(calibration),
   ) {
-    this.calibration = calibration
+    this.calibration = structuredClone(calibration)
     this.publish = publish
     this.driverInput = driverInput
+    this.vehicleSw = vehicleSw
   }
 
   readonly readVehicleState: VehicleStateReader = () => this.vehicle
@@ -104,6 +111,10 @@ export class SimulationRuntime {
   readonly readInterpolationAlpha = () => !this.clock.running || this.clock.paused ? 1 : Math.min(1, this.accumulator / PHYSICS_TIMESTEP)
   configureFinish(point: { x: number; z: number }, heading: number) { this.finish = { x: point.x, z: point.z, heading } }
   configureSession(config: SessionConfig) { this.sessionConfig = { ...config } }
+  configureCase(incident: PropulsionCase) {
+    if (!this.vehicleSw.setCaseVariant) throw new Error('Case requires a C case-capable backend')
+    this.incident = incident
+  }
   readSessionConfig() { return this.sessionConfig ? { ...this.sessionConfig } : null }
   private copyPreviousPose() {
     Object.assign(this.previousPose.position, this.vehicle.position)
@@ -111,7 +122,10 @@ export class SimulationRuntime {
   }
   private resetLogicalState() {
     this.driverInput.reset()
-    this.gearLogic.reset()
+    this.vehicleSw.reset()
+    this.incident?.reset()
+    this.swSnapshot = null
+    this.executionStep = 0
     this.vehicle.gearState = 'D'
     this.vehicle.longitudinalAcceleration = 0
     this.previousLongitudinalVelocity = 0
@@ -199,23 +213,31 @@ export class SimulationRuntime {
     while (this.accumulator + 1e-10 >= PHYSICS_TIMESTEP) {
       this.driverInput.advance(PHYSICS_TIMESTEP, this.calibration.keyboardPedalResponse)
       const input = this.driverInput.getState()
-      const gear = this.gearLogic.update(input.gearRequest, input.gearRequestValidity, this.vehicle.longitudinalVelocity,
-        this.calibration.gearDirectionChangeMaxSpeedMps.value)
-      this.vehicle.gearState = gear.gearState
-      const propulsion = evaluatePropulsion({
+      const swInput = {
         acceleratorPedalPosition: input.accelerator,
         acceleratorPedalValidity: input.acceleratorValidity,
-        gearState: gear.gearState,
-        gearStateValidity: gear.gearStateValidity,
+        gearRequest: input.gearRequest,
+        gearRequestValidity: input.gearRequestValidity,
         vehicleReady: this.physics !== null,
         propulsionEnable: true,
-      })
-      this.propulsionState = propulsion.state
-      this.propulsionRequest = propulsion.request
-      this.driveTorqueRequest = createDriveTorqueRequest(propulsion.request, this.vehicle.speed,
-        this.calibration.vmcForwardTorqueMap, this.calibration.vmcReverseTorqueMap)
-      this.eDriveCommand = createEDriveCommand(this.driveTorqueRequest,
-        this.calibration.maxForwardTorqueNm.value, this.calibration.maxReverseTorqueNm.value)
+        longitudinalVelocity: this.vehicle.longitudinalVelocity,
+        vehicleSpeed: this.vehicle.speed,
+      }
+      let swOutput
+      if (this.incident) this.vehicleSw.setCaseVariant?.(this.incident.beforeStep(swInput, input.brake, input.steering, PHYSICS_TIMESTEP))
+      try { swOutput = this.vehicleSw.step(swInput) }
+      catch (error) { this.fail(error instanceof Error ? error.message : 'Vehicle SW failed'); return }
+      this.swSnapshot = {
+        source: this.vehicleSw.source, step: ++this.executionStep,
+        executionTime: (this.executionStep - 1) * PHYSICS_TIMESTEP, periodSeconds: PHYSICS_TIMESTEP,
+        input: swInput, output: swOutput,
+        calibrationReference: 'TRACKBACK_SIMULATION_CALIBRATION_V0_1', calibration: calibrationSlots(this.calibration),
+      }
+      this.vehicle.gearState = swOutput.gearState
+      this.propulsionState = swOutput.propulsionState
+      this.propulsionRequest = swOutput.propulsionRequest
+      this.driveTorqueRequest = swOutput.driveTorqueRequest
+      this.eDriveCommand = swOutput.eDriveCommand
       writeEDrivePhysicsCommand(this.eDriveCommand, this.calibration.torqueToForce.value, input.brake > 0, this.command)
       writeTemporaryBrakeCommand(input, this.command)
       writeTemporarySteeringCommand(input, this.vehicle.speed, this.command)
@@ -236,6 +258,10 @@ export class SimulationRuntime {
         this.vehicle.longitudinalAcceleration = (this.vehicle.longitudinalVelocity - this.previousLongitudinalVelocity) / PHYSICS_TIMESTEP
       }
       this.previousLongitudinalVelocity = this.vehicle.longitudinalVelocity
+      if (this.incident?.afterStep(this.swSnapshot, this.vehicle, this.command, input.brake, input.steering)) {
+        this.pause()
+        return
+      }
       if (!this.raceFinished && this.finish) {
         const dx = this.vehicle.position.x - this.finish.x; const dz = this.vehicle.position.z - this.finish.z
         const forward = dx * Math.sin(this.finish.heading) + dz * Math.cos(this.finish.heading)
@@ -252,11 +278,12 @@ export class SimulationRuntime {
   private publishNow() {
     const input = this.driverInput.getState()
     this.publish({
+      vehicleSw: this.swSnapshot ? structuredClone(this.swSnapshot) : null,
       kind: 'LIVE_SIMULATION', speedKmh: this.vehicle.speed * 3.6,
       simulationTime: this.clock.currentTime,
       accelerator: input.accelerator, acceleratorValidity: input.acceleratorValidity, brake: input.brake, steering: input.steering,
-      gear: this.vehicle.gearState, gearRequest: input.gearRequest, gearStateValidity: this.gearLogic.readState().gearStateValidity,
-      transitionAccepted: this.gearLogic.readState().transitionAccepted,
+      gear: this.vehicle.gearState, gearRequest: input.gearRequest, gearStateValidity: this.swSnapshot?.output.gearStateValidity ?? 'VALID',
+      transitionAccepted: this.swSnapshot?.output.transitionAccepted ?? true,
       propulsionState: this.propulsionState, propulsionRequest: { ...this.propulsionRequest },
       driveTorqueRequest: { ...this.driveTorqueRequest }, eDriveCommand: { ...this.eDriveCommand },
       longitudinalVelocity: this.vehicle.longitudinalVelocity,

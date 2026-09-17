@@ -12,3 +12,6 @@
 .req-map-node small{font-size:9px;color:#86b9b0;line-height:12px}.req-map-node b{font-size:12px;line-height:18px;white-space:nowrap}.req-map-node span{font-size:10px;line-height:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.req-map-node.test{border-color:#9e84b2;background:#242537}.req-map-node.selected{border:2px solid #81e3c7;background:#22463f}.req-map-node:focus-visible{outline:2px solid white;outline-offset:2px}
 .req-map-detail{overflow:auto;min-height:0;padding:10px 14px;border-top:1px solid #4b6568;background:#f6f7f1;color:#213c3e;font-size:11px;line-height:1.6;user-select:text}
 .req-map-detail>header{display:flex;justify-content:space-between;gap:10px;font-size:12px}.req-map-detail p{margin:5px 0;font-size:12px}.req-map-detail dl{margin:5px 0}.req-map-detail dl>div{display:grid;grid-template-columns:80px minmax(0,1fr);gap:8px}.req-map-detail dd{margin:0}.req-map-detail dt{color:#526e6a}
+.c-test-evidence { margin-top: .8rem; padding: .6rem; border: 1px solid #7b989a; }
+.c-test-evidence details { margin-top: .5rem; }
+.c-test-evidence pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #182b30; background: #fafbf7; padding: .75rem; font-size: .75rem; }

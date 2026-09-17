@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "caseId": "CASE-PT-001",
+  "version": "0.2.0",
+  "status": "PROTOTYPE_IMPLEMENTED_PLAYTEST_REQUIRED",
+  "classification": "AUTHOR_ONLY_NOT_IMPORTED_BY_PLAYER_UI",
+  "runtimeImplemented": true,
+  "fault": {"location": "C eDrive magnitude calculation", "mechanism": "UNINTENDED_MAGNITUDE_SCALING", "gain": 0.5, "rule": "0.5 * min(inputMagnitudeNm, directionalLimitNm)", "preserveDirectionAndValidity": true},
+  "activation": {
+    "timebase": "simulation invocation time",
+    "gear": "D", "vehicleReady": true, "propulsionEnable": true, "validity": "VALID",
+    "pedalRange": [0.2, 1], "minimumVehicleSpeedMps": 0.3, "maxBrake": 0.01, "maxAbsSteering": 0.35,
+    "requireOnRoad": false, "stablePreconditionSeconds": 0.75, "minimumSessionSeconds": 3,
+    "postIncidentStableSeconds": 2, "oneActivationPerSession": true,
+    "fallback": "GUIDED_STANDARD_REPRODUCTION_USING_ACTUAL_C"
+  },
+  "recording": {"sampleAt": "EVERY_SW_INVOCATION", "nominalHz": 60, "ringSeconds": 15, "preEventSeconds": 5, "postEventSeconds": 2, "interpolateForVerdict": false, "gapsInvalidateEvidence": true},
+  "answer": {
+    "component": "eDrive", "mechanism": "UNINTENDED_MAGNITUDE_SCALING", "requirementId": "SWR-EDR-001",
+    "requireExactSourceLocation": false, "requireExactGain": false,
+    "evidencePredicates": ["VALID_SAME_INVOCATION_INPUT_OUTPUT_MISMATCH", "TWO_DISTINCT_INPUTS_SUPPORT_RATIO_HYPOTHESIS"],
+    "doNotMarkSysrBoundednessAloneAsViolation": "SYSR-PROP-009",
+    "fixedCapAlternativeNm": 45
+  },
+  "repairs": [
+    {"id": "RESTORE_CONTRACT", "label": "불필요한 비율 감소를 제거하고 방향별 제한을 유지한다", "rule": "min(inputMagnitudeNm, directionalLimitNm)", "expectedToPassAll": true},
+    {"id": "COMPENSATE_REQUEST", "label": "입력 요청을 두 배로 보상한다", "rule": "0.5 * min(2 * inputMagnitudeNm, directionalLimitNm)", "expectedToPassAll": false},
+    {"id": "REMOVE_LIMIT", "label": "출력 상한 제한을 해제한다", "rule": "0.5 * inputMagnitudeNm", "expectedToPassAll": false}
+  ],
+  "vectorNote": "Explicit design expectations only; not executed fault/repair C results. VALID nonzero directional inputs unless stated. All repair variants preserve baseline zero/invalid handling.",
+  "vectors": [
+    {"id": "PAIR-45", "direction": "FORWARD", "inputNm": 45, "normalNm": 45, "faultNm": 22.5, "compensatedNm": 45, "limitRemovedNm": 22.5},
+    {"id": "PAIR-90", "direction": "FORWARD", "inputNm": 90, "normalNm": 90, "faultNm": 45, "compensatedNm": 90, "limitRemovedNm": 45},
+    {"id": "PAIR-120", "direction": "FORWARD", "inputNm": 120, "normalNm": 120, "faultNm": 60, "compensatedNm": 90, "limitRemovedNm": 60},
+    {"id": "FWD-BELOW", "direction": "FORWARD", "inputNm": 179, "normalNm": 179, "faultNm": 89.5, "compensatedNm": 90, "limitRemovedNm": 89.5},
+    {"id": "FWD-AT", "direction": "FORWARD", "inputNm": 180, "normalNm": 180, "faultNm": 90, "compensatedNm": 90, "limitRemovedNm": 90},
+    {"id": "FWD-ABOVE", "direction": "FORWARD", "inputNm": 181, "normalNm": 180, "faultNm": 90, "compensatedNm": 90, "limitRemovedNm": 90.5},
+    {"id": "FWD-HIGH", "direction": "FORWARD", "inputNm": 600, "normalNm": 180, "faultNm": 90, "compensatedNm": 90, "limitRemovedNm": 300},
+    {"id": "REV-BELOW", "direction": "REVERSE", "inputNm": 129, "normalNm": 129, "faultNm": 64.5, "compensatedNm": 65, "limitRemovedNm": 64.5},
+    {"id": "REV-AT", "direction": "REVERSE", "inputNm": 130, "normalNm": 130, "faultNm": 65, "compensatedNm": 65, "limitRemovedNm": 65},
+    {"id": "REV-ABOVE", "direction": "REVERSE", "inputNm": 131, "normalNm": 130, "faultNm": 65, "compensatedNm": 65, "limitRemovedNm": 65.5},
+    {"id": "REV-HIGH", "direction": "REVERSE", "inputNm": 400, "normalNm": 130, "faultNm": 65, "compensatedNm": 65, "limitRemovedNm": 200}
+  ],
+  "regressionRefs": ["TC-PROP-NORMAL-001", "TC-PROP-NORMAL-002", "TC-PROP-NORMAL-003", "TC-PROP-NORMAL-004", "TC-PROP-NORMAL-006A", "TC-PROP-NORMAL-006B", "TC-PROP-NORMAL-007", "TC-PROP-NORMAL-008", "TC-PROP-NORMAL-010A", "TC-PROP-NORMAL-010B", "TC-PROP-NORMAL-011", "TC-PROP-NORMAL-012", "TC-PROP-NORMAL-013", "TC-PROP-NORMAL-014"],
+  "stateFlow": ["READY", "DRIVING", "INCIDENT_CAPTURED", "INVESTIGATING", "DIAGNOSIS_SUBMITTED", "EXPLAINED", "FIX_SELECTED", "RETESTING", "RESOLVED"],
+  "resetPolicy": "Restart/quit clears fault, selected repair, recording and all case state; first submission preserved only in the completed report."
+}

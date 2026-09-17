@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "caseId": "CASE-PT-001",
+  "version": "0.2.0",
+  "status": "PROTOTYPE_IMPLEMENTED_PLAYTEST_REQUIRED",
+  "runtimeImplemented": true,
+  "title": "가속이 약해진 이유",
+  "domain": "POWERTRAIN / PROPULSION",
+  "scope": "추진 Application SW 내부의 단일 결함. 통신·Task·Monitor·노면 변화는 이번 사건의 원인 후보가 아닙니다.",
+  "sourceCodeVisible": false,
+  "dialogue": ["어라? 가속 페달을 밟고 있는데 차가 잘 안 나가네!", "방금 상황을 기록했어. 함께 확인해 볼까?"],
+  "tabs": [
+    {"id": "incident", "label": "사건", "question": "어떤 상황에서 기대와 달랐을까?"},
+    {"id": "signals", "label": "신호 추적", "question": "어느 경계부터 값이 달라졌을까?"},
+    {"id": "requirements", "label": "동작 근거", "question": "이 조건에서 어느 출력이 맞을까?"},
+    {"id": "experiments", "label": "확인 시험", "question": "어떤 시험으로 가설을 구분할까?"},
+    {"id": "diagnosis", "label": "원인 제출", "question": "무엇을 근거로 판단했을까?"}
+  ],
+  "componentPath": ["DriverInput", "GearLogic", "PropulsionFunction", "VMC", "eDrive"],
+  "requirementRefs": ["SYSR-PROP-001", "SYSR-PROP-002", "SYSR-PROP-003", "SYSR-PROP-009", "SWR-PROP-001", "SWR-PROP-002", "SWR-PROP-003", "SWR-VMC-001", "SWR-EDR-001"],
+  "calibrationReference": "TRACKBACK_SIMULATION_CALIBRATION_v0.1",
+  "calibrationStatus": "REVIEW_REQUIRED",
+  "calibrationValues": {"forwardLimitNm": 180, "reverseLimitNm": 130},
+  "normalContract": {
+    "requirementId": "SWR-EDR-001",
+    "precondition": "VALID, FORWARD 또는 REVERSE, nonnegative torque magnitude",
+    "statement": "방향별 한계 이하의 토크 크기는 그대로 유지하고, 초과하는 크기만 한계까지 제한합니다. 방향과 유효성을 보존합니다.",
+    "expectedRule": "min(inputMagnitudeNm, directionalLimitNm)",
+    "zeroAndInvalid": "zero/NONE/INVALID는 기존 정상 baseline 회귀로 별도 확인합니다."
+  },
+  "signalGroups": {
+    "initial": ["AcceleratorPedalPosition", "PropulsionRequestMagnitude"],
+    "transfer": ["DriveTorqueRequestMagnitude", "EDriveConsumedTorqueMagnitude"],
+    "response": ["EDriveConsumedTorqueMagnitude", "EDriveTorqueCommandMagnitude", "EDriveDirection", "EDriveCommandValidity"],
+    "conditions": ["GearState", "VehicleReady", "PropulsionEnable", "AcceleratorPedalValidity", "GearStateValidity", "Brake", "VehicleSpeed", "EDriveConsumedValidity", "EDriveConsumedDirection"]
+  },
+  "experiments": [
+    {"id": "TC-CASE-PT-001-PAIR", "testObject": "eDrive C component harness", "editableInputs": {"torqueMagnitudeNm": [45, 90, 120]}, "selectionCount": 2, "distinctSelectionsRequired": true, "defaultInputsNm": [45, 90], "direction": "FORWARD", "validity": "VALID", "toleranceNm": 0.000001, "resetBeforeEachSample": true},
+    {"id": "TC-CASE-PT-001-LIMIT", "testObject": "eDrive C component harness", "editableInputs": {}, "inputsNm": [179, 180, 181, 600], "direction": "FORWARD", "validity": "VALID", "toleranceNm": 0.000001, "resetBeforeEachSample": true}
+  ],
+  "submissionFields": ["component", "mechanism", "requirementId", "evidenceIds", "confirmationTestRunId"],
+  "minimumIndependentEvidence": 2,
+  "finalSubmissionRevealsAnswer": true,
+  "firstSubmissionImmutable": true,
+  "investigationTimeLimitSeconds": null,
+  "verdicts": ["PASS", "FAIL", "INVALID_TEST", "INCONCLUSIVE"],
+  "completion": "해설 후 수정안을 선택하고 실제 재현·회귀시험을 통과합니다."
+}

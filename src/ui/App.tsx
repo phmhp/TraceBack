@@ -5,7 +5,7 @@ import type { Screen } from './state/navigation'
 import { MainScreen } from './screens/MainScreen'
 import { SessionSetupScreen } from './screens/SessionSetupScreen'
 import { RaceScreen } from './screens/RaceScreen'
-import { XRayScreen } from './screens/XRayScreen'
+import { CaseXRayScreen } from './screens/CaseXRayScreen'
 import { DebriefScreen } from './screens/DebriefScreen'
 
 
@@ -13,7 +13,7 @@ const screens: Record<Screen, { label: string; component: ComponentType }> = {
   main: { label: 'MAIN', component: MainScreen },
   setup: { label: 'SESSION SETUP', component: SessionSetupScreen },
   race: { label: 'RACE', component: RaceScreen },
-  xray: { label: 'X-RAY', component: XRayScreen },
+  xray: { label: 'X-RAY', component: CaseXRayScreen },
   debrief: { label: 'DEBRIEF', component: DebriefScreen },
 }
 

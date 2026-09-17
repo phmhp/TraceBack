@@ -10,6 +10,7 @@ import { phase2Physics } from '../physics/rapier/phase2Config'
 import type { LoadedMap } from '../world/MapLoader'
 import { VehicleShadowLight } from '../graphics/VehicleShadowLight'
 import { useRaceHud } from '../ui/state/raceHud'
+import { useCase } from '../ui/state/CaseContext'
 
 const RaceViewport = lazy(() => import('../graphics/RaceViewport'))
 const RapierWorld = lazy(() => import('../physics/RapierWorld').then((m) => ({ default: m.RapierWorld })))
@@ -21,6 +22,11 @@ class PhysicsBoundary extends Component<{ runtime: SimulationRuntime; children: 
   render() { return this.state.failed ? null : this.props.children }
 }
 export function GameViewport({ screen, runtime, map }: { screen: Screen; runtime: SimulationRuntime; map: LoadedMap }) {
+  const { state } = useCase()
+  const recorded = screen === 'xray' ? state.frames[state.selected] : undefined
+  const readState = useCallback(() => recorded?.plant ?? runtime.readVehicleState(), [recorded, runtime])
+  const readPrevious = useCallback(() => recorded?.plant ?? runtime.readPreviousPose(), [recorded, runtime])
+  const readAlpha = useCallback(() => recorded?.plant ? 1 : runtime.readInterpolationAlpha(), [recorded, runtime])
   const celebrating = useRaceHud((state) => state.raceFinished)
   const presentedPose = useRef(createVehiclePose())
   const readPresentedPose = useCallback(() => presentedPose.current, [])
@@ -36,10 +42,10 @@ export function GameViewport({ screen, runtime, map }: { screen: Screen; runtime
       </PhysicsBoundary>}
       {drivingView && <>
         <MapRenderer map={map.definition} />
-        <VehicleRenderer readState={runtime.readVehicleState} readPreviousPose={runtime.readPreviousPose}
-          readAlpha={runtime.readInterpolationAlpha} presentedPose={presentedPose.current}
-          originOffsetY={phase2Physics.visualOriginOffsetY} readSteering={() => runtime.driverInput.getState().steering} celebrating={celebrating} />
-        <FollowCamera readPose={readPresentedPose} readState={runtime.readVehicleState} />
+        <VehicleRenderer readState={readState} readPreviousPose={readPrevious}
+          readAlpha={readAlpha} presentedPose={presentedPose.current}
+          originOffsetY={phase2Physics.visualOriginOffsetY} readSteering={() => recorded?.steering ?? runtime.driverInput.getState().steering} celebrating={celebrating} />
+        <FollowCamera readPose={readPresentedPose} readState={readState} />
         <VehicleShadowLight readPose={readPresentedPose}/>
       </>}
     </RaceViewport>
