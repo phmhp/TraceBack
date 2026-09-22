@@ -36,7 +36,7 @@ export function RequirementsExplorer({component,tcId:_tcId,initialRequirement,on
       <div className="requirement-map-frame"><RequirementMap key={`${validComponent}:${showAll}`} componentFilter={showAll?undefined:validComponent} embedded onComponent={id=>onComponent?.(id)} initialRequirement={reqId} onRequirement={selectReq} onTest={id=>selectTc(id)}/></div>
     </section>
     <aside className="requirement-detail-panel">
-      <small>3 · 요구사항 상세</small><CaseRequirementReference id={reqId} onSelect={selectReq} onOpenMap={()=>undefined} frame={state.frames[state.selected]}/>
+      <small>3 · 요구사항 상세</small><CaseRequirementReference id={reqId} onSelect={selectReq} frame={state.frames[state.selected]}/>
       <section className="requirement-linked-tests"><h3>연결된 시험</h3>{relatedTests.length?relatedTests.map(id=><button key={id} onClick={()=>selectTc(id)}><code>{id}</code><span>{benchTarget(id)?'시험 기준 선택':'문서 참조'}</span></button>):<p>연결된 시험이 없습니다.</p>}</section>
       <button className="primary navigation-action" disabled={!relatedTests.some(benchTarget)} onClick={()=>{const id=relatedTests.find(benchTarget);if(id)onBench(id)}}>재현 시험 바로가기 →</button>
     </aside>
