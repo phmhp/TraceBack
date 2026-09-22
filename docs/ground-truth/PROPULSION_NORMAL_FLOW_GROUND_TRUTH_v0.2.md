@@ -1,3 +1,5 @@
+> LEGACY — 이전 설계/계약 기록입니다. 현재 X-RAY 구현 범위와 canonical source는 docs/cases/INVESTIGATION_WORKSPACE_CURRENT.md를 참조하십시오. 원문은 이 아래에 보존합니다.
+
 # TRACKBACK Propulsion Normal Flow Ground Truth Approval Package v0.2
 
 > **Package status: `REVIEW_REQUIRED`**  
@@ -232,3 +234,4 @@ Enable/gating violation, invalid input acceptance, pedal-map deviation, zero-inp
 **Gate result: `READY_FOR_USER_APPROVAL`**
 
 사용자가 승인하기 전까지 `status=REVIEW_REQUIRED`, `runtimeEligibility=false`를 유지한다. 승인 후에만 status/schema loader 및 Propulsion Vertical Slice Runtime 구현 단계로 이동한다.
+

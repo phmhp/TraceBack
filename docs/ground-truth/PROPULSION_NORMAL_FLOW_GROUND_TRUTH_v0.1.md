@@ -1,3 +1,5 @@
+> LEGACY — 이전 설계/계약 기록입니다. 현재 X-RAY 구현 범위와 canonical source는 docs/cases/INVESTIGATION_WORKSPACE_CURRENT.md를 참조하십시오. 원문은 이 아래에 보존합니다.
+
 # TRACKBACK Propulsion Normal Flow Ground Truth Approval Package v0.1
 
 > **Package status: REVIEW_REQUIRED**  
@@ -516,3 +518,4 @@ Propulsion Logic 내부를 State Manager/Pedal Interpreter/Request Manager 등 �
 7. Signal/Requirement/Test 목록의 승인 또는 수정
 
 승인 후 문서 status를 `APPROVED`, `runtimeEligibility: true`로 변경하고 schema/loader 구현을 다음 Phase로 시작한다.
+

@@ -22,10 +22,10 @@
         "nonnegativeVectorSpeed": true
       },
       "actual": {
-        "longitudinalVelocity": 5.071441650390625,
-        "longitudinalAcceleration": 5.877599716186523,
-        "vehicleSpeed": 5.071810778787454,
-        "vectorMagnitude": 5.071810778787454
+        "longitudinalVelocity": 4.50949764251709,
+        "longitudinalAcceleration": 6.138095855712891,
+        "vehicleSpeed": 4.509912765273294,
+        "vectorMagnitude": 4.509912765273294
       },
       "verdict": "PASS"
     },
@@ -50,10 +50,10 @@
         "nonnegativeVectorSpeed": true
       },
       "actual": {
-        "longitudinalVelocity": -3.48075795173645,
-        "longitudinalAcceleration": -3.8083934783935547,
-        "vehicleSpeed": 3.4812957474314574,
-        "vectorMagnitude": 3.4812957474314574
+        "longitudinalVelocity": -3.114246368408203,
+        "longitudinalAcceleration": -4.034671783447266,
+        "vehicleSpeed": 3.1148474450045716,
+        "vectorMagnitude": 3.1148474450045716
       },
       "verdict": "PASS"
     }

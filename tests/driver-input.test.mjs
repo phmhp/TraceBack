@@ -29,13 +29,13 @@ test('keyboard pedal targets rise and release progressively at fixed-tick rates'
   const input = new DriverInputRuntime()
   input.setAccelerator(1)
   input.advance(0.25, response)
-  assert.equal(input.getState().accelerator, 0.45)
+  assert.equal(input.getState().accelerator, response.acceleratorRisePerSecond * 0.25)
   input.setAccelerator(0)
   input.advance(0.1, response)
-  assert.ok(Math.abs(input.getState().accelerator - 0.15) < 1e-12)
+  assert.ok(Math.abs(input.getState().accelerator - Math.max(0, response.acceleratorRisePerSecond * 0.25 - response.acceleratorFallPerSecond * 0.1)) < 1e-12)
   input.setBrake(1)
   input.advance(0.1, response)
-  assert.ok(Math.abs(input.getState().brake - 0.36) < 1e-12)
+  assert.ok(Math.abs(input.getState().brake - response.brakeRisePerSecond * 0.1) < 1e-12)
 })
 
 test('pure keyboard mapping handles press/release, neutral steering and independent pedals', () => {
@@ -131,7 +131,7 @@ test('SimulationRuntime samples DriverInput at physics tick and publishes it onl
   assert.equal(publications.length, 1)
   assert.deepEqual(
     { accelerator: publications[0].accelerator, brake: publications[0].brake, steering: publications[0].steering, gear: publications[0].gear },
-    { accelerator: 0.18, brake: 0, steering: -0.25, gear: 'D' },
+    { accelerator: 0.135, brake: 0, steering: -0.25, gear: 'D' },
   )
   runtime.pause()
   assert.equal(runtime.driverInput.getState().accelerator, 0); assert.equal(runtime.driverInput.getState().gearRequest, 'D')

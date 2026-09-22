@@ -13,7 +13,7 @@ export function RacePauseOverlay({ onResume }: { onResume: () => void }) {
     <div className="pause-actions"><button type="button" onClick={() => setConfirmation(null)}>CANCEL</button><button type="button" className="danger-action" onClick={confirmation === 'restart' ? restart : quitToMain}>CONFIRM</button></div>
   </div></div>
   return <div className="race-pause" role="dialog" aria-modal="true" aria-label="Pause menu"><div className="pause-card">
-    <small>TRACKBACK</small><h2>{status === 'paused' ? 'PAUSED' : status === 'error' ? 'PHYSICS ERROR' : 'LOADING'}</h2>
+    <small>TRACKBACK</small><h2>{status === 'paused' ? 'PAUSED' : status === 'error' ? '주행 중단' : 'LOADING'}</h2>
     {status === 'paused' ? <div className="pause-menu">
       <button type="button" autoFocus onClick={onResume}>CONTINUE</button>
       <button type="button" onClick={() => setSettings((value) => !value)}>SETTINGS</button>
@@ -21,5 +21,6 @@ export function RacePauseOverlay({ onResume }: { onResume: () => void }) {
       <button type="button" onClick={() => setConfirmation('restart')}>RESTART RACE</button>
       <button type="button" onClick={() => setConfirmation('quit')}>QUIT TO MAIN</button>
     </div> : <p>{error ?? '물리 엔진을 준비하고 있습니다.'}</p>}
+    {status === 'error' && <button onClick={restart}>레이스 다시 시작</button>}
   </div></div>
 }

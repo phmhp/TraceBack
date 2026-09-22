@@ -37,7 +37,7 @@ export const useNavigation = create<GameFlowState>((set) => ({
   enterDebugXRay: () => set(({ phase }) => phase === 'RACE_NORMAL' || phase === 'PAUSE_MENU' ? { phase: 'XRAY_MODE', screen: 'xray' } : {}),
   leaveXRay: () => set(({ phase }) => phase === 'XRAY_MODE' ? { phase: 'RACE_NORMAL', screen: 'race' } : {}),
   next: () => set(({ screen, draftConfig }) => screen === 'main'
-    ? { phase: 'SESSION_SETUP', screen: 'setup' }
+    ? { sessionConfig: { ...draftConfig }, phase: 'RACE_COUNTDOWN', screen: 'race' }
     : screen === 'setup' ? { sessionConfig: { ...draftConfig }, phase: 'RACE_COUNTDOWN', screen: 'race' } : {}),
   back: () => set(({ screen, phase }) => screen === 'setup'
     ? { phase: 'MAIN', screen: 'main' }

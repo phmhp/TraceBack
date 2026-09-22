@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 1, "canonicalSource": "src/runtime/investigation/CaseDefinition.ts",
   "caseId": "CASE-PT-001",
   "version": "0.2.0",
-  "status": "PROTOTYPE_IMPLEMENTED_PLAYTEST_REQUIRED",
+  "status": "LEGACY_DESIGN_SNAPSHOT",
   "runtimeImplemented": true,
   "title": "가속이 약해진 이유",
   "domain": "POWERTRAIN / PROPULSION",
@@ -46,3 +46,4 @@
   "verdicts": ["PASS", "FAIL", "INVALID_TEST", "INCONCLUSIVE"],
   "completion": "해설 후 수정안을 선택하고 실제 재현·회귀시험을 통과합니다."
 }
+

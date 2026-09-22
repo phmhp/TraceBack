@@ -13,7 +13,7 @@ test('session setup commits a real immutable-by-copy runtime configuration', () 
   resetFlow()
   const flow = useNavigation.getState()
   flow.next()
-  assert.equal(useNavigation.getState().phase, 'SESSION_SETUP')
+  assert.equal(useNavigation.getState().phase, 'RACE_COUNTDOWN')
   useNavigation.getState().updateDraft({ raceLength: 'LONG', incidentCount: 3, difficulty: 'EXPERT' })
   useNavigation.getState().startSession()
   const config = useNavigation.getState().sessionConfig

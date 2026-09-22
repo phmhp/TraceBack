@@ -1,5 +1,5 @@
 import type { XRayNodeId } from '../../data/ground-truth/PropulsionGroundTruth'
-
+import { architectureNode, componentIds, requirementsFor } from '../../registries/investigation/Architecture'
 export interface XRayNodeDefinition {
   id: XRayNodeId
   label: string
@@ -10,12 +10,8 @@ export interface XRayNodeDefinition {
   outputs: string[]
   requirementIds: string[]
 }
-
-export const xrayNodeRegistry: XRayNodeDefinition[] = [
-  { id:'DriverInput', label:'Driver Input', layer:'FUNCTION_FLOW', domain:'DRIVER', domainLabel:'DRIVER INTERFACE', inputs:[], outputs:['AcceleratorPedalPosition','GearRequest','Brake','Steering'], requirementIds:['SYSR-PROP-001'] },
-  { id:'GearLogic', label:'Gear Logic', layer:'FUNCTION_FLOW', domain:'POWERTRAIN', domainLabel:'POWERTRAIN / PROPULSION', inputs:['GearRequest','LongitudinalVelocity'], outputs:['GearState','GearStateValidity'], requirementIds:['SYSR-GEAR-001'] },
-  { id:'PropulsionFunction', label:'Propulsion Function', layer:'FUNCTION_FLOW', domain:'POWERTRAIN', domainLabel:'POWERTRAIN / PROPULSION', inputs:['AcceleratorPedalPosition','GearState','VehicleReady','PropulsionEnable'], outputs:['PropulsionRequestMagnitude','PropulsionRequestDirection','PropulsionRequestValidity'], requirementIds:['SYSR-PROP-007'] },
-  { id:'VMC', label:'VMC', layer:'FUNCTION_FLOW', domain:'POWERTRAIN', domainLabel:'POWERTRAIN / PROPULSION', inputs:['PropulsionRequest'], outputs:['DriveTorqueRequest'], requirementIds:['SYSR-PROP-009'] },
-  { id:'eDrive', label:'eDrive', layer:'FUNCTION_FLOW', domain:'POWERTRAIN', domainLabel:'POWERTRAIN / PROPULSION', inputs:['DriveTorqueRequest'], outputs:['EDriveTorqueCommand'], requirementIds:['SYSR-PROP-009'] },
-  { id:'VehiclePhysics', label:'Vehicle Physics', layer:'FUNCTION_FLOW', domain:'PLANT', domainLabel:'PLANT', inputs:['EDriveTorqueCommand'], outputs:['VehicleSpeed','LongitudinalVelocity','LongitudinalAcceleration'], requirementIds:['SYSR-PROP-011'] },
-]
+/** Legacy screen adapter; component metadata is owned by the architecture registry. */
+export const xrayNodeRegistry: XRayNodeDefinition[] = componentIds.map(id => {
+  const node = architectureNode(id)
+  return { id, label: node.label, layer: 'FUNCTION_FLOW', domain: node.kind === 'DRIVER' ? 'DRIVER' : node.kind === 'PLANT' ? 'PLANT' : 'POWERTRAIN', domainLabel: node.area, inputs: node.inputs, outputs: node.outputs, requirementIds: requirementsFor(id).map(r => r.id) }
+})

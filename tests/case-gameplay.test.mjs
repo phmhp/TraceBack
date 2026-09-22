@@ -40,7 +40,7 @@ test('record → evidence → experiment → immutable diagnosis → wrong fixes
   assert.ok(c.runRepair(3).rows.some(r=>!r.pass))
   assert.equal(c.getSnapshot().phase,'SUBMITTED')
   const repaired=c.runRepair(0)
-  assert.equal(repaired.rows.length,18)
+  assert.equal(repaired.rows.length,20)
   assert.ok(repaired.rows.every(r=>r.pass))
   assert.equal(c.getSnapshot().phase,'RESOLVED')
   assert.deepEqual(c.getSnapshot().frames,frames)
@@ -49,7 +49,7 @@ test('record → evidence → experiment → immutable diagnosis → wrong fixes
 })
 test('normal frame is not valid failure evidence; incorrect answer can still learn and repair', () => {
   const c=makeCase();c.reproduce();c.select(0);c.pin();c.runExperiment(45,90)
-  c.submit('eDrive','scaling','SWR-EDR-001');assert.equal(c.getSnapshot().diagnosis.correct,false)
+  c.submit('eDrive','scaling','SWR-EDR-001');assert.equal(c.getSnapshot().diagnosis.correct,true);assert.equal(c.getSnapshot().diagnosis.evidenceSufficient,false)
   c.runRepair(0);assert.equal(c.getSnapshot().phase,'RESOLVED')
 })
 test('player can test a normal upstream component without treating PASS as fault evidence', () => {
@@ -59,9 +59,9 @@ test('player can test a normal upstream component without treating PASS as fault
   assert.deepEqual(c.getSnapshot().experiment.rows.map(r=>[r.actual,r.expected,r.pass]),[[45,45,true],[90,90,true]])
   assert.throws(()=>c.runExperiment(45,90,'VMC'))
   c.submit('eDrive','scaling','SWR-EDR-001')
-  assert.equal(c.getSnapshot().diagnosis.correct,false)
+  assert.equal(c.getSnapshot().diagnosis.correct,true);assert.equal(c.getSnapshot().diagnosis.evidenceSufficient,false)
 })
-for (const mapId of [PROVING_GROUND_MAP_ID, PANGYO2_MAP_ID]) test(`${mapId}: real C + Rapier captures, pauses, preserves pose, then restores repaired drive`, async () => {
+for (const mapId of [PROVING_GROUND_MAP_ID, PANGYO2_MAP_ID]) test(`${mapId}: real C + Rapier captures and locks driving, preserves pose, then restores repaired drive`, async () => {
   await RAPIER.init()
   const map=createLoadedMap(loadMapDefinition(mapId))
   const world=new RAPIER.World({x:0,y:-9.81,z:0})
@@ -74,12 +74,15 @@ for (const mapId of [PROVING_GROUND_MAP_ID, PANGYO2_MAP_ID]) test(`${mapId}: rea
     runtime.start();runtime.driverInput.setAccelerator(1)
     for(let i=0;i<600;i++)runtime.advance(1/60)
     assert.equal(c.getSnapshot().phase,'CAPTURED')
-    assert.equal(runtime.clock.paused,true)
+    assert.equal(runtime.clock.paused,false)
     assert.equal(telemetry.raceFinished,false)
     const pose=structuredClone(runtime.readVehicleState()), frames=structuredClone(c.getSnapshot().frames)
     assert.ok(frames.some(f=>f.sw.output.eDriveCommand.magnitudeNm===f.sw.output.driveTorqueRequest.magnitudeNm && f.sw.output.eDriveCommand.magnitudeNm>0))
     assert.ok(frames.some(f=>f.sw.output.eDriveCommand.magnitudeNm===f.sw.output.driveTorqueRequest.magnitudeNm*.5 && f.sw.output.eDriveCommand.magnitudeNm>0))
-    c.select(0);runtime.advance(.1);assert.deepEqual(runtime.readVehicleState(),pose)
+    assert.equal(runtime.acceptsDrivingInput(),false); const capturedTime=runtime.clock.currentTime; runtime.advance(.1);assert.deepEqual(runtime.readVehicleState().position,pose.position); assert.equal(runtime.clock.currentTime,capturedTime)
+    assert.deepEqual(c.getSnapshot().frames,frames)
+    runtime.pause(); const pausedPose=structuredClone(runtime.readVehicleState())
+    c.select(0);runtime.advance(.1);assert.deepEqual(runtime.readVehicleState(),pausedPose)
     c.select(frames.length-1);c.pin();c.runExperiment(45,90);c.submit('eDrive','scaling','SWR-EDR-001');c.runRepair(0)
     runtime.resume();runtime.driverInput.setAccelerator(1)
     for(let i=0;i<12;i++)runtime.advance(1/60)
@@ -88,3 +91,42 @@ for (const mapId of [PROVING_GROUND_MAP_ID, PANGYO2_MAP_ID]) test(`${mapId}: rea
     runtime.reset();assert.equal(c.getSnapshot().phase,'DRIVING');assert.equal(c.getSnapshot().frames.length,0)
   } finally {detach();physics.dispose();world.free()}
 })
+
+test('experiment history retains earlier evidence and repeats selected inputs after repair',()=>{
+ const c=makeCase(); c.reproduce(); c.pin(); c.runExperiment(45,120); const id=c.getSnapshot().experiment.id;
+ c.runExperiment(.25,.75,'VMC'); assert.equal(c.getSnapshot().experiments.length,2);
+ c.selectExperiment(id); c.submit('eDrive','scaling','SWR-EDR-001'); assert.equal(c.getSnapshot().diagnosis.evidenceSufficient,true);
+ const repaired=c.runRepair(0); assert.deepEqual(repaired.rows.slice(0,2).map(r=>[r.input,r.actual]),[[45,45],[120,120]]);
+});
+
+test('configurable speed, reverse and validity conditions survive repair replay',()=>{
+ const c=makeCase(); c.reproduce(); c.pin();
+ const speed={variable:'speed',magnitude:.5,speed:0,direction:'REVERSE',validity:'VALID'};
+ c.runExperiment(0,10,'VMC',speed);
+ const run=c.getSnapshot().experiment;
+ assert.equal(run.rows[0].expected,65); assert.ok(run.rows[1].expected<65);
+ assert.ok(run.rows.every(r=>r.pass));
+ c.submit('VMC','limit','SWR-VMC-001'); const repaired=c.runRepair(0);
+ assert.deepEqual(repaired.rows.slice(0,2).map(r=>r.actual),run.rows.map(r=>r.actual));
+ const d=makeCase(); d.reproduce();
+ d.runExperiment(70,170,'eDrive',{...speed,variable:'magnitude',validity:'INVALID'});
+ assert.ok(d.getSnapshot().experiment.rows.every(r=>r.pass&&r.actual===0));
+ assert.throws(()=>d.runExperiment(0,10,'eDrive',speed));
+ assert.throws(()=>d.runExperiment(NaN,20,'eDrive'));
+ assert.throws(()=>d.runExperiment(-1,20,'eDrive'));
+ assert.throws(()=>d.runExperiment(45,601,'eDrive'));
+ assert.throws(()=>d.runExperiment(0,61,'VMC',speed));
+});
+
+test('one editable request per run; separate runs can establish scaling evidence',()=>{
+ const c=makeCase();c.reproduce();c.pin();c.runExperiment(60,undefined,'eDrive');
+ assert.equal(c.getSnapshot().experiment.rows.length,1);
+ assert.equal(c.getSnapshot().experiment.rows[0].actual,30);
+ c.runExperiment(120,undefined,'eDrive');c.submit('eDrive','scaling','SWR-EDR-001');
+ assert.equal(c.getSnapshot().diagnosis.evidenceSufficient,true);
+ const repaired=c.runRepair(0);assert.equal(repaired.rows.length,20);
+ assert.deepEqual(repaired.rows.slice(0,2).map(r=>[r.input,r.actual]),[[60,60],[120,120]]);
+ const single=makeCase();single.reproduce();single.pin();single.runExperiment(90,undefined,'eDrive');
+ single.submit('eDrive','scaling','SWR-EDR-001');assert.equal(single.getSnapshot().diagnosis.correct,true);
+ assert.equal(single.getSnapshot().diagnosis.evidenceSufficient,false);
+});

@@ -81,3 +81,14 @@ test('finish crossing publishes celebration state, coasts, then progressively br
   assert.equal(r.runtime.clock.currentTime,finishTime)
   assert.equal(r.commands.at(-1).driveForce,0); assert.ok(r.commands.at(-1).brakeForce>0)
 })
+
+test('route departure blocks further movement and finish until restart', () => {
+ const r=rig();r.runtime.configureRoute([{x:0,z:0},{x:0,z:-2}]);
+ r.runtime.configureFinish({x:0,z:-23},Math.PI);
+ for(let i=0;i<30;i++)r.runtime.advance(1/60);
+ assert.equal(r.runtime.acceptsDrivingInput(),false);
+ assert.match(r.publications.at(-1).error,/주행 경로/);
+ assert.equal(r.publications.at(-1).raceFinished,false);
+ const steps=r.count();r.runtime.resume();r.runtime.advance(.1);assert.equal(r.count(),steps);
+ r.runtime.start();r.runtime.advance(0);r.runtime.advance(1/60);assert.equal(r.runtime.acceptsDrivingInput(),true);
+});

@@ -1,3 +1,5 @@
+> LEGACY — 이전 설계/계약 기록입니다. 현재 X-RAY 구현 범위와 canonical source는 docs/cases/INVESTIGATION_WORKSPACE_CURRENT.md를 참조하십시오. 원문은 이 아래에 보존합니다.
+
 # CASE-PT-001 — 가속이 약해진 이유
 
 상태: PROTOTYPE_IMPLEMENTED / PLAYTEST_REQUIRED (v0.2). 사용자 확정 범위: 추진 SW 계산 오류, 신호·요구사항 중심, 최종 제출 후 해설·수정안 선택·재시험. C 결함 경로와 5개 조사 탭을 게임에 연결했다. 새로운 OEM 사실, ASIL 또는 양산 아키텍처를 주장하지 않는다. 아래 기획 중 구현 차이와 검증 범위는 11절을 우선한다.
@@ -134,3 +136,4 @@ Clamp의 입력 보존 의미를 별도 요구사항 문장으로 명문화할�
 - 보고서 JSON은 build hash, calibration, 증거 프레임, 첫 제출, 두 입력 시험, 수정 시도와 결과를 담는다. 새 세션/재시작은 기록과 결함을 초기화한다. 자동 영구 저장은 없다.
 - `check-case-pt-001.mjs`는 이제 정상 11개 + 결함/수정 33개 C 샘플을 실행해 CHECK.json을 생성한다. `tests/case-gameplay.test.mjs`는 실제 C + Rapier의 proving ground와 판교 맵 자동 발동, 정지, 기록 보존, 수정 주행 복귀와 초기화를 확인한다.
 - 브라우저에서 표준 재현 → 신호 증거 → 두 입력 시험 → 원인 제출 → 18개 수정 재시험 PASS를 확인했다. 초보 사용자의 난이도/문구/가속 체감은 추가 플레이테스트 대상이다. 타깃 ECU, CAN, Task, HIL은 구현 범위 밖이다.
+

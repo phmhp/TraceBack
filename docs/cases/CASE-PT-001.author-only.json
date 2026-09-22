@@ -1,8 +1,8 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 1, "canonicalSource": "src/runtime/investigation/CaseDefinition.ts",
   "caseId": "CASE-PT-001",
   "version": "0.2.0",
-  "status": "PROTOTYPE_IMPLEMENTED_PLAYTEST_REQUIRED",
+  "status": "LEGACY_DESIGN_SNAPSHOT",
   "classification": "AUTHOR_ONLY_NOT_IMPORTED_BY_PLAYER_UI",
   "runtimeImplemented": true,
   "fault": {"location": "C eDrive magnitude calculation", "mechanism": "UNINTENDED_MAGNITUDE_SCALING", "gain": 0.5, "rule": "0.5 * min(inputMagnitudeNm, directionalLimitNm)", "preserveDirectionAndValidity": true},
@@ -45,3 +45,4 @@
   "stateFlow": ["READY", "DRIVING", "INCIDENT_CAPTURED", "INVESTIGATING", "DIAGNOSIS_SUBMITTED", "EXPLAINED", "FIX_SELECTED", "RETESTING", "RESOLVED"],
   "resetPolicy": "Restart/quit clears fault, selected repair, recording and all case state; first submission preserved only in the completed report."
 }
+

@@ -19,6 +19,8 @@ export interface SimulationPropulsionCalibration {
     acceleratorFallPerSecond: number
     brakeRisePerSecond: number
     brakeFallPerSecond: number
+    steeringRisePerSecond: number
+    steeringReturnPerSecond: number
   }
   gearDirectionChangeMaxSpeedMps: { value: number }
   vmcForwardTorqueMap: { maximumTorqueNm: number; zeroTorqueSpeedMps: number }
@@ -89,6 +91,12 @@ export class SimulationRuntime {
   private error: string | null = null
   private readonly publish: (telemetry: RaceTelemetry) => void
   private finish: { x: number; z: number; heading: number } | null = null
+  private route: readonly {x:number;z:number}[] = []
+  configureRoute(points: readonly {x:number;z:number}[]) { this.route = points }
+  private outsideRoute() {
+    const p=this.vehicle.position
+    return this.route.length>1 && !this.route.slice(1).some((b,i)=>{const a=this.route[i]!;const dx=b.x-a.x,dz=b.z-a.z;const t=Math.max(0,Math.min(1,((p.x-a.x)*dx+(p.z-a.z)*dz)/(dx*dx+dz*dz||1)));return Math.hypot(p.x-a.x-t*dx,p.z-a.z-t*dz)<=20})
+  }
   private raceFinished = false
   private finishElapsed = 0
   private sessionConfig: SessionConfig | null = null
@@ -202,10 +210,11 @@ export class SimulationRuntime {
     this.error = message
     this.pause()
   }
-  acceptsDrivingInput() { return this.clock.running && !this.clock.paused && !this.error }
+  isInvestigationLocked() { const phase = this.incident?.getSnapshot().phase; return phase === 'CAPTURED' || phase === 'SUBMITTED' }
+  acceptsDrivingInput() { return this.clock.running && !this.clock.paused && !this.error && !this.isInvestigationLocked() }
   /** Render elapsed time is accumulated; only fixed-size physics steps are issued. */
   advance(frameDeltaSeconds: number) {
-    if (!this.physics || !this.clock.running || this.clock.paused || this.error) return
+    if (!this.physics || !this.clock.running || this.clock.paused || this.error || this.isInvestigationLocked()) return
     if (!Number.isFinite(frameDeltaSeconds) || frameDeltaSeconds < 0) return
     if (this.skipResumeDelta) { this.skipResumeDelta = false; return }
     // Cap catch-up to 6 steps: do not fast-forward a suspended browser or spiral on a slow machine.
@@ -258,10 +267,10 @@ export class SimulationRuntime {
         this.vehicle.longitudinalAcceleration = (this.vehicle.longitudinalVelocity - this.previousLongitudinalVelocity) / PHYSICS_TIMESTEP
       }
       this.previousLongitudinalVelocity = this.vehicle.longitudinalVelocity
-      if (this.incident?.afterStep(this.swSnapshot, this.vehicle, this.command, input.brake, input.steering)) {
-        this.pause()
-        return
-      }
+      // Captured incidents lock movement until repair verification.
+      this.incident?.afterStep(this.swSnapshot, this.vehicle, this.command, input.brake, input.steering)
+      if (this.isInvestigationLocked()) { this.copyPreviousPose(); this.accumulator = 0; this.driverInput.resetMotion(); this.publishNow(); return }
+      if (!this.raceFinished && this.outsideRoute()) { this.fail('주행 경로를 벗어났습니다. 레이스를 다시 시작해 주세요.'); return }
       if (!this.raceFinished && this.finish) {
         const dx = this.vehicle.position.x - this.finish.x; const dz = this.vehicle.position.z - this.finish.z
         const forward = dx * Math.sin(this.finish.heading) + dz * Math.cos(this.finish.heading)

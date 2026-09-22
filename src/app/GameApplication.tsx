@@ -22,11 +22,12 @@ export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssem
     { forward: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxForwardTorqueNm.value, reverse: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxReverseTorqueNm.value }))
   const [runtime] = useState(() => new SimulationRuntime(TRACKBACK_SIMULATION_CALIBRATION_V0_1, (telemetry) => {
     publishRaceHud(telemetry)
+    if (telemetry.error) useNavigation.getState().pauseRace()
     if (telemetry.raceFinished) useNavigation.getState().finishRace()
   }, undefined, new WasmVehicleSw(vehicleSwModule, TRACKBACK_SIMULATION_CALIBRATION_V0_1)))
   useLayoutEffect(() => { runtime.configureCase(incident) }, [runtime, incident])
   const [map] = useState(() => createLoadedMap(loadMapDefinition(PANGYO2_MAP_ID)))
-  useEffect(() => { const route = map.definition.routes.find((candidate) => candidate.routeId === map.definition.minimapConfig.routeId)!; runtime.configureFinish(route.finishPoint, route.finishHeading ?? 0) }, [map, runtime])
+  useEffect(() => { const route = map.definition.routes.find((candidate) => candidate.routeId === map.definition.minimapConfig.routeId)!; runtime.configureFinish(route.finishPoint, route.finishHeading ?? 0); runtime.configureRoute(route.orderedPoints) }, [map, runtime])
   const screen = useNavigation((s) => s.screen)
   const phase = useNavigation((s) => s.phase)
   const sessionConfig = useNavigation((s) => s.sessionConfig)
@@ -86,11 +87,11 @@ export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssem
       if (event.code !== 'F9' || event.repeat) return
       event.preventDefault()
       if (screen === 'xray') useNavigation.getState().leaveXRay()
-      else enterDebugXRay()
+      else if (incident.getSnapshot().phase !== 'DRIVING') enterDebugXRay()
     }
     window.addEventListener('keydown', onDebugKey)
     return () => window.removeEventListener('keydown', onDebugKey)
-  }, [enterDebugXRay, screen])
+  }, [enterDebugXRay, screen, incident])
 
   const worldView = useMemo(() => ({ map, readVehicleState: runtime.readVehicleState }), [map, runtime])
   return <CaseContext.Provider value={incident}><WorldViewContext.Provider value={worldView}><RaceActionsContext.Provider value={actions}>

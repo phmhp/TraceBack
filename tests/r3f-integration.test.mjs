@@ -53,7 +53,8 @@ test('real R3F bridge: one step owner, live mesh/camera, pause/resume, no per-ti
     assert.ok(Math.abs(mesh.position.z - expectedZ) < 0.001)
     assert.ok(camera.position.z > state.position.z && camera.position.z < state.position.z + 15)
     assert.equal(commits, beforeDrivingCommits, 'physics and camera updates must not commit React renders')
-    const followDistance = Math.hypot(7, 3.1)
+    // FollowCamera without a speed reader uses the current 9 m / 4.3 m dialogue-safe framing.
+    const followDistance = Math.hypot(9, 4.3)
     for (let i = 0; i < 80; i++) {
       await renderer.advanceFrames(1, [1 / 144, 1 / 60, 1 / 30][i % 3])
       assert.ok(Math.abs(camera.position.distanceTo(mesh.position) - followDistance) < 1e-6, 'camera distance must not breathe at mixed frame rates')
@@ -81,3 +82,4 @@ test('real R3F bridge: one step owner, live mesh/camera, pause/resume, no per-ti
     await server.close()
   }
 })
+
