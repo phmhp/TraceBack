@@ -18,7 +18,7 @@ export function expectedBoundary(frame: IncidentFrame, node: number): number | n
 const format = (v: number | string | null) => v === null ? '기준 없음' : typeof v === 'number' ? v.toFixed(3) : v
 const signalNames = ['AcceleratorPedalPosition','GearState','PropulsionRequest','DriveTorqueRequest','EDriveCommand','VehicleSpeed']
 const actual = (f: IncidentFrame, n: number): number => n===0?f.sw.input.acceleratorPedalPosition:n===1?['P','R','N','D'].indexOf(f.sw.output.gearState):n===2?f.sw.output.propulsionRequest.magnitude:n===3?f.sw.output.driveTorqueRequest.magnitudeNm:n===4?f.sw.output.eDriveCommand.magnitudeNm:f.plant?.speed??0
-export function CaseSignalComparison({ frame, node, frames, onSelect }: { frame: IncidentFrame; node: number; frames: readonly IncidentFrame[]; onSelect: (index:number)=>void }) {
+export function CaseSignalComparison({ frame, node, frames, onSelect, showSummary = true }: { frame: IncidentFrame; node: number; frames: readonly IncidentFrame[]; onSelect: (index:number)=>void; showSummary?: boolean }) {
   const expected=expectedBoundary(frame,node), unit=node===3||node===4?'Nm':node===5?'m/s':node===1?'P=0 · R=1 · N=2 · D=3':'ratio'
   const series=frames.map(f=>actual(f,node)), normal=frames.map(f=>expectedBoundary(f,node))
   const maximum=Math.max(1,...series,...normal.map(v=>v??0))
@@ -27,9 +27,9 @@ export function CaseSignalComparison({ frame, node, frames, onSelect }: { frame:
   const selected=frames.findIndex(f=>f.id===frame.id)
   const mismatch=frames.findIndex((_,i)=>normal[i]!==null&&Math.abs(series[i]!-normal[i]!)>1e-6)
   return <>
-    <article className="case-paper case-feature"><h3><code>{componentNames[node]}</code></h3><p>{componentRoles[node]}</p><strong>관찰 신호 <code>{signalNames[node]}</code></strong></article>
+    {showSummary&&<><article className="case-paper case-feature"><h3><code>{componentNames[node]}</code></h3><p>{componentRoles[node]}</p><strong>관찰 신호 <code>{signalNames[node]}</code></strong></article>
     <div className="case-signals"><article><b>정상 기대 출력</b><strong>{format(expected)}</strong><small>{unit}</small></article><article><b>이번 주행 출력</b><strong>{node===1?frame.sw.output.gearState:format(actual(frame,node))}</strong><small>{unit}</small></article></div>
-    {expected===null&&<p className="case-caption">여기서는 입력이나 차량 반응을 살펴보세요. PropulsionFunction·VMC·eDrive를 선택하면 제어 출력이 정상 기대와 일치하는지 비교할 수 있습니다.</p>}
+    {expected===null&&<p className="case-caption">여기서는 입력이나 차량 반응을 살펴보세요. PropulsionFunction·VMC·eDrive를 선택하면 제어 출력이 정상 기대와 일치하는지 비교할 수 있습니다.</p>}</>}
     <article className="case-paper case-trend"><div className="case-chart-legend"><b>시간에 따른 동일 신호 비교</b><span className="normal-line">┄ 정상 기대 · 같은 입력 기준</span><span className="actual-line">━ 이번 주행</span></div>
       <svg viewBox="0 0 800 130" role="img" aria-label="정상 기대와 이번 주행의 동일 출력 비교 그래프">
         <text x="12" y="25" fill="#536c62">{maximum.toFixed(2)} {unit}</text><path d="M12 32v76h776" fill="none" stroke="#aebeb8"/>
