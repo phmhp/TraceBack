@@ -8,6 +8,7 @@ export function FollowCamera({ readPose, readState }: { readPose: VehiclePoseRea
   useFrame(({ camera }, delta) => {
     // Read the SAME interpolated pose used by the mesh, after VehicleRenderer (-50).
     const { position, rotation: q } = readPose()
+
     const yaw = Math.atan2(2 * (q.w * q.y + q.x * q.z), 1 - 2 * (q.y * q.y + q.z * q.z))
     const previous = heading.current ?? yaw
     const difference = Math.atan2(Math.sin(yaw - previous), Math.cos(yaw - previous))

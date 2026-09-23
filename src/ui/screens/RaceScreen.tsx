@@ -25,8 +25,6 @@ export function RaceScreen() {
       <div aria-hidden="true"><strong>3</strong><strong>2</strong><strong>1</strong><strong>GO!</strong></div>
     </div>}
     <RaceDrivingHUD />
-    {state.phase !== 'DRIVING' && phase !== 'RACE_COUNTDOWN' && <button className="case-investigate-button" onClick={investigate}>고장 원인 조사실 <kbd>F9</kbd></button>}
-    {state.phase === 'CAPTURED' && phase === 'RACE_NORMAL' && <IncidentDialogue investigate={investigate}/>}
-    {state.phase !== 'DRIVING' && phase === 'RACE_NORMAL' && <p className="case-driving-hint">{state.phase==='RESOLVED'?'Corrective action verified · 정상 주행':'주행 잠금 · 원인 조사와 수정 검증을 완료해 주세요'}</p>}
-  </section>
+
+    {state.phase === 'CAPTURED' && phase === 'RACE_NORMAL' && (<IncidentDialogue investigate={investigate} />)}  </section>
 }

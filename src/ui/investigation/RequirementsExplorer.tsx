@@ -13,7 +13,7 @@ export function TestCard({id}:{id:string}) {
   return <article className="test-card"><small>시험 기준 · TC</small><h3><code>{id}</code></h3>{tc?<dl>{[['전제 조건',tc.precondition],['시험 입력',tc.stimulus],['관측 신호',tc.observation],['기대 결과',tc.expectedResult]].map(([label,value])=><div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>:<p>현재 화면에서 실행 가능한 상세 시험 정의가 없습니다.</p>}</article>
 }
 
-export function RequirementsExplorer({component,tcId:_tcId,initialRequirement,onTc,onBench,onComponent}:{component:string;tcId:string;initialRequirement?:string;onComponent?:(id:string)=>void;onTc:(id:string)=>void;onBench:(id:string)=>void}) {
+export function RequirementsExplorer({component,initialRequirement,onTc,onBench,onComponent}:{component:string;tcId:string;initialRequirement?:string;onComponent?:(id:string)=>void;onTc:(id:string)=>void;onBench:(id:string)=>void}) {
   const {controller,state}=useCase()
   const validComponent=swComponents.includes(component)?component:'PropulsionFunction'
   const [reqId,setReqId]=useState(initialRequirement||propulsionRequirements.find(r=>r.allocatedComponent===validComponent)?.id||'SYSR-PROP-001')

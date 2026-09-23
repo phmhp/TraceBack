@@ -1,0 +1,57 @@
+/* A small case office: cork rail, cabinet index, and one readable dossier. */
+.case-file-room {
+  --ink: #454b3f; --paper: #fffcf3; --mint: #b6c2a6;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 20px 28px 16px; gap: 16px;
+  background: radial-gradient(ellipse at 18% 0%, #ffe4ad80, transparent 62%), linear-gradient(#382b1c22,#382b1c22), url('/assets/investigation/paper-texture.png');
+  color: var(--ink);
+}
+.case-file-room .desk-header { min-height: 52px; border-bottom: 1px solid #8e765b66; padding-bottom: 12px; }
+.case-file-room .room-brand { color: #3c493b; text-shadow: none; flex-basis: 280px; }
+.case-file-room .room-brand b { font: 400 26px var(--font-display); letter-spacing: .02em; }
+.case-file-room .room-brand small { color: #665c4a; font-size: 11px; letter-spacing: .15em; }
+.case-file-room .room-brand > .file-icon { color: #59644c !important; }
+.case-file-room .desk-layout { grid-template-columns: 225px minmax(0,1fr); gap: 26px; max-width: 1600px; width: 100%; margin: 0 auto; }
+.case-file-room .desk-rail { padding: 12px 14px 18px; gap: 20px; background: linear-gradient(#86705130,#86705130), url('/assets/investigation/paper-texture.png'); border: 1px solid #a9906e; box-shadow: inset 0 1px 12px #65513b25; }
+.case-file-room .stored-drive-card { border-radius: 1px; padding: 8px 8px 14px; border: 1px solid #d6cdb9; box-shadow: 2px 5px 8px #49351f38; background: #fffaf0; }
+.case-file-room .stored-drive-card figcaption b { font-size: 12px; }
+.office-memento { display: flex; align-items: center; gap: 9px; flex-shrink: 0; padding: 0 2px; }
+.office-memento img { width: calc(50% - 5px); height: 100px; object-fit: contain; filter: drop-shadow(1px 3px 2px #49351f30); }
+.office-memento img:last-child { transform: rotate(4deg); }
+.case-file-room .desk-nav { border: 1px solid #777d65; border-radius: 2px; background: #7f8773; padding: 6px; box-shadow: 2px 4px 7px #49351f33; }
+.case-file-room .desk-nav button { border: 1px solid #9b9d87; border-bottom-color: #656b57; border-radius: 2px !important; margin: 0 0 5px; padding: 11px 8px; background: #bec2ac; color: #3e493c; gap: 8px; box-shadow: inset 0 1px #e4e4d2; }
+.case-file-room .desk-nav button:last-child { margin-bottom: 0; }
+.case-file-room .desk-nav button b { font-size: 12px; }
+.case-file-room .desk-nav button small { font-size: 10px; color: #5d6454; }
+.case-file-room .desk-nav button[aria-current=page] { background: #fff6df; border: 1px solid #dad0b7; border-left: 4px solid #a56b43; border-radius: 2px !important; padding: 11px 8px 11px 5px; box-shadow: 1px 2px 4px #49351f55; }
+.case-file-room .desk-content { background: #fffcf3; border: 1px solid #c7bca5; border-top: 7px solid #b79e76; border-radius: 2px; padding: 26px 28px 32px; box-shadow: 4px 5px 0 #e2d3b8, 5px 6px 0 #aa9575, 8px 12px 24px #49351f25; }
+.case-file-room .tool-heading { border-bottom: 2px solid #a8987f; padding-bottom: 16px; margin-bottom: 22px; }
+.case-file-room .tool-heading h2 { color: #414b3b; font-size: 23px; }
+.case-file-room .tool-heading small { color: #807765; }
+.case-file-room .file-number { background: #f4ecd8; color: #77503b; border: 1px solid #b89472; border-radius: 2px; }
+.case-file-room .incident-workspace { grid-template-columns: 1fr 1.25fr .95fr; gap: 24px; }
+.case-file-room .incident-workspace > article, .case-file-room .overview-workspace > article { background: transparent; border: 0; border-radius: 0; box-shadow: none; padding: 0 0 20px; border-bottom: 1px solid #d8ceba; }
+.case-file-room .incident-workspace .incident-symptom { background: transparent !important; }
+.case-file-room .incident-symptom p { color: #83503b; font-size: 15px; }
+.case-file-room .incident-workspace .incident-photo-note { position: relative; align-self: start; display: block; padding: 8px 8px 14px; background: #fffaf1 !important; border: 1px solid #d8cfba; box-shadow: 2px 4px 8px #49351f25; transform: rotate(1.5deg); }
+.incident-photo-note::before { content: ''; position: absolute; z-index: 1; top: -9px; left: calc(50% - 30px); width: 60px; height: 20px; transform: rotate(-5deg); background: #b1bb9699; }
+.case-file-room .driver-portrait { width: 100%; height: 180px; background: radial-gradient(ellipse at top left,#eff0d8,transparent),linear-gradient(#b4c6bd 65%,#819482 65%); overflow: hidden; }
+.case-file-room .incident-photo-note p { margin: 10px 0 4px; font-size: 11px; }
+.case-file-room .incident-photo-note small { font-size: 10px; line-height: 1.6; color: #756c59; }
+.case-file-room .incident-flow { padding-top: 6px !important; }
+.case-file-room .incident-flow .report-route > section { border-radius: 2px; background: #f5f3e8; border-color: #d2d2bd; padding: 16px; }
+.case-file-room .report-signals code { overflow-wrap: anywhere; }
+.case-file-room .incident-workspace .incident-hint { padding: 16px 18px; background: #f4e8b6 !important; border-left: 3px solid #b59453; align-items: center; }
+.case-file-room .investigation-helper { position: relative; border-radius: 1px; background: #f2e7be; border: 1px solid #d1be88; padding: 16px 12px; box-shadow: 1px 4px 6px #49351f28; margin-top: 0; }
+.case-file-room .investigation-helper > div { border-bottom: 1px solid #c9b87e; padding-bottom: 7px; }
+.case-file-room .investigation-helper > div svg { width: 20px; height: 20px; }
+.case-file-room .desk-timeline { border: 1px solid #aa9c80; border-radius: 2px; background: #efe6d2; box-shadow: 0 3px 8px #49351f20; }
+.case-file-room button.navigation-action, .case-file-room button.primary { border: 1px solid #586c52; border-radius: 3px; background: #5e7358; color: #fffdf4; box-shadow: 0 2px 0 #3d513b; }
+.case-file-room .logical-architecture, .case-file-room .architecture-detail, .case-file-room .signal-selector-panel, .case-file-room .signal-analysis-panel, .case-file-room .signal-logic-panel, .case-file-room .bench-input-sheet, .case-file-room .bench-result-sheet, .case-file-room .bench-record-sheet, .case-file-room .bench-history, .case-file-room .desk-paper, .case-file-room .requirement-component-tabs, .case-file-room .requirement-detail-panel, .case-file-room .requirement-map-column { border-radius: 2px; box-shadow: none; background: #fffdf7; }
+@media(max-width:1100px) { .case-file-room { padding: 14px; } .case-file-room .desk-layout { grid-template-columns: 185px minmax(0,1fr); gap: 16px; } .case-file-room .desk-rail { padding: 9px; } .case-file-room .desk-content { padding: 20px; } .case-file-room .incident-workspace { grid-template-columns: 1fr 1fr; gap: 18px; } .case-file-room .incident-photo-note { grid-column: 2; grid-row: 1 / 3; } .case-file-room .incident-symptom { grid-column: 1; } }
+@media(max-width:760px) { .case-file-room { padding: 10px; gap: 10px; } .case-file-room .desk-layout { grid-template-columns: 122px minmax(0,1fr); gap: 10px; } .case-file-room .desk-content { padding: 14px; } .case-file-room .desk-rail { padding: 5px; gap: 12px; } .office-memento { display: none; } .case-file-room .incident-workspace { display: flex; flex-direction: column; } .case-file-room .incident-photo-note { max-width: 240px; width: 100%; margin: 8px auto; } .case-file-room .incident-hint { flex-direction: column; align-items: start; } .case-file-room .tool-heading h2 { font-size: 18px; } .case-file-room .desk-nav button { padding: 9px 4px; } .case-file-room .desk-nav button[aria-current=page] { padding: 9px 4px 9px 1px; } .case-file-room .desk-nav button>.file-icon { display: none; } .case-file-room .report-route { grid-template-columns: 1fr; } }
+
+.case-file-room .report-file-prop { width: 130px; height: auto; margin: 16px auto; }
+.case-file-room .desk-nav { padding-bottom: 6px; min-height: 0; }
+
+.case-file-room .desk-nav::before { display: none; }

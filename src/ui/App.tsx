@@ -14,6 +14,7 @@ const screens: Record<Screen, { label: string; component: ComponentType }> = {
   setup: { label: 'SESSION SETUP', component: SessionSetupScreen },
   race: { label: 'RACE', component: RaceScreen },
   xray: { label: '고장 원인 조사실', component: InvestigationWorkspace },
+
   debrief: { label: 'DEBRIEF', component: DebriefScreen },
 }
 

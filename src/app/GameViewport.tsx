@@ -24,6 +24,9 @@ class PhysicsBoundary extends Component<{ runtime: SimulationRuntime; children: 
 export function GameViewport({ screen, runtime, map }: { screen: Screen; runtime: SimulationRuntime; map: LoadedMap }) {
   const { state } = useCase()
   const recorded = screen === 'xray' ? state.frames[state.selected] : undefined
+  if (screen === 'xray') {
+    console.log('XRAY RECORDED', recorded?.plant)
+  }
   const readState = useCallback(() => recorded?.plant ?? runtime.readVehicleState(), [recorded, runtime])
   const readPrevious = useCallback(() => recorded?.plant ?? runtime.readPreviousPose(), [recorded, runtime])
   const readAlpha = useCallback(() => recorded?.plant ? 1 : runtime.readInterpolationAlpha(), [recorded, runtime])
@@ -46,7 +49,7 @@ export function GameViewport({ screen, runtime, map }: { screen: Screen; runtime
           readAlpha={readAlpha} presentedPose={presentedPose.current}
           originOffsetY={phase2Physics.visualOriginOffsetY} readSteering={() => recorded?.steering ?? runtime.driverInput.getState().steering} celebrating={celebrating} />
         <FollowCamera readPose={readPresentedPose} readState={readState} />
-        <VehicleShadowLight readPose={readPresentedPose}/>
+        <VehicleShadowLight readPose={readPresentedPose} />
       </>}
     </RaceViewport>
   </Suspense>
