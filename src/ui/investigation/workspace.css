@@ -677,6 +677,10 @@
         display: none
     }
 
+    .mode-xray .game-viewport {
+        visibility: hidden
+    }
+
     .desk-question small {
         display: none
     }

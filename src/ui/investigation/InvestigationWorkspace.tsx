@@ -43,6 +43,7 @@ export function InvestigationWorkspace() {
 
         const resize = () => {
             const r = el.getBoundingClientRect()
+            const rail = el.closest('.desk-rail')?.getBoundingClientRect()
 
             for (const [name, value] of Object.entries({
                 left: r.left,
@@ -53,6 +54,18 @@ export function InvestigationWorkspace() {
                 document.documentElement.style.setProperty(
                     '--case-video-' + name,
                     value + 'px'
+                )
+            }
+
+            if (rail) {
+                const clipTop = Math.max(0, rail.top - r.top)
+                const clipRight = Math.max(0, r.right - rail.right)
+                const clipBottom = Math.max(0, r.bottom - rail.bottom)
+                const clipLeft = Math.max(0, rail.left - r.left)
+
+                document.documentElement.style.setProperty(
+                    '--case-video-clip',
+                    `inset(${clipTop}px ${clipRight}px ${clipBottom}px ${clipLeft}px round 10px)`
                 )
             }
         }

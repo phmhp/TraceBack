@@ -961,7 +961,8 @@
 
 .case-file-room .architecture-node b {
     font-size: 13px;
-    overflow-wrap: anywhere
+    overflow-wrap: normal;
+    word-break: normal;
 }
 
 .case-file-room .architecture-node span {
@@ -976,11 +977,7 @@
     background: #e0f3e6
 }
 
-.case-file-room .architecture-node[aria-pressed=true] {
-    border-color: #317d68 !important;
-    background: #bfe7d5;
-    box-shadow: 0 0 0 4px #e6ba77, 0 4px 0 #5b997e !important
-}
+
 
 .case-file-room .reference-node {
     opacity: .8
@@ -1264,11 +1261,7 @@
     box-shadow: 0 2px 0 #c99d442b !important
 }
 
-.case-file-room .architecture-node[aria-pressed=true] {
-    outline: 4px solid #ffe59a;
-    outline-offset: 2px;
-    background: #d6f1df !important
-}
+
 
 .case-file-room .report-guide,
 .case-file-room .evidence-count,
@@ -1905,8 +1898,8 @@
 /* Architecture keeps driver/plant as boundaries and makes only the actual SW chain interactive. */
 .architecture-workspace {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(300px, .9fr);
-    gap: 14px
+    grid-template-columns: 1fr;
+    gap: 14px;
 }
 
 .logical-architecture,
@@ -1938,11 +1931,9 @@
 }
 
 .architecture-lanes {
-    display: grid;
-    grid-template-columns: .9fr 28px 1.25fr 28px .9fr;
-    gap: 8px;
+    display: flex;
     align-items: center;
-    margin-top: 16px
+    gap: 12px;
 }
 
 .architecture-lanes>i {
@@ -1961,32 +1952,51 @@
 
 .architecture-boundary,
 .architecture-internal {
-    background: #edf7f0;
-    border: 1px solid #cde4d3;
+    padding: 14px;
+    border: 1px solid #c9d8ca;
     border-radius: 12px;
-    padding: 10px
+    background: #f4f8f2;
 }
 
 .architecture-boundary {
-    background: #eff6fb;
-    border-color: #cedfe6
+    flex: 0 0 150px;
+    padding: 12px;
+}
+
+.architecture-internal {
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.architecture-boundary .architecture-node {
+    min-height: 90px;
 }
 
 .architecture-chain {
-    display: grid;
-    gap: 5px
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 
 .architecture-chain>span {
-    display: grid;
-    gap: 4px
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
 }
+
 
 .architecture-chain>span>i {
     font-style: normal;
     color: #44a58b;
     text-align: center;
     line-height: 12px
+}
+
+.architecture-workspace {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
 }
 
 .architecture-node {
@@ -2014,13 +2024,16 @@
 }
 
 .architecture-node.incident-node {
-    border-color: #e0b24e;
-    background: #fff3bc
+    background: #fffdf6;
+    border-color: #a9cdbd;
+    border-left: 3px solid #67a88f;
 }
 
-.architecture-node[aria-pressed=true] {
-    outline: 3px solid #62b69a;
-    outline-offset: 2px
+.architecture-node[aria-pressed="true"] {
+    background: #dff1e5 !important;
+    border: 2px solid #5f8067;
+    box-shadow: 0 0 0 2px rgba(95, 128, 103, 0.12);
+    outline: none;
 }
 
 .architecture-feedback {
@@ -2069,7 +2082,8 @@
 .function-detail-grid code {
     display: block;
     margin: 4px 0;
-    font-size: 10px
+    font-size: 10px;
+    white-space: nowrap;
 }
 
 .function-detail-grid p {
