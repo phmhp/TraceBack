@@ -1,66 +1,51 @@
-import { useState } from 'react'
-import type { InvestigationPage, TrackingView, HypothesisModel } from './InvestigationPresentationModel'
+import { useMemo, useReducer, useState } from 'react'
+import { deriveInvestigationMilestones, initialInvestigationSession, investigationSessionReducer } from '../../../runtime/investigation/InvestigationSession'
+import type { DiscoveredFinding, InvestigationActionType, InvestigationContext, InvestigationPage, InvestigationSelection, InvestigationView, PlayerHypothesis } from '../../../runtime/investigation/InvestigationSession'
+import { reconcileInvestigationSelection } from '../../../registries/investigation/Trace'
 
-export interface InvestigationUIState {
-  page: InvestigationPage
-  setPage: (page: InvestigationPage) => void
-  trackingView: TrackingView
-  setTrackingView: (view: TrackingView) => void
-  selectedComponent: string
-  setSelectedComponent: (id: string) => void
-  selectedSignal: string
-  setSelectedSignal: (sig: string) => void
-  selectedInterface: string
-  setSelectedInterface: (id: string) => void
-  selectedRequirement: string
-  setSelectedRequirement: (id: string) => void
-  selectedTestCase: string
-  setSelectedTestCase: (id: string) => void
-  hypothesis: HypothesisModel | null
-  setHypothesis: (h: HypothesisModel | null) => void
-  isPlaying: boolean
-  setIsPlaying: (playing: boolean | ((prev: boolean) => boolean)) => void
-  showVideoModal: boolean
-  setShowVideoModal: (show: boolean) => void
-  showFullArchModal: boolean
-  setShowFullArchModal: (show: boolean) => void
-}
-
-export function useInvestigationUIState(): InvestigationUIState {
-  const [page, setPage] = useState<InvestigationPage>(1)
-  const [trackingView, setTrackingView] = useState<TrackingView>('FLOW')
-  const [selectedComponent, setSelectedComponent] = useState<string>('PropulsionFunction')
-  const [selectedSignal, setSelectedSignal] = useState<string>('eDriveMagnitude')
-  const [selectedInterface, setSelectedInterface] = useState<string>('PropulsionFunction->VMC')
-  const [selectedRequirement, setSelectedRequirement] = useState<string>('SWR-VMC-001')
-  const [selectedTestCase, setSelectedTestCase] = useState<string>('TC-PROP-NORMAL-009')
-  const [hypothesis, setHypothesis] = useState<HypothesisModel | null>(null)
-  const [isPlaying, setIsPlaying] = useState<boolean>(false)
-  const [showVideoModal, setShowVideoModal] = useState<boolean>(false)
-  const [showFullArchModal, setShowFullArchModal] = useState<boolean>(false)
-
+export function useInvestigationUIState() {
+  const [session, dispatch] = useReducer(investigationSessionReducer, undefined, initialInvestigationSession)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [showVideoModal, setShowVideoModal] = useState(false)
+  const [showFullArchModal, setShowFullArchModal] = useState(false)
+  const navigate = (context: Partial<Omit<InvestigationContext, 'selection'>> & { selection?: Partial<InvestigationSelection> }, origin: string, remember = true) => dispatch({
+    type: 'NAVIGATE',
+    context: context.selection ? { ...context, selection: reconcileInvestigationSelection(session.context.selection, context.selection) } : context,
+    origin,
+    remember,
+  })
+  const select = (selection: Partial<InvestigationSelection>, actionType?: InvestigationActionType, subjectId?: string) => {
+    navigate({ selection }, actionType ?? 'selection', false)
+    if (actionType) dispatch({ type: 'RECORD', actionType, subjectId })
+  }
   return {
-    page,
-    setPage,
-    trackingView,
-    setTrackingView,
-    selectedComponent,
-    setSelectedComponent,
-    selectedSignal,
-    setSelectedSignal,
-    selectedInterface,
-    setSelectedInterface,
-    selectedRequirement,
-    setSelectedRequirement,
-    selectedTestCase,
-    setSelectedTestCase,
-    hypothesis,
-    setHypothesis,
-    isPlaying,
-    setIsPlaying,
-    showVideoModal,
-    setShowVideoModal,
-    showFullArchModal,
-    setShowFullArchModal
+    session,
+    milestones: useMemo(() => deriveInvestigationMilestones(session), [session]),
+    page: session.context.page,
+    trackingView: session.context.view,
+    selectedComponent: session.context.selection.componentId ?? '',
+    selectedSignal: session.context.selection.signalId ?? '',
+    selectedInterface: session.context.selection.interfaceId ?? '',
+    selectedRequirement: session.context.selection.requirementId ?? '',
+    selectedTestCase: session.context.selection.testCaseId ?? '',
+    selectedFrameIndex: session.context.selection.frameIndex ?? 0,
+    hypothesis: session.hypothesis,
+    canGoBack: session.history.length > 0,
+    navigate,
+    back: () => dispatch({ type: 'BACK' }),
+    setPage: (page: InvestigationPage) => navigate({ page }, `page:${page}`),
+    setTrackingView: (view: InvestigationView) => navigate({ view }, `view:${view}`),
+    setSelectedComponent: (id: string) => select({ componentId: id }, 'INSPECT_COMPONENT', id),
+    setSelectedSignal: (id: string) => select({ signalId: id }, 'INSPECT_SIGNAL', id),
+    setSelectedInterface: (id: string) => select({ interfaceId: id }, 'OPEN_INTERFACE', id),
+    setSelectedRequirement: (id: string) => select({ requirementId: id }, 'OPEN_REQUIREMENT', id),
+    setSelectedTestCase: (id: string) => select({ testCaseId: id }, 'SELECT_TEST_CASE', id),
+    setSelectedFrameIndex: (frameIndex: number) => select({ frameIndex }),
+    setHypothesis: (hypothesis: PlayerHypothesis | null) => dispatch({ type: 'SET_HYPOTHESIS', hypothesis }),
+    reviewPhenomenon: () => dispatch({ type: 'RECORD', actionType: 'REVIEW_PHENOMENON' }),
+    recordAction: (actionType: InvestigationActionType, subjectId?: string) => dispatch({ type: 'RECORD', actionType, subjectId }),
+    discover: (finding: DiscoveredFinding) => dispatch({ type: 'DISCOVER', finding }),
+    collectEvidence: (evidenceId: string) => dispatch({ type: 'COLLECT_EVIDENCE', evidenceId }),
+    isPlaying, setIsPlaying, showVideoModal, setShowVideoModal, showFullArchModal, setShowFullArchModal,
   }
 }

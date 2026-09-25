@@ -1,10 +1,11 @@
 import type { TrackingView, InvestigationPresentationModel } from '../presentation/InvestigationPresentationModel'
 import type { IncidentFrame } from '../../../runtime/case/PropulsionCase'
-import { architectureNode } from '../../../registries/investigation/Architecture'
+import type { InvestigationSelection } from '../../../runtime/investigation/InvestigationSession'
 import { ViewAFlow } from './page2/ViewAFlow'
 import { ViewBSignals } from './page2/ViewBSignals'
 import { ViewCInterfaces } from './page2/ViewCInterfaces'
 import { ViewDStandards } from './page2/ViewDStandards'
+import { Page2ContextBar } from './page2/Page2ContextBar'
 
 interface Page2Props {
   model: InvestigationPresentationModel
@@ -18,6 +19,7 @@ interface Page2Props {
   onSelectInterface: (id: string) => void
   selectedRequirement: string
   onSelectRequirement: (id: string) => void
+  selectedTestCase: string
   currentFrame: IncidentFrame | undefined
   frames: readonly IncidentFrame[]
   onSelectFrameIndex: (idx: number) => void
@@ -25,13 +27,15 @@ interface Page2Props {
   onSetHypothesisTarget: (target: string, type: string) => void
   onOpenFullArch: () => void
   onOpenBenchWithTc?: (tcId: string) => void
+  onOpenReqMap?: () => void
+  onNavigateContext: (view: TrackingView, selection?: Partial<InvestigationSelection>, origin?: string) => void
 }
 
 const views = [
   { id: 'FLOW' as TrackingView, label: '기능 흐름', icon: '🌲' },
   { id: 'SIGNALS' as TrackingView, label: '신호 비교', icon: '📈' },
   { id: 'INTERFACES' as TrackingView, label: '인터페이스', icon: '🔗' },
-  { id: 'STANDARDS' as TrackingView, label: '정상 기준', icon: '📄' }
+  { id: 'STANDARDS' as TrackingView, label: '요구사항', icon: '📄' }
 ]
 
 export function Page2Tracking({
@@ -46,13 +50,16 @@ export function Page2Tracking({
   onSelectInterface,
   selectedRequirement,
   onSelectRequirement,
+  selectedTestCase,
   currentFrame,
   frames,
   onSelectFrameIndex,
   onSaveAsEvidence,
   onSetHypothesisTarget,
   onOpenFullArch,
-  onOpenBenchWithTc
+  onOpenBenchWithTc,
+  onOpenReqMap,
+  onNavigateContext
 }: Page2Props) {
   return (
     <div className="investigation-main-content">
@@ -87,50 +94,12 @@ export function Page2Tracking({
           ))}
         </div>
 
-        {/* 공통 기능 선택기 및 경로 체인 */}
-        <div className="component-path-selector-bar">
-          <div className="component-dropdown-wrap">
-            <small>현재 조사 대상 기능:</small>
-            <select
-              className="component-select"
-              value={selectedComponent}
-              onChange={(e) => onSelectComponent(e.target.value)}
-            >
-              {model.relevantFunctionPath.map((id) => (
-                <option key={id} value={id}>
-                  {architectureNode(id).label} ({id})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="chain-breadcrumb">
-            <small style={{ color: '#64748b', fontWeight: 600, marginRight: '4px' }}>관련 기능 경로:</small>
-            {model.relevantFunctionPath.map((id, idx) => (
-              <span key={id} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                {idx > 0 && <span style={{ color: '#94a3b8', fontSize: '11px' }}>→</span>}
-                <button
-                  type="button"
-                  className={`chain-node-btn ${selectedComponent === id ? 'selected' : ''}`}
-                  onClick={() => onSelectComponent(id)}
-                >
-                  {architectureNode(id).label}
-                </button>
-              </span>
-            ))}
-          </div>
-
-          {trackingView !== 'FLOW' && (
-            <button
-              type="button"
-              className="timeline-btn"
-              onClick={() => onSelectView('FLOW')}
-              style={{ fontSize: '11px', padding: '4px 8px' }}
-            >
-              기능 흐름으로 이동 →
-            </button>
-          )}
-        </div>
+        <Page2ContextBar
+          selection={{ componentId:selectedComponent, signalId:selectedSignal, interfaceId:selectedInterface, requirementId:selectedRequirement, testCaseId:selectedTestCase }}
+          relevantPath={model.relevantFunctionPath}
+          onSelectComponent={onSelectComponent}
+          onOpenArchitecture={onOpenFullArch}
+        />
       </div>
 
       {/* VIEW CONTENT */}
@@ -139,9 +108,8 @@ export function Page2Tracking({
           model={model}
           selectedComponent={selectedComponent}
           onSelectComponent={onSelectComponent}
-          onNavigateToSignals={() => onSelectView('SIGNALS')}
+          onNavigateToSignals={() => onNavigateContext('SIGNALS', undefined, '기능에서 신호 비교로 이동')}
           onSetHypothesisTarget={onSetHypothesisTarget}
-          onOpenFullArch={onOpenFullArch}
         />
       )}
 
@@ -154,8 +122,8 @@ export function Page2Tracking({
           frames={frames}
           onSelectFrameIndex={onSelectFrameIndex}
           onSaveAsEvidence={onSaveAsEvidence}
-          onNavigateToStandards={() => onSelectView('STANDARDS')}
-          onNavigateToInterfaces={() => onSelectView('INTERFACES')}
+          onNavigateToStandards={() => onNavigateContext('STANDARDS', undefined, '신호에서 요구사항으로 이동')}
+          onNavigateToInterfaces={() => onNavigateContext('INTERFACES', { signalId:selectedSignal }, '신호에서 전달 인터페이스로 이동')}
         />
       )}
 
@@ -164,7 +132,9 @@ export function Page2Tracking({
           model={model}
           selectedInterfaceId={selectedInterface}
           onSelectInterface={onSelectInterface}
-          onNavigateToComponent={onSelectComponent}
+          selectedSignalId={selectedSignal}
+          onSelectSignal={onSelectSignal}
+          onNavigateToComponent={(id) => onNavigateContext('FLOW', { componentId:id }, '인터페이스에서 기능으로 이동')}
         />
       )}
 
@@ -175,6 +145,8 @@ export function Page2Tracking({
           onSelectRequirement={onSelectRequirement}
           onSaveAsEvidence={onSaveAsEvidence}
           onOpenBenchWithTc={onOpenBenchWithTc}
+          onOpenReqMap={onOpenReqMap}
+          currentFrame={currentFrame}
         />
       )}
     </div>

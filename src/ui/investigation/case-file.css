@@ -735,7 +735,8 @@
 }
 
 .case-file-room {
-    background: radial-gradient(circle at 14% 7%, #fff6d7b8 0 2px, transparent 3px), repeating-linear-gradient(90deg, #d7b786 0 2px, #e8cf9e 2px 42px, #d5b17d 42px 44px), linear-gradient(135deg, #ebd3a3, #d8b57c);
+    background: #294854;
+    ;
     padding: 12px 18px;
     gap: 10px;
     font-family: 'Jalnan', 'Malgun Gothic', sans-serif
@@ -1272,28 +1273,7 @@
     color: #4d513d
 }
 
-/* Fault focus transitions into the larger dialogue without hiding the cat and vehicle in the center. */
-.mode-race:has(.fault-focus-pulse) .scene-shade,
-.mode-race:has(.incident-dialog) .scene-shade {
-    z-index: 4;
-    background: #263c3590;
-    backdrop-filter: blur(5px);
-    animation: fault-focus-in .9s ease both
-}
-
-
-
-@keyframes fault-focus-in {
-    from {
-        opacity: 0;
-        backdrop-filter: blur(0)
-    }
-
-    to {
-        opacity: 1;
-        backdrop-filter: blur(5px)
-    }
-}
+/* Fault focus transitions and IncidentDialogue dim/blur moved to styles.css for common access in RaceScreen */
 
 @media(max-width:900px) {
 

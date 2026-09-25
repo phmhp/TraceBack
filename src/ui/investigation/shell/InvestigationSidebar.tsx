@@ -1,10 +1,12 @@
 import type { InvestigationPresentationModel, HypothesisModel } from '../presentation/InvestigationPresentationModel'
 import type { Evidence } from '../../../runtime/investigation/Evidence'
+import { type Ref } from 'react'
 
 interface SidebarProps {
   model: InvestigationPresentationModel
   hypothesis: HypothesisModel | null
   evidenceList: readonly Evidence[]
+  videoSlotRef?: Ref<HTMLDivElement>
   onOpenAddEvidenceModal?: () => void
   onSelectEvidence?: (ev: Evidence) => void
   onNavigateToTracking?: () => void
@@ -14,6 +16,7 @@ export function InvestigationSidebar({
   model,
   hypothesis,
   evidenceList,
+  videoSlotRef,
   onOpenAddEvidenceModal,
   onSelectEvidence,
   onNavigateToTracking
@@ -34,16 +37,10 @@ export function InvestigationSidebar({
 
         <div className="case-id-label">{model.caseId}</div>
 
+        {/* 3D viewport slot: 원본 desk-video 구조 복원 */}
+        {/* case-file.css .mode-xray 규칙이 이 영역의 getBoundingClientRect를 기준으로 3D viewport를 투영 */}
         <div className="case-thumb-wrap">
-          <img
-            src="/assets/investigation/driver-front-polaroid.png"
-            alt="사건 주행 상황"
-            className="case-thumb-img"
-            onError={(e) => {
-              // Fallback to placeholder if asset not present
-              (e.target as HTMLImageElement).src = '/assets/investigation/village-polaroid.png'
-            }}
-          />
+          <div ref={videoSlotRef} className="desk-video" />
         </div>
 
         <div className="case-meta-grid">
@@ -168,8 +165,8 @@ export function InvestigationSidebar({
             evidenceList.map((ev) => {
               const icon =
                 ev.type === 'SIGNAL_BOUNDARY' ? '📈' :
-                ev.type === 'TEST_RESULT' ? '🧪' :
-                ev.type === 'REQUIREMENT' ? '📄' : '📌'
+                  ev.type === 'TEST_RESULT' ? '🧪' :
+                    ev.type === 'REQUIREMENT' ? '📄' : '📌'
 
               return (
                 <button

@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { HypothesisModel } from '../presentation/InvestigationPresentationModel'
 import type { IncidentFrame, ExperimentRun } from '../../../runtime/case/PropulsionCase'
-import { executableTest, traceRequirements } from '../../../registries/investigation/Trace'
-import { propulsionRequirements, propulsionTests } from '../../../data/ground-truth/PropulsionGroundTruth'
+import { executableTest, getRequirement, getTestCase, traceRequirements } from '../../../registries/investigation/Trace'
 
 interface Page3Props {
   hypothesis: HypothesisModel | null
+  selectedTestCaseId: string
   onUpdateHypothesis: (h: HypothesisModel | null) => void
   currentFrame: IncidentFrame | undefined
   frames?: readonly IncidentFrame[]
@@ -19,6 +19,7 @@ interface Page3Props {
 
 export function Page3Verification({
   hypothesis,
+  selectedTestCaseId,
   onUpdateHypothesis,
   currentFrame,
   latestExperiment,
@@ -27,22 +28,29 @@ export function Page3Verification({
   onJumpToEvent,
   onNavigateToTracking
 }: Page3Props) {
-  const target: 'VMC' | 'eDrive' = (hypothesis?.target === 'VMC' || hypothesis?.target === 'eDrive')
-    ? hypothesis.target
-    : 'VMC'
+  const selectedTest = getTestCase(selectedTestCaseId)
+  const selectedExecution = selectedTest?.execution
+  const hypothesisTarget: 'VMC' | 'eDrive' = (hypothesis?.target === 'VMC' || hypothesis?.target === 'eDrive') ? hypothesis.target : 'VMC'
+  const target: 'VMC' | 'eDrive' = selectedExecution?.status === 'EXECUTABLE' ? selectedExecution.target : hypothesisTarget
+  const fallbackTcId = executableTest(target, 'FORWARD')
+  const tc = selectedTestCaseId ? selectedTest : getTestCase(fallbackTcId)
+  const execution = tc?.execution
+  const isExecutable = execution?.status === 'EXECUTABLE'
 
   // Input states
   const [valInput, setValInput] = useState<number>(target === 'VMC' ? 0.5 : 90)
   const [speedInput, setSpeedInput] = useState<number>(0)
-  const [directionInput, setDirectionInput] = useState<'FORWARD' | 'REVERSE'>('FORWARD')
+  const [directionInput, setDirectionInput] = useState<'FORWARD' | 'REVERSE'>(isExecutable ? execution.direction ?? 'FORWARD' : 'FORWARD')
   const [validityInput, setValidityInput] = useState<'VALID' | 'INVALID'>('VALID')
   const [recordTab, setRecordTab] = useState<'CURRENT' | 'NORMAL'>('CURRENT')
 
-  // Requirement & TC resolution
-  const tcId = executableTest(target, directionInput)
-  const tc = propulsionTests.find((item) => item.id === tcId)
+  const tcId = selectedTestCaseId || executableTest(target, directionInput)
   const req = traceRequirements(tcId).find((r) => r.level === 'SOFTWARE') ??
-    propulsionRequirements.find((r) => r.id === (target === 'VMC' ? 'SWR-VMC-001' : 'SWR-EDR-001'))
+    traceRequirements(tcId)[0] ?? getRequirement(target === 'VMC' ? 'SWR-VMC-001' : 'SWR-EDR-001')
+
+  useEffect(() => {
+    if (execution?.status === 'EXECUTABLE' && execution.direction) setDirectionInput(execution.direction)
+  }, [execution])
 
   // Reset to event time values
   const handleResetToEvent = () => {
@@ -58,6 +66,7 @@ export function Page3Verification({
 
   // Run experiment action
   const handleRun = () => {
+    if (!isExecutable) return
     onRunExperiment(valInput, speedInput, directionInput, validityInput, target)
   }
 
@@ -109,7 +118,7 @@ export function Page3Verification({
             </div>
             <div className="vehicle-state-card">
               <span className="vehicle-state-label">관련 신호</span>
-              <span className="vehicle-state-val">{hypothesis?.signal ?? 'eDriveMagnitude'}</span>
+              <span className="vehicle-state-val">{hypothesis?.signal ?? 'EDriveCommand'}</span>
             </div>
             <div className="vehicle-state-card">
               <span className="vehicle-state-label">의심 유형</span>
@@ -186,6 +195,7 @@ export function Page3Verification({
                 <select
                   value={directionInput}
                   onChange={(e) => setDirectionInput(e.target.value as 'FORWARD' | 'REVERSE')}
+                  disabled={isExecutable && Boolean(execution.direction)}
                   className="component-select"
                   style={{ width: '100%' }}
                 >
@@ -237,11 +247,12 @@ export function Page3Verification({
 
             <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '12px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <b style={{ color: '#1e293b' }}>정상 구동 요청 변환 시험</b>
-                <span className="sidebar-badge badge-active">{tcId}</span>
+                <b style={{ color: '#1e293b' }}>{isExecutable ? '정상 구동 요청 변환 시험' : '참조 시험 정의'}</b>
+                <span className="sidebar-badge badge-active">{tcId || '선택 없음'}</span>
               </div>
               <p style={{ margin: '6px 0 0 0', color: '#64748b', fontSize: '11px' }}>
-                {tc?.stimulus} → {tc?.expectedResult}
+                {tc ? `${tc.stimulus ?? '상세 입력 정의 없음'} → ${tc.expectedResult ?? '상세 기대 결과 정의 없음'}` : '선택한 시험 정의를 찾을 수 없습니다.'}
+                {!isExecutable && <><br />현재 C/WASM 직접 실행 대상이 아닙니다.</>}
               </p>
             </div>
           </section>
@@ -259,6 +270,7 @@ export function Page3Verification({
               type="button"
               className="p1-cta-btn"
               onClick={handleRun}
+              disabled={!isExecutable}
               style={{ padding: '6px 14px', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}
             >
               <span>▶</span>
@@ -292,26 +304,73 @@ export function Page3Verification({
                 </div>
               </div>
 
-              {/* 결과 신호 미니 차트 */}
-              <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                <small style={{ color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '6px' }}>
-                  결과 신호 (Expected vs Actual)
+              {/* 결과 신호 시각화 (Expected vs Actual 막대 비교) */}
+              <div style={{ background: '#f8fafc', padding: '12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                <small style={{ color: '#64748b', fontWeight: 600, display: 'block', marginBottom: '8px' }}>
+                  출력 비교 (Expected vs Actual)
                 </small>
-                <svg viewBox="0 0 300 80" style={{ width: '100%', height: '80px' }}>
-                  <line x1="10" y1="20" x2="290" y2="20" stroke="#3b82f6" strokeWidth="2" strokeDasharray="4 2" />
-                  <line x1="10" y1="55" x2="290" y2="55" stroke="#ef4444" strokeWidth="2.5" />
-                  <text x="290" y="16" fill="#3b82f6" fontSize="9" textAnchor="end">Expected ({latestRow.expected})</text>
-                  <text x="290" y="50" fill="#ef4444" fontSize="9" textAnchor="end">Actual ({latestRow.actual})</text>
-                </svg>
+                {(() => {
+                  const expVal = Math.max(0, Number(latestRow.expected) || 0)
+                  const actVal = Math.max(0, Number(latestRow.actual) || 0)
+                  const maxVal = Math.max(1, expVal, actVal) * 1.15
+                  const expPct = Math.min(100, Math.round((expVal / maxVal) * 100))
+                  const actPct = Math.min(100, Math.round((actVal / maxVal) * 100))
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '2px' }}>
+                          <span style={{ color: '#0f766e', fontWeight: 600 }}>기대 출력 (Expected)</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>{expVal.toFixed(2)} Nm</span>
+                        </div>
+                        <div style={{ height: '12px', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+                          <div style={{ width: `${expPct}%`, height: '100%', background: '#25856d', borderRadius: '6px' }} />
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', marginBottom: '2px' }}>
+                          <span style={{ color: latestRow.pass ? '#0f766e' : '#dc2626', fontWeight: 600 }}>실제 출력 (Actual)</span>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 700, color: latestRow.pass ? '#0f766e' : '#dc2626' }}>{actVal.toFixed(2)} Nm</span>
+                        </div>
+                        <div style={{ height: '12px', background: '#e2e8f0', borderRadius: '6px', overflow: 'hidden' }}>
+                          <div style={{ width: `${actPct}%`, height: '100%', background: latestRow.pass ? '#25856d' : '#d56c42', borderRadius: '6px' }} />
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
 
-              {/* 주요 결과 요약 */}
-              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px', fontSize: '11px', color: '#1e40af' }}>
-                <b>주요 결과 요약:</b>
-                <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
-                  <li>입력 조건({valInput})에서 생성된 출력이 정상 기대치 대비 낮게 출력되었습니다.</li>
-                  <li>요구사항({req?.id}) 기준을 만족하지 못하고 FAIL 판정되었습니다.</li>
-                </ul>
+              {/* 세부 결과 테이블 (79ec3b ExperimentResults 패턴 복원) */}
+              <div style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+                <table style={{ width: '100%', fontSize: '11px', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>
+                      <th style={{ padding: '6px 8px', textAlign: 'left' }}>조건 / 신호</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'right' }}>기대</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'right' }}>실제</th>
+                      <th style={{ padding: '6px 8px', textAlign: 'center' }}>판정</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {latestExperiment.rows.map((r) => (
+                      <tr key={r.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '6px 8px' }}>
+                          <b>{r.input}</b>
+                          <small style={{ display: 'block', color: '#64748b' }}>{r.id}</small>
+                        </td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: '#0f766e' }}>
+                          {typeof r.expected === 'number' ? r.expected.toFixed(2) + ' Nm' : r.expected}
+                        </td>
+                        <td style={{ padding: '6px 8px', textAlign: 'right', fontFamily: 'monospace', color: r.pass ? '#0f766e' : '#dc2626' }}>
+                          {typeof r.actual === 'number' ? r.actual.toFixed(2) + ' Nm' : r.actual}
+                        </td>
+                        <td style={{ padding: '6px 8px', textAlign: 'center' }}>
+                          <b style={{ color: r.pass ? '#15803d' : '#dc2626', fontWeight: 800 }}>{r.pass ? 'PASS' : 'FAIL'}</b>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
 
               <button
@@ -364,30 +423,31 @@ export function Page3Verification({
                 type="button"
                 className={`view-subtab-btn ${recordTab === 'NORMAL' ? 'active' : ''}`}
                 onClick={() => setRecordTab('NORMAL')}
+                disabled
                 style={{ fontSize: '10px', padding: '3px 10px' }}
               >
-                정상 기록 (비교)
+                정상 기록 (데이터 없음)
               </button>
             </div>
 
-            <div className="case-thumb-wrap" style={{ height: '80px', marginBottom: '8px' }}>
-              <img
-                src="/assets/investigation/village-polaroid.png"
-                alt="주행 기록 참조"
-                className="case-thumb-img"
-              />
+            <div className="bench-record-telemetry" style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '10px', marginBottom: '8px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', rowGap: '6px', fontSize: '11px' }}>
+                <span style={{ color: '#64748b' }}>선택 시점:</span>
+                <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{currentFrame?.sw.executionTime.toFixed(3) ?? '—'} s</span>
+
+                <span style={{ color: '#64748b' }}>차량 속도:</span>
+                <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{currentFrame?.plant?.speed?.toFixed(3) ?? '—'} m/s</span>
+
+                <span style={{ color: '#64748b' }}>기어 상태:</span>
+                <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{currentFrame?.sw.output.gearState ?? '—'}</span>
+
+                <span style={{ color: '#64748b' }}>가속 페달:</span>
+                <span style={{ fontWeight: 600, fontFamily: 'monospace' }}>{((currentFrame?.sw.input.acceleratorPedalPosition ?? 0) * 100).toFixed(0)} %</span>
+              </div>
             </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr', rowGap: '4px', fontSize: '11px' }}>
-              <span style={{ color: '#64748b' }}>VehicleSpeed:</span>
-              <span style={{ fontWeight: 600 }}>{currentFrame?.plant?.speed?.toFixed(3) ?? '15.635'} m/s</span>
-
-              <span style={{ color: '#64748b' }}>GearState:</span>
-              <span style={{ fontWeight: 600 }}>{currentFrame?.sw.output.gearState ?? 'D'}</span>
-
-              <span style={{ color: '#64748b' }}>AccelPedal:</span>
-              <span style={{ fontWeight: 600 }}>100 %</span>
-            </div>
+            <p style={{ fontSize: '11px', color: '#64748b', margin: '4px 0 0 0' }}>
+              * 위 SW 시험의 입력과 당시 주행 기록을 비교하여 가설을 검증하세요.
+            </p>
           </section>
 
           {/* 5. 가설 판단 */}

@@ -16,18 +16,10 @@ export function InvestigationHeader({ currentPage, onSelectPage }: HeaderProps) 
   return (
     <header className="investigation-top-header">
       <div className="brand-section">
-        <img
-          src="/assets/investigation/cat-face.png"
-          alt="TRACKBACK Logo"
-          className="brand-cat-icon"
-          onError={(e) => {
-            // Fallback if image not found
-            (e.target as HTMLElement).style.display = 'none'
-          }}
-        />
+        <img src="..\..\..\public\assets\investigation\cat-face.png" alt="TRACKBACK" className="logo-image" />
         <div className="brand-title-wrap">
-          <span className="brand-title">TRACKBACK</span>
-          <span className="brand-subtitle">/ 고장 원인 조사</span>
+          <b className="brand-title">TRACKBACK</b>
+          <small className="brand-subtitle">고장 원인 조사실</small>
         </div>
       </div>
 

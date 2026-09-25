@@ -5,10 +5,11 @@ import type { VehiclePhysicsCommand } from '../../domain/vehicle/VehiclePhysicsP
 import type { WasmVehicleSw } from '../c/WasmVehicleSw.ts'
 import { propulsionCaseDefinition } from '../../runtime/investigation/CaseDefinition.ts'
 import type { Evidence, RootCauseReport, EvidenceAssessment } from '../../runtime/investigation/Evidence.ts'
-import { architectureNodes, requirementsFor } from '../../registries/investigation/Architecture.ts'
-import { executableTest, traceRequirements } from '../../registries/investigation/Trace.ts'
+import { architectureNodes } from '../../registries/investigation/Architecture.ts'
+import { executableTest, getRequirementsForComponent, traceRequirements } from '../../registries/investigation/Trace.ts'
 import { inspectBoundary } from '../../runtime/investigation/Boundary.ts'
 import { assessEvidence } from '../../runtime/investigation/Assessment.ts'
+import type { PlayerHypothesis } from '../../runtime/investigation/InvestigationSession.ts'
 
 export type CaseVariant = 0 | 1 | 2 | 3
 export interface IncidentFrame {
@@ -26,9 +27,9 @@ export interface CaseState {
   frames: readonly IncidentFrame[]; selected: number; pinned: number | null
   source: 'DRIVE_RECORDING' | 'STANDARD_TEST'; elapsed: number
   experiments: readonly ExperimentRun[]; experiment: ExperimentRun | null; repairs: readonly ExperimentRun[]; diagnosis: Diagnosis | null
-  evidence: readonly Evidence[]; hypothesis:string
+  evidence: readonly Evidence[]; hypothesis:PlayerHypothesis|null
 }
-const initial = (): CaseState => ({ phase: 'DRIVING', frames: [], selected: 0, pinned: null, source: 'DRIVE_RECORDING', elapsed: 0, experiments: [], experiment: null, repairs: [], diagnosis: null, evidence:[],hypothesis:'' })
+const initial = (): CaseState => ({ phase: 'DRIVING', frames: [], selected: 0, pinned: null, source: 'DRIVE_RECORDING', elapsed: 0, experiments: [], experiment: null, repairs: [], diagnosis: null, evidence:[],hypothesis:null })
 const baseInput: VehicleSwInput = { acceleratorPedalPosition: .5, acceleratorPedalValidity: 'VALID', gearRequest: 'D', gearRequestValidity: 'VALID', vehicleReady: true, propulsionEnable: true, longitudinalVelocity: 0, vehicleSpeed: 0 }
 
 /** Case orchestration only: all observed component results execute in isolated C instances. */
@@ -120,7 +121,7 @@ export class PropulsionCase {
     if(!architectureNodes.some(n=>n.id===component&&n.implementation==='IMPLEMENTED'))return
     const index=this.state.selected,frame=this.state.frames[index];if(!frame)return
     const observation=inspectBoundary(frame,component,this.state.frames[index-1])
-    const reqs=requirementsFor(component)
+    const reqs=getRequirementsForComponent(component)
     this.discover({id:`boundary:${component}:${frame.id}`,type:'SIGNAL_BOUNDARY',title:`${component} · ${frame.sw.executionTime.toFixed(3)} s`,source:this.state.source,relatedComponent:component,relatedRequirementIds:reqs.map(r=>r.id),relatedTestCaseIds:[...new Set(reqs.flatMap(r=>r.linkedTestCases))],reference:{frameId:frame.id},discovered:true,selectedForReport:true,status:observation.status})
     return observation
   }
@@ -132,7 +133,7 @@ export class PropulsionCase {
     this.discover({id:`${type}:${id}`,type,title:id,source:'GROUND_TRUTH',relatedComponent:component,relatedRequirementIds:reqs,relatedTestCaseIds:tests,reference:type==='REQUIREMENT'?{requirementId:id}:{testCaseId:id},discovered:true,selectedForReport:false,status:'REFERENCE'})
   }
   selectEvidence(id:string,selectedForReport:boolean) {if(!this.state.diagnosis)this.update({evidence:this.state.evidence.map(e=>e.id===id?{...e,selectedForReport}:e)})}
-  setHypothesis(hypothesis:string) {if(!this.state.diagnosis)this.update({hypothesis})}
+  setHypothesis(hypothesis:PlayerHypothesis|null) {if(!this.state.diagnosis)this.update({hypothesis:hypothesis?structuredClone(hypothesis):null})}
   submitReport(report:RootCauseReport) {
     if(this.state.diagnosis)throw new Error('첫 제출은 보존됩니다.')
     const selected=this.state.evidence.filter(e=>report.evidenceIds.includes(e.id)&&e.discovered)

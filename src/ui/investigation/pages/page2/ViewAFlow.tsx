@@ -7,7 +7,6 @@ interface ViewAFlowProps {
   onSelectComponent: (id: string) => void
   onNavigateToSignals: () => void
   onSetHypothesisTarget: (target: string, type: string) => void
-  onOpenFullArch: () => void
 }
 
 function getStatusBadge(status: InspectionStatus) {
@@ -32,8 +31,7 @@ export function ViewAFlow({
   selectedComponent,
   onSelectComponent,
   onNavigateToSignals,
-  onSetHypothesisTarget,
-  onOpenFullArch
+  onSetHypothesisTarget
 }: ViewAFlowProps) {
   const node = architectureNode(selectedComponent)
   const flow = normalFunctionFlows[selectedComponent] ?? [node.role]
@@ -61,14 +59,6 @@ export function ViewAFlow({
               </h3>
               <small style={{ color: '#64748b' }}>이 사건과 관련된 기능 경로와 각 기능의 조사 상태를 확인할 수 있습니다.</small>
             </div>
-            <button
-              type="button"
-              className="timeline-btn"
-              onClick={onOpenFullArch}
-              style={{ fontSize: '11px', padding: '4px 8px' }}
-            >
-              전체 구조 보기 ›
-            </button>
           </div>
 
           {/* 범례 */}

@@ -17,6 +17,7 @@ interface GameFlowState {
   pauseRace: () => void; resumeRace: () => void; restartRace: () => void
   finishRace: () => void
   openDebrief: () => void
+  completeInvestigation: (destination: 'race' | 'debrief') => void
   enterDebugXRay: () => void; leaveXRay: () => void
   next: () => void; back: () => void; reset: () => void
 }
@@ -34,6 +35,9 @@ export const useNavigation = create<GameFlowState>((set) => ({
     : { phase: 'SESSION_SETUP', screen: 'setup' }),
   finishRace: () => set(({ phase }) => phase === 'RACE_NORMAL' ? { phase: 'FINISH' } : {}),
   openDebrief: () => set(({ phase }) => phase === 'FINISH' ? { phase: 'DEBRIEF', screen: 'debrief' } : {}),
+  completeInvestigation: (destination) => set(({ phase }) => phase === 'XRAY_MODE'
+    ? destination === 'debrief' ? { phase: 'DEBRIEF', screen: 'debrief' } : { phase: 'RACE_NORMAL', screen: 'race' }
+    : {}),
   enterDebugXRay: () => set(({ phase }) => phase === 'RACE_NORMAL' || phase === 'PAUSE_MENU' ? { phase: 'XRAY_MODE', screen: 'xray' } : {}),
   leaveXRay: () => set(({ phase }) => phase === 'XRAY_MODE' ? { phase: 'RACE_NORMAL', screen: 'race' } : {}),
   next: () => set(({ screen, draftConfig }) => screen === 'main'

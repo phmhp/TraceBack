@@ -70,8 +70,8 @@ export function InvestigationTimeline({
         <div
           className="timeline-event-marker"
           style={{ left: `${eventPercent}%` }}
+          title={`사건 시점 (${eventTimeSeconds.toFixed(3)}s)`}
         >
-          <span>사건 시점 ({eventTimeSeconds.toFixed(3)}s)</span>
           <div className="timeline-event-marker-dot" />
         </div>
       </div>

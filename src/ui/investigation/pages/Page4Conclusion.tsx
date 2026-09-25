@@ -11,6 +11,7 @@ interface Page4Props {
   evidenceList: readonly Evidence[]
   diagnosis: Diagnosis | null
   repairs: readonly ExperimentRun[]
+  resolved: boolean
   onSelectEvidenceForReport: (id: string, selected: boolean) => void
   onSubmitReport: (report: RootCauseReport) => void
   onRunRepair: (variant: 0 | 2 | 3) => void
@@ -37,6 +38,7 @@ export function Page4Conclusion({
   evidenceList,
   diagnosis,
   repairs,
+  resolved,
   onSelectEvidenceForReport,
   onSubmitReport,
   onRunRepair,
@@ -175,7 +177,7 @@ export function Page4Conclusion({
               ))}
             </div>
 
-            {onNavigateToDebrief && (
+            {onNavigateToDebrief && resolved && (
               <button
                 type="button"
                 className="p1-cta-btn"

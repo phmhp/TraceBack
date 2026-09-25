@@ -1,163 +1,409 @@
-import type { ReactNode } from 'react'
-import type { IncidentFrame } from '../../runtime/case/PropulsionCase'
-import type { CaseDefinition } from '../../runtime/investigation/CaseDefinition'
-import type { BoundaryObservation } from '../../runtime/investigation/Boundary'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo } from 'react'
 import { useCase } from '../state/CaseContext'
 import { useNavigation } from '../state/navigation'
-import { architectureNode, componentIds } from '../../registries/investigation/Architecture'
-import { testsForComponent } from '../../registries/investigation/Trace'
-import { inspectBoundary } from '../../runtime/investigation/Boundary'
+import { useInvestigationUIState } from './presentation/useInvestigationState'
+import { createInvestigationPresentationModel } from './presentation/InvestigationPresentationModel'
+import { InvestigationHeader } from './shell/InvestigationHeader'
+import { InvestigationSidebar } from './shell/InvestigationSidebar'
+import { InvestigationTimeline } from './shell/InvestigationTimeline'
+import { Page1Phenomenon } from './pages/Page1Phenomenon'
+import { Page2Tracking } from './pages/Page2Tracking'
+import { Page3Verification } from './pages/Page3Verification'
+import { Page4Conclusion } from './pages/Page4Conclusion'
 import { ArchitectureExplorer } from './ArchitectureExplorer'
-import { RequirementsExplorer } from './RequirementsExplorer'
-import { TestBench } from './TestBench'
-import { RootCauseReportPanel } from './AnalysisReport'
-import { CaseSignalComparison } from '../screens/CaseSignalComparison'
+import { RequirementMap } from '../xray/RequirementMap'
+import { defaultExperimentOptions } from '../../runtime/case/CaseExperiment'
+import type { RootCauseReport } from '../../runtime/investigation/Evidence'
+import { getRequirement } from '../../registries/investigation/Trace'
 import '../case.css'
-import './workspace.css'
-import './case-file.css'
-import { FileIcon } from './FileIcon'
-import { DriverPortrait } from './DriverPortrait'
-import './office.css'
-
-const tools = [['overview', '조사 현황', '현재 조사 정보'], ['incident', '고장 보고서', '현상 파악'], ['architecture', '차량 기능 구조', '논리 기능 흐름'], ['recording', '주행 신호 조사', '기대값과 실제값'], ['requirements', '요구사항 · 시험', 'SYSR · SWR · TC'], ['bench', '재현 시험실', '독립 SW 시험'], ['report', '원인 분석서', '근거와 최종 판단']] as const
-type Tool = typeof tools[number][0]
-const format = (value: unknown) => value === null || value === undefined ? '—' : typeof value === 'number' ? value.toFixed(3) : typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)
+import './investigation-layout.css'
 
 export function InvestigationWorkspace() {
-    const videoSlot = useRef<HTMLDivElement>(null)
-    const content = useRef<HTMLElement>(null)
+    const { controller, state } = useCase()
+    const completeInvestigation = useNavigation((s) => s.completeInvestigation)
+    const ui = useInvestigationUIState()
 
-    const { controller, state } = useCase(), leave = useNavigation(s => s.leaveXRay)
-    const [tool, setTool] = useState<Tool>('incident'), [component, setComponent] = useState('PropulsionFunction'), [tc, setTc] = useState(''), [requirement, setRequirement] = useState(''), [playing, setPlaying] = useState(false), [visited, setVisited] = useState<Set<Tool>>(() => new Set(['incident']))
-    //const [video, setVideo] = useState<HTMLDivElement | null>(null), content = useRef<HTMLElement>(null)
-    const frame = state.frames[state.selected], definition = controller.definition
-    const observation = frame ? inspectBoundary(frame, component, state.frames[state.selected - 1]) : null
-    const inspected = state.evidence.some(e => e.type === 'SIGNAL_BOUNDARY' && e.reference.frameId === frame?.id && e.relatedComponent === component)
-    const go = (next: Tool) => { setTool(next); setVisited(previous => new Set(previous).add(next)); content.current?.scrollTo({ top: 0, behavior: 'smooth' }) }
-    const openRequirements = (id?: string) => { const related = testsForComponent(component); setTc(id?.startsWith('TC-') ? id : related[0]?.id ?? ''); setRequirement(id && !id.startsWith('TC-') ? id : ''); go('requirements') }
-    const openBench = (id: string) => { setTc(id); go('bench') }
+    const currentFrame = state.frames[state.selected]
+    const definition = controller.definition
+
+    const [videoSlot, setVideoSlot] = useState<HTMLDivElement | null>(null)
+    const [showReqMapModal, setShowReqMapModal] = useState(false)
+
+    // Create presentation model
+    const presentationModel = useMemo(() => {
+        return createInvestigationPresentationModel(state, definition, ui.hypothesis, ui.milestones, ui.session.discoveredFindings)
+    }, [state, definition, ui.hypothesis, ui.milestones, ui.session.discoveredFindings])
+
+    // InvestigationSession owns the player hypothesis; the case report receives an explicit synchronized copy.
+    useEffect(() => {
+        controller.setHypothesis(ui.hypothesis)
+    }, [controller, ui.hypothesis])
+
+    useEffect(() => {
+        if (ui.selectedFrameIndex !== state.selected) ui.setSelectedFrameIndex(state.selected)
+    }, [state.selected, ui])
+
+    // 3D viewport projection: 원본 desk-video getBoundingClientRect 방식 복원 (commit 79ec3b baseline)
     useLayoutEffect(() => {
-        const el = videoSlot.current
-        if (!el) return
-
+        if (!videoSlot) return
         const resize = () => {
-            const r = el.getBoundingClientRect()
-            const rail = el.closest('.desk-rail')?.getBoundingClientRect()
-
+            const rect = videoSlot.getBoundingClientRect()
+            const box = videoSlot.closest('.investigation-sidebar')?.getBoundingClientRect()
             for (const [name, value] of Object.entries({
-                left: r.left,
-                top: r.top,
-                width: r.width,
-                height: r.height
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height
             })) {
-                document.documentElement.style.setProperty(
-                    '--case-video-' + name,
-                    value + 'px'
-                )
+                document.documentElement.style.setProperty(`--case-video-${name}`, `${value}px`)
             }
-
-            if (rail) {
-                const clipTop = Math.max(0, rail.top - r.top)
-                const clipRight = Math.max(0, r.right - rail.right)
-                const clipBottom = Math.max(0, r.bottom - rail.bottom)
-                const clipLeft = Math.max(0, rail.left - r.left)
-
+            if (box) {
+                const clipTop = Math.max(0, box.top - rect.top)
+                const clipRight = Math.max(0, rect.right - box.right)
+                const clipBottom = Math.max(0, rect.bottom - box.bottom)
+                const clipLeft = Math.max(0, box.left - rect.left)
                 document.documentElement.style.setProperty(
                     '--case-video-clip',
                     `inset(${clipTop}px ${clipRight}px ${clipBottom}px ${clipLeft}px round 10px)`
                 )
             }
         }
-
         resize()
-
         const observer = new ResizeObserver(resize)
-        observer.observe(el)
-
+        observer.observe(videoSlot)
         window.addEventListener('resize', resize)
         window.addEventListener('scroll', resize, true)
-
         return () => {
             observer.disconnect()
             window.removeEventListener('resize', resize)
             window.removeEventListener('scroll', resize, true)
+            for (const name of ['left', 'top', 'width', 'height']) {
+                document.documentElement.style.removeProperty(`--case-video-${name}`)
+            }
+            document.documentElement.style.removeProperty('--case-video-clip')
         }
-    }, [])
-    useEffect(() => { if (!playing) return; const timer = window.setInterval(() => { const snapshot = controller.getSnapshot(); if (snapshot.selected >= snapshot.frames.length - 1) setPlaying(false); else controller.select(snapshot.selected + 1) }, 95); return () => window.clearInterval(timer) }, [playing, controller])
-    const inputRows = [['AcceleratorPedalPosition', frame?.sw.input.acceleratorPedalPosition, '가속 페달 입력'], ['GearRequest', frame?.sw.input.gearRequest, '운전자가 요청한 기어'], ['Brake', frame?.brake, '브레이크 입력'], ['Steering', frame?.steering, '조향 입력']]
-    const outputRows = [['VehicleSpeed', frame?.plant?.speed, '차량 속력 m/s'], ['LongitudinalVelocity', frame?.plant?.longitudinalVelocity, '종방향 속력 m/s'], ['LongitudinalAcceleration', frame?.plant?.longitudinalAcceleration, '종방향 가속도 m/s²']]
-    const signals = (rows: unknown[][]) => <dl className="report-signals">{rows.map(([name, value, hint]) => <div key={String(name)}><dt><code title={String(hint)}>{String(name)}</code></dt><dd>{format(value)}</dd></div>)}</dl>
-    const checklist = [['고장 보고서 확인', visited.has('incident')], ['차량 기능 구조 확인', visited.has('architecture')], ['주행 신호 비교', state.evidence.some(e => e.type === 'SIGNAL_BOUNDARY')], ['요구사항 · 시험 확인', visited.has('requirements')], ['재현 시험 실행', state.experiments.length > 0], ['원인 분석서 제출', !!state.diagnosis]] as const
-    const title = tools.find(([id]) => id === tool)!
-    return <section className="investigation-desk case-file-room">
-        <div
-            className="room-brand"
-            style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-            }}
-        >
-            <img
-                src="/assets/investigation/cat-face.png"
-                alt=""
-                style={{
-                    width: '90px',
-                    height: '90px',
-                    objectFit: 'contain',
-                    flexShrink: 0,
-                    marginTop: '7px'
+    }, [videoSlot])
 
-                }}
+    // Playback timer loop
+    useEffect(() => {
+        if (!ui.isPlaying) return
+        const timer = window.setInterval(() => {
+            const snapshot = controller.getSnapshot()
+            if (snapshot.selected >= snapshot.frames.length - 1) {
+                ui.setIsPlaying(false)
+            } else {
+                controller.select(snapshot.selected + 1)
+                ui.setSelectedFrameIndex(snapshot.selected + 1)
+            }
+        }, 95)
+        return () => window.clearInterval(timer)
+    }, [ui.isPlaying, controller, ui])
+
+    // Handlers
+    const handleTogglePlay = () => {
+        if (state.selected >= state.frames.length - 1) {
+            controller.select(0)
+            ui.setSelectedFrameIndex(0)
+        }
+        ui.setIsPlaying((prev) => !prev)
+    }
+
+    const handleSeek = (idx: number) => {
+        ui.setIsPlaying(false)
+        controller.select(idx)
+        ui.setSelectedFrameIndex(idx)
+    }
+
+    const handleJumpToEvent = () => {
+        ui.setIsPlaying(false)
+        const index = Math.max(0, state.frames.length - 1)
+        controller.select(index)
+        ui.setSelectedFrameIndex(index)
+    }
+
+    const handleSaveAsEvidence = (subjectId: string) => {
+        const requirement = getRequirement(subjectId)
+        if (requirement) {
+            controller.discoverReference('REQUIREMENT', requirement.id, requirement.allocatedComponent, [requirement.id], requirement.linkedTestCases)
+            const evidenceId = `REQUIREMENT:${requirement.id}`
+            ui.discover({ id: `finding:${evidenceId}`, kind: 'REQUIREMENT', subjectId: requirement.id, source: 'REFERENCE' })
+            ui.collectEvidence(evidenceId)
+            return
+        }
+        const observation = controller.inspect(ui.selectedComponent)
+        const frame = controller.getSnapshot().frames[controller.getSnapshot().selected]
+        if (!observation || !frame) return
+        const evidenceId = `boundary:${ui.selectedComponent}:${frame.id}`
+        ui.discover({ id: `finding:${evidenceId}`, kind: subjectId === ui.selectedSignal ? 'SIGNAL' : 'BOUNDARY', subjectId: ui.selectedComponent, source: 'INCIDENT_OBSERVATION', outcome: observation.status })
+        ui.collectEvidence(evidenceId)
+    }
+
+    const handleRunExperiment = (
+        value: number,
+        speed: number,
+        direction: 'FORWARD' | 'REVERSE',
+        validity: 'VALID' | 'INVALID',
+        target: 'VMC' | 'eDrive'
+    ) => {
+        controller.runExperiment(value, undefined, target, {
+            ...defaultExperimentOptions(),
+            speed,
+            direction,
+            validity
+        })
+        ui.recordAction('RUN_EXPERIMENT', target)
+    }
+
+    const handleCollectTest = (runId: number) => {
+        controller.collectTest(runId)
+        const run = controller.getSnapshot().experiments.find(item => item.id === runId)
+        if (run) {
+            const evidenceId = `test:${runId}`
+            ui.discover({ id: `finding:${evidenceId}`, kind: 'TEST_RESULT', subjectId: run.testCaseId ?? String(runId), source: 'EXPERIMENT' })
+            ui.collectEvidence(evidenceId)
+            ui.recordAction('INTERPRET_VERIFICATION', run.testCaseId)
+        }
+    }
+
+    const handleSubmitReport = (report: RootCauseReport) => {
+        controller.submitReport(report)
+        ui.recordAction('SUBMIT_DIAGNOSIS', report.faultLocation)
+    }
+
+    const handleRunRepair = (variant: 0 | 2 | 3) => {
+        controller.runRepair(variant)
+    }
+
+    const handleSelectEvidenceForReport = (id: string, selected: boolean) => {
+        controller.selectEvidence(id, selected)
+    }
+
+    return (
+        <div className="investigation-new-container">
+            {/* 1. 상단 Stepper 헤더 */}
+            <InvestigationHeader
+                currentPage={ui.page}
+                onSelectPage={ui.setPage}
             />
 
-            <div
-                style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '2px',
-                }}
-            >
-                <b
-                    style={{
-                        fontSize: '32px',
-                        lineHeight: 1,
+            {/* 2. 본문 영역: 사이드바 + 메인 페이지 */}
+            <div className="investigation-body">
+                <InvestigationSidebar
+                    model={presentationModel}
+                    hypothesis={ui.hypothesis}
+                    evidenceList={state.evidence}
+                    videoSlotRef={setVideoSlot}
+                    onSelectEvidence={(ev) => {
+                        if (ev.relatedComponent) {
+                            ui.navigate({ page: 2, view: 'SIGNALS', selection: { componentId: ev.relatedComponent } }, `근거 ${ev.id}에서 신호 비교로 이동`)
+                        }
                     }}
-                >
-                    TRACKBACK
-                </b>
+                    onNavigateToTracking={() => {
+                        ui.navigate({ page: 2 }, '사이드바에서 원인 추적으로 이동')
+                    }}
+                />
 
-                <small
-                    className="brand-speech"
-                    style={{
-                        marginTop: '2px',
-                    }}
-                >
-                    고장 원인을 알아내주세요!
-                </small>
+                <div className="investigation-main-stack">
+                    {/* Investigation history is separate from browser history. */}
+                    {ui.canGoBack && (
+                        <div className="investigation-back-row">
+                            <button type="button" className="investigation-back-btn" onClick={ui.back} aria-label="이전 조사 컨텍스트로 돌아가기">
+                                ← 이전 조사
+                            </button>
+                        </div>
+                    )}
+
+                    {/* 4개 사고 흐름 PAGE */}
+                    {ui.page === 1 && (
+                    <Page1Phenomenon
+                        model={presentationModel}
+                        onStartTracking={() => {
+                            ui.reviewPhenomenon()
+                            ui.navigate({ page: 2, view: 'FLOW' }, '현상 파악에서 원인 추적 시작')
+                        }}
+                    />
+                )}
+
+                    {ui.page === 2 && (
+                    <Page2Tracking
+                        model={presentationModel}
+                        trackingView={ui.trackingView}
+                        onSelectView={ui.setTrackingView}
+                        selectedComponent={ui.selectedComponent}
+                        onSelectComponent={ui.setSelectedComponent}
+                        selectedSignal={ui.selectedSignal}
+                        onSelectSignal={ui.setSelectedSignal}
+                        selectedInterface={ui.selectedInterface}
+                        onSelectInterface={ui.setSelectedInterface}
+                        selectedRequirement={ui.selectedRequirement}
+                        onSelectRequirement={ui.setSelectedRequirement}
+                        selectedTestCase={ui.selectedTestCase}
+                        currentFrame={currentFrame}
+                        frames={state.frames}
+                        onSelectFrameIndex={handleSeek}
+                        onSaveAsEvidence={handleSaveAsEvidence}
+                        onSetHypothesisTarget={(target, type) => {
+                            ui.setHypothesis({ target, type, signal: ui.selectedSignal })
+                            ui.navigate({ page: 3 }, '기능에서 가설 검증으로 이동')
+                        }}
+                        onOpenFullArch={() => ui.setShowFullArchModal(true)}
+                        onOpenBenchWithTc={(tcId) => {
+                            ui.navigate({ page: 3, selection: { testCaseId: tcId } }, `요구사항에서 ${tcId} 검증으로 이동`)
+                            ui.recordAction('SELECT_TEST_CASE', tcId)
+                        }}
+                        onOpenReqMap={() => setShowReqMapModal(true)}
+                        onNavigateContext={(view, selection, origin) => ui.navigate({ page: 2, view, selection }, origin ?? `원인 추적 ${view} 보기`)}
+                    />
+                )}
+
+                    {ui.page === 3 && (
+                    <Page3Verification
+                        hypothesis={ui.hypothesis}
+                        selectedTestCaseId={ui.selectedTestCase}
+                        onUpdateHypothesis={ui.setHypothesis}
+                        currentFrame={currentFrame}
+                        frames={state.frames}
+                        latestExperiment={state.experiment}
+                        experiments={state.experiments}
+                        onRunExperiment={handleRunExperiment}
+                        onCollectTestAsEvidence={handleCollectTest}
+                        onJumpToEvent={handleJumpToEvent}
+                        onNavigateToTracking={() => ui.navigate({ page: 2 }, '가설 수정')}
+                    />
+                )}
+
+                    {ui.page === 4 && (
+                    <Page4Conclusion
+                        definition={definition}
+                        evidenceList={state.evidence}
+                        diagnosis={state.diagnosis}
+                        repairs={state.repairs}
+                        resolved={state.phase === 'RESOLVED'}
+                        onSelectEvidenceForReport={handleSelectEvidenceForReport}
+                        onSubmitReport={handleSubmitReport}
+                        onRunRepair={handleRunRepair}
+                        onNavigateToDebrief={() => completeInvestigation('debrief')}
+                    />
+                    )}
+                </div>
             </div>
-        </div>
-        <div className="desk-layout"><aside className="desk-rail"><figure className="stored-drive-card"><div ref={videoSlot} className="desk-video" /><figcaption><b>저장 주행 기록</b><small>{format(frame?.sw.executionTime)} s</small></figcaption></figure><div className="office-memento" aria-hidden="true"><img src="/assets/investigation/driver-front-polaroid.png" alt="" /><img src="/assets/investigation/village-polaroid.png" alt="" /></div><nav className="desk-nav" aria-label="조사 메뉴">{tools.map(([id, label, note]) => <button key={id} aria-current={tool === id ? 'page' : undefined} onClick={() => go(id)}><FileIcon kind={id} /><span><b>{label}</b><small>{note}</small></span></button>)}</nav><section className="investigation-helper"><div><FileIcon kind="report" /><b>조사 메모</b></div><p>차근차근 단서를 모아보세요!</p>{checklist.map(([label, checked]) => <label key={label}><input type="checkbox" checked={checked} readOnly /><span>{label}</span></label>)}</section></aside>
-            <main className={`desk-content tool-${tool}`} ref={content}><div className="tool-heading"><FileIcon kind={tool} /><div><h2>{title[1]}</h2><small>{title[2]}</small></div><code className="file-number">{definition.id}</code></div>
-                {tool === 'overview' && <Overview frame={frame} component={component} setComponent={setComponent} go={go} evidenceCount={state.evidence.length} experimentCount={state.experiments.length} />}
-                {tool === 'incident' && <IncidentReport frame={frame} definition={definition} signals={signals} inputRows={inputRows} outputRows={outputRows} onArchitecture={() => { setComponent('PropulsionFunction'); go('architecture') }} onRecording={() => go('recording')} />}
-                {tool === 'architecture' && <ArchitectureExplorer selected={component} onSelect={setComponent} onTrace={() => go('recording')} onRequirements={openRequirements} />}
-                {tool === 'recording' && <SignalInvestigation component={component} setComponent={setComponent} frame={frame} observation={observation} inspected={inspected} onInspect={() => controller.inspect(component)} onRequirements={openRequirements} frames={state.frames} select={controller.select.bind(controller)} />}
-                {tool === 'requirements' && <RequirementsExplorer component={component} tcId={tc} initialRequirement={requirement} onComponent={setComponent} onTc={setTc} onBench={openBench} />}
-                {tool === 'bench' && <TestBench key={tc} initialTc={tc} />}
-                {tool === 'report' && <RootCauseReportPanel />}
-            </main></div>
-        <footer className="desk-timeline"><button disabled={!frame} onClick={() => { if (state.selected >= state.frames.length - 1) controller.select(0); setPlaying(value => !value) }}>{playing ? '재생 정지' : '주행 기록 재생'}</button><label>시점<input aria-label="저장 주행 시간 커서" type="range" min="0" max={Math.max(0, state.frames.length - 1)} value={state.selected} disabled={!frame} onChange={event => { setPlaying(false); controller.select(Number(event.target.value)) }} /></label><output>{format(frame?.sw.executionTime)} s</output></footer>
-    </section>
-}
 
-function Overview({ frame, component, setComponent, go, evidenceCount, experimentCount }: { frame: IncidentFrame | undefined; component: string; setComponent: (id: string) => void; go: (tool: Tool) => void; evidenceCount: number; experimentCount: number }) { return <section className="overview-workspace"><article className="overview-symptom"><small>현재 사건 · {frame?.sw.executionTime?.toFixed(3) ?? '—'} s</small><h3>고장 현상</h3><p>가속 페달 입력에 비해 차량의 가속 반응이 약합니다.</p><dl className="overview-values"><div><dt><code>AcceleratorPedalPosition</code></dt><dd>{format(frame?.sw.input.acceleratorPedalPosition)}</dd></div><div><dt><code>GearState</code></dt><dd>{format(frame?.sw.output.gearState)}</dd></div></dl></article><article className="overview-flow"><h3>이번 사건의 조사 경로</h3><div><button onClick={() => go('incident')}>운전자 요구</button><i>→</i>{['GearLogic', 'PropulsionFunction', 'VMC', 'eDrive'].map((id, index) => <span key={id}><button aria-pressed={component === id} onClick={() => { setComponent(id); go('architecture') }}>{architectureNode(id).label}</button>{index < 3 && <i>→</i>}</span>)}<i>→</i><button onClick={() => go('recording')}>차량 거동</button></div><small>강조된 기능은 현재 선택한 조사 범위입니다.</small></article><article className="overview-status"><h3>차량 거동</h3><dl><div><dt><code>VehicleSpeed</code></dt><dd>{format(frame?.plant?.speed)}</dd></div><div><dt><code>LongitudinalAcceleration</code></dt><dd>{format(frame?.plant?.longitudinalAcceleration)}</dd></div><div><dt>확보 근거</dt><dd>{evidenceCount}개</dd></div><div><dt>재현 시험</dt><dd>{experimentCount}건</dd></div></dl></article><article className="overview-next"><h3>다음 조사</h3><p>기대 출력과 이번 주행 출력을 비교해, 차이가 처음 나타나는 기능을 찾아보세요.</p><button className="primary navigation-action" onClick={() => go('recording')}>주행 신호 바로가기 →</button></article></section> }
-function IncidentReport({ frame, definition, signals, inputRows, outputRows, onArchitecture, onRecording }: { frame: IncidentFrame | undefined; definition: CaseDefinition; signals: (rows: unknown[][]) => ReactNode; inputRows: unknown[][]; outputRows: unknown[][]; onArchitecture: () => void; onRecording: () => void }) { return <section className="incident-workspace"><article className="incident-facts"><h3>기본 정보</h3><dl><div><dt>사건 번호</dt><dd><code>{definition.id}</code></dd></div><div><dt>발생 시점</dt><dd>{format(frame?.sw.executionTime)} s</dd></div><div><dt>차량 상태</dt><dd><code>GearState</code> {frame?.sw.output.gearState ?? '—'}</dd></div></dl></article><article className="incident-symptom"><h3><FileIcon kind="warning" /> 고장 현상</h3><p>{definition.symptom}</p><blockquote>“페달을 밟아도 차가 잘 안 나가요…”</blockquote></article><article className="incident-photo-note"><DriverPortrait /><p>운전자 진술 · 현장 기록</p><small>“페달을 밟아도 차가 잘 안 나가요…”</small></article><article className="incident-flow"><h3>운전자 요구 → 차량 내부 SW → 차량 거동</h3><div className="report-route"><section><h4>입력</h4>{signals(inputRows)}</section><i>→</i><section className="software-sheet"><button onClick={onArchitecture}><FileIcon kind="architecture" /><b>차량 내부 SW</b><small>논리 기능 흐름 보기 →</small></button><div>{['GearLogic', 'PropulsionFunction', 'VMC', 'eDrive'].map(id => <code key={id}>{id}</code>)}</div></section><i>→</i><section><h4>출력</h4>{signals(outputRows)}</section></div></article><article className="incident-hint"><h3>조사 힌트</h3><p>먼저 주행 신호에서 각 기능의 정상 기대 출력과 이번 주행 출력을 비교해보세요.</p><button className="primary navigation-action" onClick={onRecording}>주행 신호 바로가기 →</button></article></section> }
-function SignalInvestigation({ component, setComponent, frame, observation, inspected, onInspect, onRequirements, frames, select }: { component: string; setComponent: (id: string) => void; frame: IncidentFrame | undefined; observation: BoundaryObservation | null; inspected: boolean; onInspect: () => void; onRequirements: (id?: string) => void; frames: readonly IncidentFrame[]; select: (index: number) => void }) {
-    const node = Math.max(0, componentIds.indexOf(component as typeof componentIds[number]))
-    return <section className="signal-workspace signal-investigation-layout">
-        <aside className="signal-selector-panel"><small>조사 경계</small><h3>기능별 출력 신호</h3>{componentIds.map(id => <button aria-pressed={id === component} key={id} onClick={() => setComponent(id)}><b>{architectureNode(id).label}</b><span>{architectureNode(id).role}</span></button>)}</aside>
-        {frame && observation && <><section className="signal-analysis-panel"><header><div><small>선택 기능</small><h3>{architectureNode(component).label}</h3></div><span className={`signal-status ${observation.status.toLowerCase()}`}>{observation.status === 'MISMATCH' ? '불일치' : observation.status === 'MATCH' ? '정상' : '관찰'}</span></header><div className="signal-output-compare"><div><small>정상 기대 출력</small><pre>{format(observation.expected)}</pre></div><div><small>이번 주행 출력</small><pre>{format(observation.actual)}</pre></div></div><article className="signal-trend-card"><CaseSignalComparison node={node} frame={frame} frames={frames} onSelect={select} showSummary={false} /></article><div className="document-actions"><button className="primary navigation-action" onClick={onInspect}>{inspected ? '이 신호를 근거로 보관함' : '이 신호를 근거로 보관 →'}</button><button className="navigation-action" onClick={() => onRequirements()}>관련 요구사항 바로가기 →</button></div></section><aside className="signal-logic-panel"><small>신호 처리 흐름</small><h3>{architectureNode(component).label}</h3><div className="signal-processing"><section><h4>입력 신호</h4>{Object.entries(observation.inputs).map(([key, value]) => <p key={key}><code>{key}</code><b>{format(value)}</b></p>)}</section><i>↓</i><section><h4>기능 처리</h4><p>{architectureNode(component).role}</p></section><i>↓</i><section><h4>출력 신호</h4><pre>{format(observation.actual)}</pre></section></div><p className="signal-oracle-note">{observation.note}</p></aside></>}
-    </section>
+            {/* 3. 하단 공통 타임라인 바 */}
+            <InvestigationTimeline
+                currentIndex={state.selected}
+                totalFrames={state.frames.length}
+                currentTimeSeconds={currentFrame?.sw.executionTime ?? 0}
+                totalTimeSeconds={state.frames[state.frames.length - 1]?.sw.executionTime ?? 60}
+                eventTimeSeconds={presentationModel.eventTimeSeconds}
+                isPlaying={ui.isPlaying}
+                onTogglePlay={handleTogglePlay}
+                onSeek={handleSeek}
+                onJumpToEvent={handleJumpToEvent}
+                onOpenVideo={() => ui.setShowVideoModal(true)}
+            />
+
+            {/* 영상 보기 모달 */}
+            {ui.showVideoModal && (
+                <div className="investigation-modal-overlay" onClick={() => ui.setShowVideoModal(false)}>
+                    <div className="investigation-modal-content" onClick={(e) => e.stopPropagation()}>
+                        <div className="investigation-modal-header">
+                            <b style={{ fontSize: '15px' }}>📹 주행 상황 현장 기록</b>
+                            <button
+                                type="button"
+                                onClick={() => ui.setShowVideoModal(false)}
+                                style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer' }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="investigation-modal-body" style={{ textAlign: 'center' }}>
+                            <img
+                                src="/assets/investigation/driver-front-polaroid.png"
+                                alt="주행 상황 현장 사진"
+                                style={{ maxWidth: '100%', maxHeight: '420px', borderRadius: '8px' }}
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = '/assets/investigation/village-polaroid.png'
+                                }}
+                            />
+                            <p style={{ marginTop: '12px', fontSize: '13px', color: '#475569' }}>
+                                사건 발생 시점 ({presentationModel.eventTimeSeconds.toFixed(3)} s) 전후의 차량 거동 스냅샷입니다.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 현재 저장소가 지원하는 참조 아키텍처 모달 */}
+            {ui.showFullArchModal && (
+                <div className="investigation-modal-overlay" onClick={() => ui.setShowFullArchModal(false)}>
+                    <div className="investigation-modal-content" style={{ maxWidth: '960px' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="investigation-modal-header">
+                            <b style={{ fontSize: '15px' }}>🏗️ 현재 지원 차량 기능 구조 (Reference Architecture)</b>
+                            <button
+                                type="button"
+                                onClick={() => ui.setShowFullArchModal(false)}
+                                style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer' }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="investigation-modal-body">
+                            <ArchitectureExplorer
+                                selected={ui.selectedComponent}
+                                onSelect={(id) => {
+                                    ui.setSelectedComponent(id)
+                                    ui.setShowFullArchModal(false)
+                                }}
+                                onTrace={() => {
+                                    ui.setShowFullArchModal(false)
+                                    ui.setTrackingView('SIGNALS')
+                                }}
+                                onRequirements={() => {
+                                    ui.setShowFullArchModal(false)
+                                    ui.setTrackingView('STANDARDS')
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 전체 요구사항 계층 구조 / Mind-Map 모달 */}
+            {showReqMapModal && (
+                <div className="investigation-modal-overlay" onClick={() => setShowReqMapModal(false)}>
+                    <div className="investigation-modal-content" style={{ maxWidth: '1100px', width: '92vw' }} onClick={(e) => e.stopPropagation()}>
+                        <div className="investigation-modal-header">
+                            <b style={{ fontSize: '15px' }}>🗺️ 전체 요구사항 계층 구조 & Mind-Map</b>
+                            <button
+                                type="button"
+                                onClick={() => setShowReqMapModal(false)}
+                                style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer' }}
+                            >
+                                ✕
+                            </button>
+                        </div>
+                        <div className="investigation-modal-body" style={{ minHeight: '520px', overflowX: 'auto' }}>
+                            <RequirementMap
+                                initialRequirement={ui.selectedRequirement}
+                                onComponent={(id) => {
+                                    ui.setSelectedComponent(id)
+                                    setShowReqMapModal(false)
+                                }}
+                                onRequirement={(id) => {
+                                    ui.setSelectedRequirement(id)
+                                    setShowReqMapModal(false)
+                                    ui.setTrackingView('STANDARDS')
+                                }}
+                                onTest={(tcId) => {
+                                    ui.navigate({ page: 3, selection: { testCaseId: tcId } }, `요구사항 지도에서 ${tcId} 검증으로 이동`)
+                                    ui.recordAction('SELECT_TEST_CASE', tcId)
+                                    setShowReqMapModal(false)
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    )
 }

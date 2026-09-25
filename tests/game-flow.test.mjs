@@ -45,3 +45,13 @@ test('race lifecycle uses explicit countdown, normal, pause, restart and debug x
     { phase: 'MAIN', screen: 'main' },
   )
 })
+
+test('resolved investigation has explicit race and debrief completion transitions', () => {
+  resetFlow(); useNavigation.getState().next(); useNavigation.getState().completeCountdown()
+  useNavigation.getState().enterDebugXRay()
+  useNavigation.getState().completeInvestigation('race')
+  assert.deepEqual({ phase: useNavigation.getState().phase, screen: useNavigation.getState().screen }, { phase: 'RACE_NORMAL', screen: 'race' })
+  useNavigation.getState().enterDebugXRay()
+  useNavigation.getState().completeInvestigation('debrief')
+  assert.deepEqual({ phase: useNavigation.getState().phase, screen: useNavigation.getState().screen }, { phase: 'DEBRIEF', screen: 'debrief' })
+})
