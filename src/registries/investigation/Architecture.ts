@@ -10,6 +10,7 @@ export type SignalValue = number | string | boolean | Record<string, unknown> | 
 export interface SignalDefinition {
   id: string
   label: string
+  description?: string
   producerIds: string[]
   consumerIds: string[]
   interfaceIds: string[]
@@ -101,6 +102,30 @@ const units: Partial<Record<string,string>> = {
   LongitudinalAcceleration:'m/s²', driveForce:'N', brakeForce:'N', steering:'rad',
 }
 
+const signalDescriptions: Partial<Record<string,string>> = {
+  AcceleratorPedalPosition:'운전자가 요구한 가속 페달 위치',
+  AcceleratorPedalValidity:'가속 페달 입력의 유효 상태',
+  GearRequest:'운전자가 요청한 기어',
+  GearRequestValidity:'기어 요청 입력의 유효 상태',
+  VehicleReady:'차량이 추진 가능한 준비 상태인지 나타내는 조건',
+  PropulsionEnable:'추진 기능 허용 상태',
+  Brake:'운전자가 요구한 제동 입력',
+  Steering:'운전자가 요구한 조향 입력',
+  GearState:'기어 로직이 결정한 실제 기어 상태',
+  GearStateValidity:'결정된 기어 상태의 유효성',
+  TransitionAccepted:'요청한 기어 전환의 허용 여부',
+  PropulsionRequest:'차량 기능이 만든 정규화 추진 요청',
+  PropulsionState:'추진 기능의 현재 허용·억제 상태',
+  DriveTorqueRequest:'VMC가 eDrive에 요청하는 구동 토크',
+  EDriveCommand:'eDrive가 액추에이션 경계로 전달하는 토크 명령',
+  VehicleSpeed:'차량 운동에서 관측한 속력',
+  LongitudinalVelocity:'차량 전후 방향의 부호 있는 속도',
+  LongitudinalAcceleration:'차량 전후 방향 가속도',
+  driveForce:'구동 어댑터가 플랜트에 적용하는 힘',
+  brakeForce:'제동 어댑터가 플랜트에 적용하는 힘',
+  steering:'조향 어댑터가 플랜트에 전달하는 조향각',
+}
+
 const signalIds = [...new Set([
   ...architectureNodes.flatMap(node => [...node.inputs, ...node.outputs]),
   ...interfaceEdges.flatMap(edge => edge.signalIds),
@@ -112,7 +137,7 @@ export const signalDefinitions: SignalDefinition[] = signalIds.map(id => {
   const declaredProducers=architectureNodes.filter(node => node.outputs.includes(id)).map(node => node.id)
   const declaredConsumers=architectureNodes.filter(node => node.inputs.includes(id)).map(node => node.id)
   return {
-    id, label:id,
+    id, label:id, description:signalDescriptions[id],
     producerIds:[...new Set([...declaredProducers,...carried.map(edge => edge.sourceId)])],
     consumerIds:[...new Set([...declaredConsumers,...carried.map(edge => edge.targetId)])],
     interfaceIds:carried.map(edge => edge.id), unit:units[id],

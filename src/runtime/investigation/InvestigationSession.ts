@@ -144,7 +144,10 @@ export function deriveInvestigationMilestones(state: InvestigationSessionState):
   const acted = (type: InvestigationActionType) => state.actions.some(action => action.type === type)
   return {
     phenomenonConfirmed: acted('REVIEW_PHENOMENON'),
-    boundaryTracked: state.discoveredFindings.some(finding => ['BOUNDARY', 'SIGNAL', 'INTERFACE'].includes(finding.kind)),
+    boundaryTracked: state.discoveredFindings.some(finding =>
+      ['BOUNDARY', 'SIGNAL', 'INTERFACE'].includes(finding.kind)
+      && (finding.outcome === 'MATCH' || finding.outcome === 'MISMATCH')
+    ),
     hypothesisFormulated: Boolean(state.hypothesis?.target),
     hypothesisVerified: acted('INTERPRET_VERIFICATION') || state.discoveredFindings.some(finding => finding.kind === 'TEST_RESULT'),
     conclusionSubmitted: acted('SUBMIT_DIAGNOSIS'),

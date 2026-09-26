@@ -25,7 +25,6 @@ interface Page2Props {
   onSelectFrameIndex: (idx: number) => void
   onSaveAsEvidence: (title: string) => void
   onSetHypothesisTarget: (target: string, type: string) => void
-  onOpenFullArch: () => void
   onOpenBenchWithTc?: (tcId: string) => void
   onOpenReqMap?: () => void
   onNavigateContext: (view: TrackingView, selection?: Partial<InvestigationSelection>, origin?: string) => void
@@ -56,7 +55,6 @@ export function Page2Tracking({
   onSelectFrameIndex,
   onSaveAsEvidence,
   onSetHypothesisTarget,
-  onOpenFullArch,
   onOpenBenchWithTc,
   onOpenReqMap,
   onNavigateContext
@@ -70,12 +68,12 @@ export function Page2Tracking({
             <span style={{ fontSize: '24px' }}>🌲</span>
             <div>
               <h2>2. 원인 추적</h2>
-              <p>정상 주행과 비교했을 때 어디서 처음 이상이 나타나는지 추적해보세요.</p>
+              <p>같은 조건의 기대값과 사건 기록을 비교해 차이가 시작되는 경계를 추적해보세요.</p>
             </div>
           </div>
 
           <div className="p2-guide-box">
-            💡 각 기능의 입출력 신호를 정상 주행과 비교하여 차이가 처음 나타나는 지점을 찾고, 의심되는 신호와 기능을 선택해보세요.
+            💡 기대값은 같은 조건에서 계산한 모델 판정입니다. 별도의 정상 주행 기록과는 다릅니다.
           </div>
         </div>
 
@@ -96,9 +94,6 @@ export function Page2Tracking({
 
         <Page2ContextBar
           selection={{ componentId:selectedComponent, signalId:selectedSignal, interfaceId:selectedInterface, requirementId:selectedRequirement, testCaseId:selectedTestCase }}
-          relevantPath={model.relevantFunctionPath}
-          onSelectComponent={onSelectComponent}
-          onOpenArchitecture={onOpenFullArch}
         />
       </div>
 
@@ -108,7 +103,12 @@ export function Page2Tracking({
           model={model}
           selectedComponent={selectedComponent}
           onSelectComponent={onSelectComponent}
-          onNavigateToSignals={() => onNavigateContext('SIGNALS', undefined, '기능에서 신호 비교로 이동')}
+          onNavigateToSignal={(signalId) => {
+            onSelectSignal(signalId)
+            onNavigateContext('SIGNALS', { signalId }, `기능에서 ${signalId} 신호 비교로 이동`)
+          }}
+          onNavigateToInterface={(interfaceId) => onNavigateContext('INTERFACES', { interfaceId }, `기능에서 ${interfaceId} 인터페이스로 이동`)}
+          onNavigateToRequirement={(requirementId) => onNavigateContext('STANDARDS', { requirementId }, `기능에서 ${requirementId} 요구사항으로 이동`)}
           onSetHypothesisTarget={onSetHypothesisTarget}
         />
       )}
@@ -124,6 +124,7 @@ export function Page2Tracking({
           onSaveAsEvidence={onSaveAsEvidence}
           onNavigateToStandards={() => onNavigateContext('STANDARDS', undefined, '신호에서 요구사항으로 이동')}
           onNavigateToInterfaces={() => onNavigateContext('INTERFACES', { signalId:selectedSignal }, '신호에서 전달 인터페이스로 이동')}
+          onNavigateToComponent={(componentId) => onNavigateContext('FLOW', { componentId }, `신호에서 ${componentId} 기능으로 이동`)}
         />
       )}
 
@@ -131,10 +132,13 @@ export function Page2Tracking({
         <ViewCInterfaces
           model={model}
           selectedInterfaceId={selectedInterface}
+          selectedComponentId={selectedComponent}
           onSelectInterface={onSelectInterface}
           selectedSignalId={selectedSignal}
           onSelectSignal={onSelectSignal}
           onNavigateToComponent={(id) => onNavigateContext('FLOW', { componentId:id }, '인터페이스에서 기능으로 이동')}
+          onNavigateToSignal={(id) => onNavigateContext('SIGNALS', { signalId:id }, `인터페이스에서 ${id} 신호 비교로 이동`)}
+          onNavigateToRequirement={(id) => onNavigateContext('STANDARDS', { requirementId:id }, `인터페이스 연결 기능에서 ${id} 요구사항으로 이동`)}
         />
       )}
 

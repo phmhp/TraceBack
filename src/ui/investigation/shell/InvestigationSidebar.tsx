@@ -26,16 +26,11 @@ export function InvestigationSidebar({
   return (
     <aside className="investigation-sidebar">
       {/* 1. 사건 정보 카드 */}
-      <section className="sidebar-card">
-        <div className="sidebar-card-header">
-          <div className="sidebar-card-title">
-            <span>📋</span>
-            <span>사건 정보</span>
-          </div>
-          <span className="sidebar-badge badge-warning">조사 중</span>
+      <section className="sidebar-card sidebar-case-card">
+        <div className="sidebar-case-line">
+          <span>조사 중</span>
+          <code className="case-id-label">{model.caseId}</code>
         </div>
-
-        <div className="case-id-label">{model.caseId}</div>
 
         {/* 3D viewport slot: 원본 desk-video 구조 복원 */}
         {/* case-file.css .mode-xray 규칙이 이 영역의 getBoundingClientRect를 기준으로 3D viewport를 투영 */}
@@ -44,14 +39,11 @@ export function InvestigationSidebar({
         </div>
 
         <div className="case-meta-grid">
-          <span className="case-meta-key">사건 시점</span>
+          <span className="case-meta-key">고장 시점</span>
           <span className="case-meta-val">{model.eventTimeSeconds.toFixed(3)} s</span>
 
-          <span className="case-meta-key">증상명</span>
+          <span className="case-meta-key">고장 현상</span>
           <span className="case-meta-val">{model.symptomName}</span>
-
-          <span className="case-meta-key">요약</span>
-          <span className="case-meta-val">{model.symptomSummary}</span>
         </div>
       </section>
 
@@ -67,27 +59,27 @@ export function InvestigationSidebar({
         <div className="progress-list">
           <div className={`progress-item ${progress.phenomenonConfirmed ? 'completed' : 'current'}`}>
             <span className="progress-dot">{progress.phenomenonConfirmed ? '✓' : '1'}</span>
-            <span>현상 확인</span>
+            <span className="progress-copy">현상 확인{progress.phenomenonConfirmed && <small>보고서 검토 완료</small>}</span>
           </div>
 
-          <div className={`progress-item ${progress.boundaryTracked ? 'completed' : 'current'}`}>
+          <div className={`progress-item ${progress.boundaryTracked ? 'completed' : progress.phenomenonConfirmed ? 'current' : ''}`}>
             <span className="progress-dot">{progress.boundaryTracked ? '✓' : '2'}</span>
-            <span>이상 발생 범위 추적</span>
+            <span className="progress-copy">이상 발생 범위 추적{progress.boundaryTracked && <small>경계 비교 완료</small>}</span>
           </div>
 
           <div className={`progress-item ${progress.hypothesisFormulated ? 'completed' : progress.boundaryTracked ? 'current' : ''}`}>
             <span className="progress-dot">{progress.hypothesisFormulated ? '✓' : '3'}</span>
-            <span>가설 설정</span>
+            <span className="progress-copy">가설 설정{progress.hypothesisFormulated && <small>가설 기록 완료</small>}</span>
           </div>
 
           <div className={`progress-item ${progress.hypothesisVerified ? 'completed' : progress.hypothesisFormulated ? 'current' : ''}`}>
             <span className="progress-dot">{progress.hypothesisVerified ? '✓' : '4'}</span>
-            <span>가설 검증</span>
+            <span className="progress-copy">가설 검증{progress.hypothesisVerified && <small>검증 기록 완료</small>}</span>
           </div>
 
           <div className={`progress-item ${progress.conclusionSubmitted ? 'completed' : progress.hypothesisVerified ? 'current' : ''}`}>
             <span className="progress-dot">{progress.conclusionSubmitted ? '✓' : '5'}</span>
-            <span>결론 제출</span>
+            <span className="progress-copy">결론 제출{progress.conclusionSubmitted && <small>보고서 제출 완료</small>}</span>
           </div>
         </div>
       </section>

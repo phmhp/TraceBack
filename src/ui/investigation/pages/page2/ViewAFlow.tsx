@@ -1,222 +1,265 @@
-import { architectureNode, normalFunctionFlows } from '../../../../registries/investigation/Architecture'
-import type { InvestigationPresentationModel, InspectionStatus } from '../../presentation/InvestigationPresentationModel'
+import {
+  architectureNode,
+  getIncomingInterfaces,
+  getInputSignals,
+  getOutgoingInterfaces,
+  getOutputSignals,
+  normalFunctionFlows,
+} from '../../../../registries/investigation/Architecture'
+import { getRequirementsForComponent } from '../../../../registries/investigation/Trace'
+import type { InvestigationPresentationModel } from '../../presentation/InvestigationPresentationModel'
 
 interface ViewAFlowProps {
   model: InvestigationPresentationModel
   selectedComponent: string
   onSelectComponent: (id: string) => void
-  onNavigateToSignals: () => void
+  onNavigateToSignal: (id: string) => void
+  onNavigateToInterface: (id: string) => void
+  onNavigateToRequirement: (id: string) => void
   onSetHypothesisTarget: (target: string, type: string) => void
 }
 
-function getStatusBadge(status: InspectionStatus) {
-  switch (status) {
-    case 'DIFFERENCE_FOUND':
-      return <span className="status-badge-pill badge-diff">차이 발견</span>
-    case 'NO_DIFFERENCE':
-      return <span className="status-badge-pill badge-nodiff">차이 없음</span>
-    case 'COMPARED':
-      return <span className="status-badge-pill badge-nodiff">비교 완료</span>
-    case 'INSPECTING':
-      return <span className="status-badge-pill badge-inspecting">조사 중</span>
-    case 'HYPOTHESIS_TARGET':
-      return <span className="status-badge-pill" style={{ background: '#fef3c7', color: '#92400e' }}>가설 대상</span>
-    default:
-      return <span className="status-badge-pill badge-uninspected">미조사</span>
-  }
+const propulsionNodes = ['GearLogic', 'PropulsionFunction', 'VMC', 'eDrive'] as const
+
+function ArchitectureNodeButton({
+  id,
+  selectedComponent,
+  relevantPath,
+  onSelect,
+}: {
+  id: string
+  selectedComponent: string
+  relevantPath: ReadonlySet<string>
+  onSelect: (id: string) => void
+}) {
+  const node = architectureNode(id)
+  const selected = selectedComponent === id
+  return (
+    <button
+      type="button"
+      className={`vehicle-architecture-node investigation-target ${selected ? 'selected' : ''} ${relevantPath.has(id) ? 'case-path-node' : ''}`}
+      aria-pressed={selected}
+      onClick={() => onSelect(id)}
+    >
+      <b>{node.label}</b>
+      <code>{node.id}</code>
+    </button>
+  )
+}
+
+function ContextNode({
+  id,
+  label,
+  kind,
+  selectedComponent,
+  relevantPath,
+  onSelect,
+}: {
+  id: string
+  label: string
+  kind: 'observation' | 'actuation'
+  selectedComponent: string
+  relevantPath: ReadonlySet<string>
+  onSelect: (id: string) => void
+}) {
+  return (
+    <button
+      type="button"
+      className={`vehicle-architecture-node ${kind} ${selectedComponent === id ? 'selected' : ''} ${relevantPath.has(id) ? 'case-path-node' : ''}`}
+      aria-pressed={selectedComponent === id}
+      onClick={() => onSelect(id)}
+    >
+      <span>{kind === 'observation' ? 'OBSERVATION' : 'ACTUATION'}</span>
+      <b>{label}</b>
+    </button>
+  )
 }
 
 export function ViewAFlow({
   model,
   selectedComponent,
   onSelectComponent,
-  onNavigateToSignals,
-  onSetHypothesisTarget
+  onNavigateToSignal,
+  onNavigateToInterface,
+  onNavigateToRequirement,
+  onSetHypothesisTarget,
 }: ViewAFlowProps) {
-  const node = architectureNode(selectedComponent)
-  const flow = normalFunctionFlows[selectedComponent] ?? [node.role]
-  const currentStatus = model.getNodeStatus(selectedComponent)
-
-  // Sub/Super functions in chain
-  const chain = model.relevantFunctionPath
-  const currentIdx = chain.indexOf(selectedComponent)
-  const parentId = currentIdx > 0 ? chain[currentIdx - 1] : undefined
-  const childId = currentIdx < chain.length - 1 ? chain[currentIdx + 1] : undefined
-  const parentFunc = parentId ? architectureNode(parentId).label : '—'
-  const childFunc = childId ? architectureNode(childId).label : '—'
+  const node = architectureNode(selectedComponent) ?? architectureNode('PropulsionFunction')
+  const inputSignals = getInputSignals(node.id)
+  const outputSignals = getOutputSignals(node.id)
+  const incomingInterfaces = getIncomingInterfaces(node.id)
+  const outgoingInterfaces = getOutgoingInterfaces(node.id)
+  const requirements = getRequirementsForComponent(node.id)
+  const processing = normalFunctionFlows[node.id] ?? [node.role]
+  const relevantPath = new Set(model.relevantFunctionPath)
+  const discoveredMismatch = model.getNodeStatus(node.id) === 'DIFFERENCE_FOUND'
 
   return (
-    <div className="view-a-layout">
-      {/* LEFT COLUMN */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {/* 차량 기능 흐름 (관련 기능 경로) */}
-        <section className="flow-diagram-card">
-          <div className="info-card-header">
-            <div>
-              <h3 className="info-card-title">
-                <span>🔄</span>
-                <span>차량 기능 흐름 (관련 기능 경로)</span>
-              </h3>
-              <small style={{ color: '#64748b' }}>이 사건과 관련된 기능 경로와 각 기능의 조사 상태를 확인할 수 있습니다.</small>
-            </div>
+    <div className="function-flow-workspace">
+      <section className="vehicle-architecture-sheet" aria-labelledby="vehicle-architecture-title">
+        <header className="diagram-heading">
+          <div>
+            <p className="investigation-section-label">LEVEL 1 · VEHICLE FUNCTIONAL ARCHITECTURE</p>
+            <h3 id="vehicle-architecture-title">차량 기능 구조에서 어디를 먼저 조사할 것인가?</h3>
+          </div>
+          <div className="architecture-legend" aria-label="다이어그램 범례">
+            <span><i className="legend-line case" />사건 우선 경로</span>
+            <span><i className="legend-box selectable" />선택 가능</span>
+            <span><i className="legend-box unavailable" />상세 미지원</span>
+          </div>
+        </header>
+
+        <div className="vehicle-architecture-diagram">
+          <div className="architecture-context-column">
+            <ContextNode
+              id="DriverInput"
+              label="Driver / Environment"
+              kind="observation"
+              selectedComponent={selectedComponent}
+              relevantPath={relevantPath}
+              onSelect={onSelectComponent}
+            />
+            <div className="driver-demand-split" aria-hidden="true"><span /><span /><span /></div>
           </div>
 
-          {/* 범례 */}
-          <div className="flow-legend-bar">
-            <span className="legend-pill"><span className="legend-dot" style={{ background: '#cbd5e1' }} /> 미조사</span>
-            <span className="legend-pill"><span className="legend-dot" style={{ background: '#3b82f6' }} /> 조사 중</span>
-            <span className="legend-pill"><span className="legend-dot" style={{ background: '#10b981' }} /> 비교 완료</span>
-            <span className="legend-pill"><span className="legend-dot" style={{ background: '#059669' }} /> 차이 없음</span>
-            <span className="legend-pill"><span className="legend-dot" style={{ background: '#ef4444' }} /> 차이 발견</span>
-            <span className="legend-pill"><span className="legend-dot" style={{ background: '#eab308' }} /> 가설 대상</span>
+          <div className="shared-context-node">
+            <span>SHARED CONTEXT</span>
+            <b>Vehicle State / Mode</b>
+            <small>상태·모드는 각 기능 영역에 공통으로 작용합니다.</small>
+            <div className="shared-context-fanout" aria-hidden="true"><i /><i /><i /></div>
           </div>
 
-          {/* 노드 체인 캔버스 */}
-          <div className="flow-canvas-box">
-            {chain.map((id, index) => {
-              const item = architectureNode(id)
-              const status = model.getNodeStatus(id)
-              const isSelected = id === selectedComponent
-
-              return (
-                <div key={id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  {index > 0 && <span className="flow-chain-arrow">→</span>}
-                  <button
-                    type="button"
-                    className={`flow-step-node ${isSelected ? 'active-node' : ''}`}
-                    onClick={() => onSelectComponent(id)}
-                  >
-                    <b style={{ fontSize: '12px', color: '#1e293b' }}>{item.label}</b>
-                    {getStatusBadge(status)}
-                  </button>
-                </div>
-              )
-            })}
-          </div>
-        </section>
-
-        {/* 선택 기능 요약 */}
-        <section className="info-card">
-          <div className="info-card-header">
-            <h3 className="info-card-title">
-              <span>📋</span>
-              <span>선택 기능 요약</span>
-            </h3>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 2fr', gap: '12px', fontSize: '12px' }}>
-            <div>
-              <small style={{ color: '#64748b', fontWeight: 600 }}>기능명</small>
-              <div style={{ fontWeight: 700, marginTop: '2px' }}>{node.label}</div>
-              <small style={{ color: '#94a3b8' }}>{node.id}</small>
-            </div>
-            <div>
-              <small style={{ color: '#64748b', fontWeight: 600 }}>상위 기능</small>
-              <div style={{ fontWeight: 600, marginTop: '2px' }}>{parentFunc}</div>
-            </div>
-            <div>
-              <small style={{ color: '#64748b', fontWeight: 600 }}>하위 기능</small>
-              <div style={{ fontWeight: 600, marginTop: '2px' }}>{childFunc}</div>
-            </div>
-            <div>
-              <small style={{ color: '#64748b', fontWeight: 600 }}>주요 역할</small>
-              <div style={{ color: '#334155', marginTop: '2px' }}>{node.role}</div>
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* RIGHT COLUMN */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        {/* 선택 기능 상세 */}
-        <section className="info-card">
-          <div className="info-card-header">
-            <h3 className="info-card-title">
-              <span>🔍</span>
-              <span>선택 기능 상세</span>
-            </h3>
-            {getStatusBadge(currentStatus)}
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
-            <span style={{ fontSize: '20px' }}>⚙️</span>
-            <div>
-              <b style={{ fontSize: '15px' }}>{node.label}</b>
-              <small style={{ marginLeft: '6px', color: '#64748b' }}>({node.id})</small>
-            </div>
-          </div>
-
-          <p style={{ fontSize: '12px', color: '#475569', lineHeight: 1.5, margin: '0 0 14px 0' }}>
-            {node.role}
-          </p>
-
-          {/* 입/출력 신호 리스트 그리드 */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <b style={{ fontSize: '12px', color: '#334155' }}>입력 신호 ({node.inputs.length}개)</b>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {node.inputs.map((sig) => (
-                  <div key={sig} style={{ background: '#ffffff', padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '11px', fontFamily: 'monospace' }}>
-                    {sig}
+          <div className="functional-domains">
+            <section className="vehicle-domain propulsion-domain">
+              <header><span>VEHICLE DOMAIN</span><h4>Propulsion</h4></header>
+              <div className="propulsion-function-chain">
+                {propulsionNodes.map((id, index) => (
+                  <div className="domain-chain-step" key={id}>
+                    {index > 0 && <span className="diagram-arrow" aria-hidden="true">↓</span>}
+                    <ArchitectureNodeButton
+                      id={id}
+                      selectedComponent={selectedComponent}
+                      relevantPath={relevantPath}
+                      onSelect={onSelectComponent}
+                    />
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
 
-            <div style={{ background: '#f8fafc', padding: '10px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                <b style={{ fontSize: '12px', color: '#334155' }}>출력 신호 ({node.outputs.length}개)</b>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                {node.outputs.map((sig) => (
-                  <div key={sig} style={{ background: '#ffffff', padding: '4px 8px', borderRadius: '4px', border: '1px solid #e2e8f0', fontSize: '11px', fontFamily: 'monospace' }}>
-                    {sig}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <section className="vehicle-domain unavailable-domain" aria-label="Braking 상세 미지원">
+              <header><span>VEHICLE DOMAIN</span><h4>Braking</h4></header>
+              <div className="unavailable-domain-body"><b>Brake control</b><span aria-hidden="true">× × ×</span><small>구조상 주요 영역 · 상세 미지원</small></div>
+            </section>
+
+            <section className="vehicle-domain unavailable-domain" aria-label="Steering 상세 미지원">
+              <header><span>VEHICLE DOMAIN</span><h4>Steering</h4></header>
+              <div className="unavailable-domain-body"><b>Steering control</b><span aria-hidden="true">× × ×</span><small>구조상 주요 영역 · 상세 미지원</small></div>
+            </section>
           </div>
 
-          {/* 내부 기능 흐름 (개요) */}
-          <div style={{ marginTop: '14px' }}>
-            <b style={{ fontSize: '12px', color: '#334155' }}>내부 기능 흐름 (개요)</b>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', marginTop: '6px', padding: '6px 0' }}>
-              {flow.map((step, idx) => (
-                <div key={step} style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                  {idx > 0 && <span style={{ color: '#94a3b8', fontSize: '12px' }}>→</span>}
-                  <div style={{ background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: '6px', padding: '6px 10px', fontSize: '11px', fontWeight: 600, color: '#334155' }}>
-                    {step}
-                  </div>
+          <div className="domain-to-actuation" aria-hidden="true"><i /><i /><i /></div>
+
+          <section className="actuation-band" aria-label="액추에이션 경계">
+            <p>ACTUATION BOUNDARY</p>
+            <div>
+              <ContextNode id="DriveAdapter" label="Drive Force" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} />
+              <ContextNode id="BrakeAdapter" label="Brake Force" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} />
+              <ContextNode id="SteeringAdapter" label="Steering Angle" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} />
+            </div>
+          </section>
+
+          <span className="diagram-arrow plant-arrow" aria-hidden="true">↓</span>
+          <ContextNode
+            id="VehiclePhysics"
+            label="Vehicle Dynamics / Response"
+            kind="observation"
+            selectedComponent={selectedComponent}
+            relevantPath={relevantPath}
+            onSelect={onSelectComponent}
+          />
+        </div>
+      </section>
+
+      <section className="selected-function-sheet" aria-labelledby="selected-function-title">
+        <header className="selected-function-header">
+          <div>
+            <p className="investigation-section-label">LEVEL 2 · SELECTED FUNCTION FLOW</p>
+            <h3 id="selected-function-title">{node.label} <code>{node.id}</code></h3>
+            <p className="selected-function-role investigation-prose">{node.role}</p>
+          </div>
+          <div className="selected-function-actions">
+            {discoveredMismatch && <span className="discovered-mismatch">확인된 차이</span>}
+            <button type="button" className="report-text-button" onClick={() => onSetHypothesisTarget(node.id, '계산 / 로직 오류')}>가설 대상으로 설정</button>
+          </div>
+        </header>
+
+        <p className="function-investigation-question">입력과 출력 사이에서 어떤 신호를 비교해볼까요?</p>
+
+        <div className="selected-function-flow">
+          <section className="function-flow-stage signal-stage">
+            <header><span>INPUT</span><b>입력 / 공유 상태</b></header>
+            <div className="actionable-signal-list">
+              {inputSignals.length ? inputSignals.map(signal => (
+                <div className="function-signal-node" key={signal.id}>
+                  <code>{signal.id}</code>
+                  {signal.description&&<p>{signal.description}</p>}
+                  <button type="button" onClick={() => onNavigateToSignal(signal.id)}>신호 비교에서 보기 →</button>
                 </div>
+              )) : <p>등록된 입력 신호 없음</p>}
+            </div>
+          </section>
+
+          <span className="fan-in-arrow" aria-hidden="true">⟫</span>
+
+          <section className="function-flow-stage processing-stage">
+            <header><span>PROCESSING</span><b>처리 개요</b></header>
+            <div className="processing-flow">{processing.map((step,index) => <div key={step}>
+              {index>0&&<i aria-hidden="true">↓</i>}<span>{step}</span>
+            </div>)}</div>
+          </section>
+
+          <span className="fan-in-arrow" aria-hidden="true">⟫</span>
+
+          <section className="function-flow-stage signal-stage">
+            <header><span>OUTPUT</span><b>출력 / 다음 경계</b></header>
+            <div className="actionable-signal-list">
+              {outputSignals.length ? outputSignals.map(signal => (
+                <div className="function-signal-node" key={signal.id}>
+                  <code>{signal.id}</code>
+                  {signal.description&&<p>{signal.description}</p>}
+                  <button type="button" onClick={() => onNavigateToSignal(signal.id)}>신호 비교에서 보기 →</button>
+                </div>
+              )) : <p>등록된 출력 신호 없음</p>}
+            </div>
+          </section>
+        </div>
+
+        <footer className="function-handoffs">
+          <div>
+            <p className="investigation-section-label">CONNECTED INTERFACES</p>
+            <div className="handoff-links">
+              {[...incomingInterfaces, ...outgoingInterfaces].map(edge => (
+                <button type="button" key={edge.id} onClick={() => onNavigateToInterface(edge.id)}>
+                  <code>{edge.sourceId} → {edge.targetId}</code>
+                </button>
               ))}
+              {!incomingInterfaces.length && !outgoingInterfaces.length && <span>연결된 인터페이스 없음</span>}
             </div>
           </div>
-
-          {/* 액션 버튼 그룹 */}
-          <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-            <button
-              type="button"
-              className="p1-cta-btn"
-              onClick={onNavigateToSignals}
-              style={{ flex: 1, padding: '8px 12px', fontSize: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            >
-              <span>📊</span>
-              <span>신호 비교로 이동 →</span>
-            </button>
-
-            <button
-              type="button"
-              className="timeline-btn"
-              onClick={() => onSetHypothesisTarget(node.id, '계산 / 로직 오류')}
-              style={{ padding: '8px 12px', fontSize: '12px' }}
-            >
-              💡 가설로 설정
-            </button>
+          <div>
+            <p className="investigation-section-label">RELATED REQUIREMENTS</p>
+            <div className="handoff-links">
+              {requirements.map(requirement => (
+                <button type="button" key={requirement.id} onClick={() => onNavigateToRequirement(requirement.id)}>
+                  <code>{requirement.id}</code>
+                </button>
+              ))}
+              {!requirements.length && <span>연결된 요구사항 없음</span>}
+            </div>
           </div>
-        </section>
-      </div>
+        </footer>
+      </section>
     </div>
   )
 }

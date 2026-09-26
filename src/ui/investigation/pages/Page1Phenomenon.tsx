@@ -6,223 +6,118 @@ interface Page1Props {
   onOpenStateModal?: () => void
 }
 
+function SignalTable({ rows }: { rows: InvestigationPresentationModel['inputSignalsSnapshot'] }) {
+  return (
+    <div className="fault-report-table-wrap">
+      <table className="fault-report-table">
+        <colgroup><col /><col className="value-column" /><col className="unit-column" /><col /></colgroup>
+        <thead><tr><th>신호</th><th>값</th><th>단위</th><th>설명</th></tr></thead>
+        <tbody>
+          {rows.map(row => (
+            <tr key={row.name}>
+              <td><code className="investigation-tech-id">{row.name}</code></td>
+              <td className="investigation-number">{row.currentValue}</td>
+              <td>{row.unit}</td>
+              <td className="investigation-prose">{row.description}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
 export function Page1Phenomenon({ model, onStartTracking, onOpenStateModal }: Page1Props) {
   return (
-    <div className="investigation-main-content">
-      {/* 5. 고장 현상 배너 */}
-      <section className="phenomenon-banner">
-        <div className="phenomenon-title-wrap">
-          <div className="phenomenon-header-row">
-            <span>⚠️</span>
-            <span>고장 현상</span>
+    <main className="investigation-main-content fault-report-desk">
+      <article className="fault-report" aria-labelledby="fault-report-title">
+        <header className="fault-report-header">
+          <div>
+            <p className="investigation-page-title">현상 파악 · FAULT REPORT</p>
+            <h1 id="fault-report-title">고장 현상 기록</h1>
+            <p className="fault-report-case-title investigation-prose">{model.caseTitle}</p>
           </div>
-          <h1 className="phenomenon-title">{model.symptomName}</h1>
-          <p className="phenomenon-desc">{model.symptomSummary}</p>
-        </div>
+          <dl className="fault-report-meta">
+            <div><dt>CASE</dt><dd><code className="investigation-tech-id">{model.caseId}</code></dd></div>
+            <div><dt>고장 시점</dt><dd className="investigation-number">{model.eventTimeSeconds.toFixed(3)} s</dd></div>
+            <div><dt>기록 상태</dt><dd>조사 중</dd></div>
+          </dl>
+        </header>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div className="driver-statement-bubble">
-            <small>운전자 진술</small>
-            <b>“{model.driverQuote}”</b>
+        <section className="fault-report-lead" aria-labelledby="phenomenon-heading">
+          <p className="investigation-section-label">01 · REPORTED PHENOMENON</p>
+          <h2 id="phenomenon-heading">{model.symptomName}</h2>
+          <p className="investigation-prose fault-report-description">{model.symptomSummary}</p>
+        </section>
+
+        <section className="driver-testimony" aria-labelledby="driver-statement-heading">
+          <div className="driver-placeholder" aria-hidden="true"><span>운전자</span></div>
+          <div>
+            <p id="driver-statement-heading" className="investigation-section-label">DRIVER STATEMENT</p>
+            <blockquote>“{model.driverQuote}”</blockquote>
+            <p className="investigation-annotation">운전자 진술 원문 · 원인 판단 전 기록</p>
           </div>
+        </section>
 
-          <div className="event-time-badge-box">
-            <div>
-              <div style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>사건 발생 시점</div>
-              <div className="time-val">{model.eventTimeSeconds.toFixed(3)} s</div>
-            </div>
+        <section className="fault-report-section" aria-labelledby="condition-heading">
+          <div className="fault-report-section-heading">
+            <div><p className="investigation-section-label">02 · OPERATING CONDITION</p><h2 id="condition-heading">고장 시점 운행 조건</h2></div>
+            {onOpenStateModal && <button type="button" className="report-text-button" onClick={onOpenStateModal}>전체 상태 보기 →</button>}
           </div>
-        </div>
-      </section>
-
-      {/* 6 & 7. 사건 시점 차량 상태 & 전체 흐름 */}
-      <div className="p1-two-col-grid">
-        {/* 6. 사건 시점 차량 상태 */}
-        <section className="info-card">
-          <div className="info-card-header">
-            <h2 className="info-card-title">
-              <span>🚗</span>
-              <span>사건 시점 차량 상태</span>
-            </h2>
-            {onOpenStateModal && (
-              <button
-                type="button"
-                className="timeline-btn"
-                onClick={onOpenStateModal}
-                style={{ fontSize: '11px', padding: '4px 8px' }}
-              >
-                전체 상태 보기 →
-              </button>
-            )}
-          </div>
-          <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 10px 0' }}>
-            사건 발생 시점({model.eventTimeSeconds.toFixed(3)} s)의 주요 차량 상태입니다.
-          </p>
-
-          <div className="vehicle-state-grid">
-            {model.relevantContextSignals.map((sig) => (
-              <div key={sig.key} className="vehicle-state-card">
-                <span className="vehicle-state-label">{sig.label}</span>
-                <span className="vehicle-state-val">
-                  {sig.value} {sig.unit ? <small style={{ fontSize: '11px', color: '#64748b' }}>{sig.unit}</small> : null}
-                </span>
+          <dl className="operating-condition-grid">
+            {model.relevantContextSignals.map(signal => (
+              <div key={signal.key}>
+                <dt><code className="investigation-tech-id">{signal.label}</code></dt>
+                <dd className="investigation-number">{signal.value}{signal.unit ? <small> {signal.unit}</small> : null}</dd>
+                {(signal.description || signal.relatedFunctions) && <details className="condition-help">
+                  <summary aria-label={`${signal.label} 설명 보기`}>?</summary>
+                  {signal.description&&<p>{signal.description}</p>}
+                  {signal.relatedFunctions&&<small>관련 기능 · {signal.relatedFunctions}</small>}
+                </details>}
               </div>
             ))}
-          </div>
+          </dl>
         </section>
 
-        {/* 7. 상위 레벨 전체 흐름 */}
-        <section className="info-card">
-          <div className="info-card-header">
-            <h2 className="info-card-title">
-              <span>⚡</span>
-              <span>입력 → 기능 처리 → 차량 거동</span>
-            </h2>
-          </div>
-          <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 8px 0' }}>
-            운전자의 요구가 차량 내부 기능을 거쳐 차량 거동으로 이어지는 전체 흐름입니다.
-          </p>
+        <figure className="report-semantics-flow" aria-label="입력과 운행 조건, 차량 반응의 관계">
+          <div><span>INPUT</span><b>운전자 / 시스템 입력</b></div>
+          <strong aria-hidden="true">+</strong>
+          <div><span>SHARED STATE</span><b>운행 조건</b></div>
+          <i aria-hidden="true">↓</i>
+          <div><span>PROCESS</span><b>차량 기능 처리</b></div>
+          <i aria-hidden="true">↓</i>
+          <div><span>OUTPUT</span><b>차량 반응</b></div>
+        </figure>
 
-          <div className="high-level-flow-chain">
-            <div className="high-level-node">
-              <span className="node-icon">👞</span>
-              <b>운전자 / 환경 입력</b>
-              <small>Driver Demand</small>
-            </div>
-            <span className="flow-chain-arrow">→</span>
-
-            <div className="high-level-node highlighted">
-              <span className="node-icon">⚙️</span>
-              <b>차량 기능 처리</b>
-              <small>Vehicle Functions</small>
-            </div>
-            <span className="flow-chain-arrow">→</span>
-
-            <div className="high-level-node">
-              <span className="node-icon">🔋</span>
-              <b>액추에이션</b>
-              <small>Actuation</small>
-            </div>
-            <span className="flow-chain-arrow">→</span>
-
-            <div className="high-level-node">
-              <span className="node-icon">🚗</span>
-              <b>차량 거동</b>
-              <small>Vehicle Dynamics</small>
-            </div>
-          </div>
-
-          <div
-            style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
-              borderRadius: '8px',
-              padding: '10px 12px',
-              marginTop: '12px',
-              fontSize: '12px',
-              color: '#475569',
-              textAlign: 'center'
-            }}
-          >
-            차량 기능 처리 영역은 여러 SW 기능으로 구성되어 있습니다. 다음 단계(원인 추적)에서 각 기능의 신호와 동작을 자세히 확인할 수 있습니다.
-          </div>
-        </section>
-      </div>
-
-      {/* 8 & 9. 입력 신호 및 차량 반응 스냅샷 테이블 */}
-      <div className="p1-two-col-grid">
-        {/* 8. 입력 신호 (사건 시점) */}
-        <section className="info-card">
-          <div className="info-card-header">
-            <h2 className="info-card-title">
-              <span>🕹️</span>
-              <span>입력 신호 (사건 시점)</span>
-            </h2>
-          </div>
-          <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 8px 0' }}>
-            사건 발생 시점의 주요 운전자/환경 입력 신호입니다.
-          </p>
-
-          <table className="signal-preview-table">
-            <thead>
-              <tr>
-                <th>신호명</th>
-                <th>값</th>
-                <th>단위</th>
-                <th>설명</th>
-              </tr>
-            </thead>
-            <tbody>
-              {model.inputSignalsSnapshot.map((row) => (
-                <tr key={row.name}>
-                  <td><code>{row.name}</code></td>
-                  <td className="val-col">{row.currentValue}</td>
-                  <td>{row.unit}</td>
-                  <td>{row.description}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <section className="fault-report-section" aria-labelledby="input-heading">
+          <p className="investigation-section-label">03 · DRIVER / SYSTEM INPUT</p>
+          <h2 id="input-heading">운전자 및 시스템 입력</h2>
+          <p className="investigation-annotation">고장 시점에 기록된 입력 신호입니다.</p>
+          <SignalTable rows={model.inputSignalsSnapshot} />
         </section>
 
-        {/* 9. 차량 반응 (사건 시점) */}
-        <section className="info-card">
-          <div className="info-card-header">
-            <h2 className="info-card-title">
-              <span>💡</span>
-              <span>차량 반응 (사건 시점)</span>
-            </h2>
-          </div>
-          <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 8px 0' }}>
-            사건 발생 시점의 차량 거동 관련 출력 신호입니다.
-          </p>
-
-          <table className="signal-preview-table">
-            <thead>
-              <tr>
-                <th>신호명</th>
-                <th>값</th>
-                <th>단위</th>
-                <th>설명</th>
-              </tr>
-            </thead>
-            <tbody>
-              {model.outputSignalsSnapshot.map((row) => (
-                <tr key={row.name} className={row.hasDifference ? 'difference-row' : ''}>
-                  <td>
-                    {row.hasDifference && <span style={{ marginRight: '4px' }}>⚠️</span>}
-                    <code>{row.name}</code>
-                  </td>
-                  <td className="val-col">{row.currentValue}</td>
-                  <td>{row.unit}</td>
-                  <td>{row.description}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <section className="fault-report-section" aria-labelledby="response-heading">
+          <p className="investigation-section-label">04 · VEHICLE RESPONSE</p>
+          <h2 id="response-heading">차량 반응</h2>
+          <p className="investigation-annotation">고장 시점에 기록된 차량 거동 신호입니다.</p>
+          <SignalTable rows={model.outputSignalsSnapshot} />
         </section>
-      </div>
 
-      {/* 10. 다음 조사 안내 & CTA */}
-      <section className="p1-cta-bar">
-        <div className="p1-cta-msg">
-          <span style={{ fontSize: '24px' }}>💬</span>
-          <div>
-            <div><b>정상 주행에서는 같은 입력에 차량이 어떻게 반응했을까요?</b></div>
-            <div style={{ fontSize: '12px', color: '#15803d', fontWeight: 'normal' }}>
-              정상 기록과 현재 기록을 비교해 <b>처음 차이가 나타나는 위치</b>를 찾아보세요.
-            </div>
-          </div>
-        </div>
+        <figure className="investigation-scope-strip" aria-label="조사 범위 개요">
+          <figcaption>조사 범위</figcaption>
+          <span>입력</span><i aria-hidden="true">→</i><span>차량 기능</span><i aria-hidden="true">→</i><span>차량 반응</span>
+        </figure>
 
-        <button
-          type="button"
-          className="p1-cta-btn"
-          onClick={onStartTracking}
-        >
-          원인 추적 시작 →
-        </button>
-      </section>
-    </div>
+        <aside className="investigation-note">
+          <span className="investigation-note-mark" aria-hidden="true">?</span>
+          <div><p className="investigation-section-label">INVESTIGATION QUESTION</p><p>입력과 차량 반응 사이에서 어떤 기능부터 확인해야 할까요?</p></div>
+        </aside>
+
+        <footer className="fault-report-footer">
+          <p className="investigation-annotation">보고서 검토를 마치면 원인 추적 기록이 시작됩니다.</p>
+          <button type="button" className="p1-cta-btn" onClick={onStartTracking}>원인 추적 시작 →</button>
+        </footer>
+      </article>
+    </main>
   )
 }

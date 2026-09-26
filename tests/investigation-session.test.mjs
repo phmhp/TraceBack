@@ -48,7 +48,7 @@ test('milestones require meaningful player actions rather than defaults or frame
   state = reduce(state, { type: 'NAVIGATE', context: { selection: { frameIndex: 20 } }, origin: 'timeline', remember: false })
   assert.equal(deriveInvestigationMilestones(state).boundaryTracked, false)
   state = reduce(state, { type: 'RECORD', actionType: 'REVIEW_PHENOMENON' })
-  state = reduce(state, { type: 'DISCOVER', finding: { id: 'finding:1', kind: 'BOUNDARY', subjectId: 'eDrive', source: 'INCIDENT_OBSERVATION' } })
+  state = reduce(state, { type: 'DISCOVER', finding: { id: 'finding:1', kind: 'BOUNDARY', subjectId: 'eDrive', source: 'INCIDENT_OBSERVATION', outcome: 'MISMATCH' } })
   state = reduce(state, { type: 'SET_HYPOTHESIS', hypothesis: { target: 'eDrive', signal: 'DriveTorqueRequest', type: '계산 / 로직 오류' } })
   state = reduce(state, { type: 'RECORD', actionType: 'INTERPRET_VERIFICATION', subjectId: 'TC-PROP-NORMAL-010A' })
   state = reduce(state, { type: 'RECORD', actionType: 'SUBMIT_DIAGNOSIS', subjectId: 'eDrive' })
@@ -56,6 +56,19 @@ test('milestones require meaningful player actions rather than defaults or frame
     phenomenonConfirmed: true, boundaryTracked: true, hypothesisFormulated: true,
     hypothesisVerified: true, conclusionSubmitted: true,
   })
+})
+
+test('initial navigation and inspection never masquerade as report review or boundary discovery', () => {
+  let state=initialInvestigationSession()
+  state=reduce(state,{type:'NAVIGATE',context:{page:2,view:'FLOW'},origin:'header'})
+  state=reduce(state,{type:'RECORD',actionType:'INSPECT_COMPONENT',subjectId:'eDrive'})
+  state=reduce(state,{type:'NAVIGATE',context:{view:'SIGNALS',selection:{signalId:'DriveTorqueRequest'}},origin:'signal'})
+  state=reduce(state,{type:'RECORD',actionType:'INSPECT_SIGNAL',subjectId:'DriveTorqueRequest'})
+  state=reduce(state,{type:'NAVIGATE',context:{selection:{frameIndex:10}},origin:'timeline',remember:false})
+  assert.equal(deriveInvestigationMilestones(state).phenomenonConfirmed,false)
+  assert.equal(deriveInvestigationMilestones(state).boundaryTracked,false)
+  state=reduce(state,{type:'DISCOVER',finding:{id:'observed',kind:'SIGNAL',subjectId:'DriveTorqueRequest',source:'INCIDENT_OBSERVATION',outcome:'OBSERVED'}})
+  assert.equal(deriveInvestigationMilestones(state).boundaryTracked,false)
 })
 
 test('discovered findings and explicitly collected evidence remain separate', () => {

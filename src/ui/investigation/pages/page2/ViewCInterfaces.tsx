@@ -1,242 +1,132 @@
 import { useMemo } from 'react'
 import type { InvestigationPresentationModel } from '../../presentation/InvestigationPresentationModel'
-import { architectureNode, getSignalDefinition } from '../../../../registries/investigation/Architecture'
+import { architectureNode, getSignalDefinition, getSignalInterfaces } from '../../../../registries/investigation/Architecture'
+import { getRequirementsForComponent } from '../../../../registries/investigation/Trace'
 
 interface ViewCInterfacesProps {
   model: InvestigationPresentationModel
   selectedInterfaceId: string
+  selectedComponentId: string
   onSelectInterface: (id: string) => void
   selectedSignalId: string
   onSelectSignal: (id: string) => void
   onNavigateToComponent: (id: string) => void
+  onNavigateToSignal: (id: string) => void
+  onNavigateToRequirement: (id: string) => void
 }
 
-function getSignalUnit(sigName: string): string {
-  return getSignalDefinition(sigName)?.unit ?? '—'
-}
+const nodeLabel = (id: string) => architectureNode(id)?.label ?? id
 
 export function ViewCInterfaces({
-  model,
-  selectedInterfaceId,
-  onSelectInterface,
-  selectedSignalId,
-  onSelectSignal,
-  onNavigateToComponent
+  model, selectedInterfaceId, selectedComponentId, onSelectInterface, selectedSignalId, onSelectSignal,
+  onNavigateToComponent, onNavigateToSignal, onNavigateToRequirement,
 }: ViewCInterfacesProps) {
   const edges = useMemo(() => model.getInterfaceEdges(), [model])
-  const activeEdge = useMemo(
-    () => edges.find((e) => e.id === selectedInterfaceId) ?? edges[0],
-    [edges, selectedInterfaceId]
-  )
+  const activeEdge = useMemo(() => (
+    edges.find(edge => edge.id === selectedInterfaceId)
+    ?? edges.find(edge => getSignalInterfaces(selectedSignalId).some(candidate => candidate.id === edge.id))
+    ?? edges.find(edge => edge.from === selectedComponentId)
+    ?? edges.find(edge => edge.to === selectedComponentId)
+    ?? edges[0]
+  ), [edges, selectedInterfaceId, selectedSignalId, selectedComponentId])
 
   if (!activeEdge) return null
-  const selectedSubSignal=activeEdge.signals.includes(selectedSignalId)?selectedSignalId:activeEdge.mainSignal
 
-  const fromNode = architectureNode(activeEdge.from)
-  const toNode = architectureNode(activeEdge.to)
+  const activeSignalId = activeEdge.signals.includes(selectedSignalId) ? selectedSignalId : activeEdge.mainSignal
+  const activeSignal = getSignalDefinition(activeSignalId)
+  const propagationEdges = activeSignal ? getSignalInterfaces(activeSignal.id) : []
+  const source = architectureNode(activeEdge.from)
+  const target = architectureNode(activeEdge.to)
+  const relatedRequirements = [activeEdge.from, activeEdge.to].flatMap(componentId => {
+    const allocated = getRequirementsForComponent(componentId)
+    return allocated.find(requirement => requirement.level === 'SOFTWARE') ?? allocated[0] ?? []
+  }).filter((requirement, index, all) => all.findIndex(item => item.id === requirement.id) === index)
 
   return (
-    <div className="view-c-layout" style={{ gridTemplateColumns: 'minmax(280px, 340px) 1fr' }}>
-      {/* 1열: 인터페이스 맵 & 전체 목록 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0 }}>
-        <section className="interface-map-panel">
-          <div className="info-card-header">
-            <h3 className="info-card-title">
-              <span>🕸️</span>
-              <span>인터페이스 흐름</span>
-            </h3>
+    <div className="interface-investigation">
+      <section className="interface-primary-sheet" aria-labelledby="interface-flow-title">
+        <header className="interface-sheet-heading">
+          <div>
+            <p className="investigation-section-label">FUNCTIONAL INTERFACE TRACE</p>
+            <h3 id="interface-flow-title">{source.label}에서 {target.label}로 전달</h3>
           </div>
-          <p style={{ fontSize: '11px', color: '#64748b', margin: '0 0 10px 0' }}>
-            기능 사이의 연결을 클릭하여 전달되는 신호를 확인하세요.
-          </p>
+          <span className={`interface-discovery-state ${activeEdge.status === 'DIFFERENCE_FOUND' ? 'has-concern' : ''}`}>
+            {activeEdge.status === 'DIFFERENCE_FOUND' ? '발견한 차이' : activeEdge.status === 'NO_DIFFERENCE' ? '비교 일치' : '조사 전'}
+          </span>
+        </header>
 
-          <div className="vertical-flow-chain">
-            {model.relevantFunctionPath.slice(0, 5).map((nodeId, idx, arr) => {
-              const node = architectureNode(nodeId)
-              const nextNodeId = arr[idx + 1]
-              const edge = nextNodeId ? edges.find((e) => e.from === nodeId && e.to === nextNodeId) : null
-              const isEdgeSelected = edge && edge.id === activeEdge.id
+        <p className="interface-concept-note">
+          <b>신호</b>는 전달되는 값이고, <b>인터페이스</b>는 그 값이 기능 사이를 오가는 연결 경계입니다.
+        </p>
 
-              return (
-                <div key={nodeId} style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                  <button
-                    type="button"
-                    className={`vertical-node-box ${nodeId === activeEdge.from || nodeId === activeEdge.to ? 'selected' : ''}`}
-                    onClick={() => onNavigateToComponent(nodeId)}
-                    style={{ width: '100%', cursor: 'pointer', textAlign: 'center' }}
-                  >
-                    {node.label}
-                  </button>
+        <div className="interface-direction-diagram">
+          <button type="button" className="interface-function-node sender" onClick={() => onNavigateToComponent(activeEdge.from)}>
+            <small>SENDER · 생성</small><strong>{source.label}</strong><span>{source.area}</span>
+          </button>
+          <div className="interface-connector" aria-label={`${source.label}에서 ${target.label}로 전달`}>
+            <span className="interface-arrow-line" aria-hidden="true" />
+            <button type="button" className="selected-interface-edge" onClick={() => onSelectInterface(activeEdge.id)}>
+              <small>INTERFACE · {activeEdge.id}</small><code>{activeSignalId}</code>
+              {activeSignal?.description && <span>{activeSignal.description}</span>}
+            </button>
+            <span className="interface-arrow-head" aria-hidden="true">▶</span>
+          </div>
+          <button type="button" className="interface-function-node receiver" onClick={() => onNavigateToComponent(activeEdge.to)}>
+            <small>RECEIVER · 소비</small><strong>{target.label}</strong><span>{target.area}</span>
+          </button>
+        </div>
 
-                  {edge && (
-                    <button
-                      type="button"
-                      className={`vertical-edge-arrow ${isEdgeSelected ? 'active-edge' : ''}`}
-                      onClick={() => onSelectInterface(edge.id)}
-                      style={{ margin: '4px 0', width: '100%', cursor: 'pointer', border: 'none', background: 'transparent' }}
-                    >
-                      <span className="edge-signal-tag">
-                        {edge.mainSignal} ({edge.signalCount})
-                      </span>
-                      <span style={{ fontSize: '14px', color: isEdgeSelected ? '#ef4444' : '#64748b' }}>↓</span>
-                    </button>
-                  )}
-                </div>
-              )
+        <div className="interface-carried-signals" aria-label="이 인터페이스가 전달하는 신호">
+          <span>전달 신호 {activeEdge.signalCount}</span>
+          <div>
+            {activeEdge.signals.map(signalId => {
+              const definition = getSignalDefinition(signalId)
+              return <button type="button" key={signalId} aria-pressed={signalId === activeSignalId}
+                onClick={() => onSelectSignal(signalId)} title={definition?.description}>
+                <code>{signalId}</code>{definition?.description && <small>{definition.description}</small>}
+              </button>
             })}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* 인터페이스 목록 */}
-        <section className="info-card">
-          <div className="info-card-header">
-            <h3 className="info-card-title">
-              <span>📋</span>
-              <span>인터페이스 목록 ({edges.length})</span>
-            </h3>
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table className="signal-preview-table" style={{ width: '100%' }}>
-              <thead>
-                <tr>
-                  <th>경로</th>
-                  <th>주요 신호</th>
-                  <th>상태</th>
-                </tr>
-              </thead>
-              <tbody>
-                {edges.map((e) => {
-                  const isSelected = e.id === activeEdge.id
-                  return (
-                    <tr
-                      key={e.id}
-                      onClick={() => onSelectInterface(e.id)}
-                      style={{
-                        cursor: 'pointer',
-                        background: isSelected ? '#eff6ff' : undefined,
-                        borderLeft: isSelected ? '3px solid #3b82f6' : undefined
-                      }}
-                    >
-                      <td>
-                        <b>{architectureNode(e.from).label}</b> → <b>{architectureNode(e.to).label}</b>
-                      </td>
-                      <td><code>{e.mainSignal}</code></td>
-                      <td>
-                        {e.status === 'DIFFERENCE_FOUND' ? (
-                          <span className="status-badge-pill badge-diff">차이 발견</span>
-                        ) : e.status === 'NO_DIFFERENCE' ? (
-                          <span className="status-badge-pill badge-nodiff">정상</span>
-                        ) : (
-                          <span className="status-badge-pill badge-uninspected">미조사</span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </div>
-
-      {/* 2열: 선택된 인터페이스 신호 목록 & 세부 정보 */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', minWidth: 0 }}>
-        <section className="info-card">
-          <div className="info-card-header">
-            <div>
-              <small style={{ color: '#64748b' }}>선택된 인터페이스</small>
-              <h3 className="info-card-title" style={{ marginTop: '2px' }}>
-                {fromNode.label} → {toNode.label}
-              </h3>
-            </div>
-            {activeEdge.status === 'DIFFERENCE_FOUND' ? (
-              <span className="status-badge-pill badge-diff">차이 발견</span>
-            ) : (
-              <span className="status-badge-pill badge-nodiff">정상</span>
-            )}
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr', rowGap: '6px', fontSize: '12px', margin: '8px 0 14px 0' }}>
-            <span style={{ color: '#64748b' }}>송신 (Producer)</span>
-            <b>{fromNode.label}</b>
-
-            <span style={{ color: '#64748b' }}>수신 (Consumer)</span>
-            <b>{toNode.label}</b>
-
-            <span style={{ color: '#64748b' }}>포함 신호 수</span>
-            <span>{activeEdge.signals.length}개 신호 전달</span>
-          </div>
-
-          <div className="info-card-header" style={{ borderTop: '1px solid #e2e8f0', paddingTop: '10px' }}>
-            <h4 style={{ fontSize: '12px', margin: 0, color: '#334155' }}>
-              전달 신호 상세 목록
-            </h4>
-          </div>
-
-          <div style={{ overflowX: 'auto' }}>
-            <table className="signal-preview-table" style={{ width: '100%' }}>
-              <thead>
-                <tr>
-                  <th>신호명</th>
-                  <th>단위 / 형식</th>
-                  <th>신호 역할</th>
-                  <th>상태</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeEdge.signals.map((sig) => {
-                  const isSelected = selectedSubSignal === sig
-                  return (
-                    <tr
-                      key={sig}
-                      onClick={() => onSelectSignal(sig)}
-                      style={{
-                        cursor: 'pointer',
-                        background: isSelected ? '#f0f9ff' : undefined,
-                        borderLeft: isSelected ? '3px solid #3b82f6' : undefined
-                      }}
-                    >
-                      <td><code>{sig}</code></td>
-                      <td>{getSignalUnit(sig)}</td>
-                      <td>{sig === activeEdge.mainSignal ? '구동 제어 주 신호' : '상태 및 유효성 플래그'}</td>
-                      <td>
-                        {activeEdge.status === 'DIFFERENCE_FOUND' && sig === activeEdge.mainSignal ? (
-                          <span className="status-badge-pill badge-diff">차이 관측</span>
-                        ) : (
-                          <span className="status-badge-pill badge-nodiff">정상</span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* 하단 바로가기 버튼 */}
-          <div style={{ marginTop: '16px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
-            <b style={{ fontSize: '12px', color: '#334155', display: 'block', marginBottom: '8px' }}>관련 기능 바로가기</b>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-              <button
-                type="button"
-                className="timeline-btn"
-                onClick={() => onNavigateToComponent(activeEdge.from)}
-                style={{ fontSize: '11px', padding: '6px', justifyContent: 'center' }}
-              >
-                송신 기능 ({fromNode.label}) →
+      <div className="interface-secondary-grid">
+        <section className="interface-propagation-sheet">
+          <header><div><p className="investigation-section-label">SELECTED SIGNAL PROPAGATION</p>
+            <h4><code>{activeSignalId}</code> 전달 경로</h4></div><small>등록된 canonical 관계만 표시</small></header>
+          <div className="signal-propagation-path">
+            {propagationEdges.length ? propagationEdges.map((edge, index) => <div className="propagation-segment" key={edge.id}>
+              {index === 0 && <button type="button" onClick={() => onNavigateToComponent(edge.sourceId)}>{nodeLabel(edge.sourceId)}</button>}
+              <button type="button" className={edge.id === activeEdge.id ? 'selected' : ''} onClick={() => onSelectInterface(edge.id)}>
+                <span>→</span><code>{edge.id}</code><span>→</span>
               </button>
-              <button
-                type="button"
-                className="timeline-btn"
-                onClick={() => onNavigateToComponent(activeEdge.to)}
-                style={{ fontSize: '11px', padding: '6px', justifyContent: 'center' }}
-              >
-                수신 기능 ({toNode.label}) →
-              </button>
-            </div>
+              <button type="button" onClick={() => onNavigateToComponent(edge.targetId)}>{nodeLabel(edge.targetId)}</button>
+            </div>) : <p className="interface-empty-copy">이 신호에 등록된 기능 간 인터페이스가 없습니다.</p>}
           </div>
+          <dl className="interface-facts">
+            <div><dt>생성</dt><dd>{activeSignal?.producerIds.map(nodeLabel).join(', ') || '—'}</dd></div>
+            <div><dt>소비</dt><dd>{activeSignal?.consumerIds.map(nodeLabel).join(', ') || '—'}</dd></div>
+            <div><dt>방향</dt><dd>{source.label} → {target.label}</dd></div>
+          </dl>
         </section>
+
+        <aside className="interface-actions-sheet">
+          <p className="investigation-section-label">NEXT INVESTIGATION STEP</p><h4>조사 방향 선택</h4>
+          <p>차이의 위치를 단정하지 않습니다. 어느 쪽을 계속 확인할지 선택하세요.</p>
+          <div className="interface-direction-actions">
+            <button type="button" onClick={() => onNavigateToComponent(activeEdge.from)}>← 송신측 기능 보기 <small>{source.label}</small></button>
+            <button type="button" onClick={() => onNavigateToComponent(activeEdge.to)}>수신측 기능 보기 → <small>{target.label}</small></button>
+          </div>
+          <button type="button" className="interface-signal-handoff" onClick={() => onNavigateToSignal(activeSignalId)}>
+            <code>{activeSignalId}</code> 신호 비교에서 보기 →
+          </button>
+          <div className="interface-requirement-handoff">
+            <span>이 연결 기능과 관련된 요구사항</span>
+            {relatedRequirements.length ? relatedRequirements.map(requirement => <button type="button" key={requirement.id}
+              onClick={() => onNavigateToRequirement(requirement.id)}><code>{requirement.id}</code> 보기 →</button>)
+              : <small>현재 연결된 기능 할당 요구사항이 없습니다.</small>}
+          </div>
+        </aside>
       </div>
     </div>
   )

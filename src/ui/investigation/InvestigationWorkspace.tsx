@@ -10,7 +10,6 @@ import { Page1Phenomenon } from './pages/Page1Phenomenon'
 import { Page2Tracking } from './pages/Page2Tracking'
 import { Page3Verification } from './pages/Page3Verification'
 import { Page4Conclusion } from './pages/Page4Conclusion'
-import { ArchitectureExplorer } from './ArchitectureExplorer'
 import { RequirementMap } from '../xray/RequirementMap'
 import { defaultExperimentOptions } from '../../runtime/case/CaseExperiment'
 import type { RootCauseReport } from '../../runtime/investigation/Evidence'
@@ -246,7 +245,6 @@ export function InvestigationWorkspace() {
                             ui.setHypothesis({ target, type, signal: ui.selectedSignal })
                             ui.navigate({ page: 3 }, '기능에서 가설 검증으로 이동')
                         }}
-                        onOpenFullArch={() => ui.setShowFullArchModal(true)}
                         onOpenBenchWithTc={(tcId) => {
                             ui.navigate({ page: 3, selection: { testCaseId: tcId } }, `요구사항에서 ${tcId} 검증으로 이동`)
                             ui.recordAction('SELECT_TEST_CASE', tcId)
@@ -328,41 +326,6 @@ export function InvestigationWorkspace() {
                             <p style={{ marginTop: '12px', fontSize: '13px', color: '#475569' }}>
                                 사건 발생 시점 ({presentationModel.eventTimeSeconds.toFixed(3)} s) 전후의 차량 거동 스냅샷입니다.
                             </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* 현재 저장소가 지원하는 참조 아키텍처 모달 */}
-            {ui.showFullArchModal && (
-                <div className="investigation-modal-overlay" onClick={() => ui.setShowFullArchModal(false)}>
-                    <div className="investigation-modal-content" style={{ maxWidth: '960px' }} onClick={(e) => e.stopPropagation()}>
-                        <div className="investigation-modal-header">
-                            <b style={{ fontSize: '15px' }}>🏗️ 현재 지원 차량 기능 구조 (Reference Architecture)</b>
-                            <button
-                                type="button"
-                                onClick={() => ui.setShowFullArchModal(false)}
-                                style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer' }}
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div className="investigation-modal-body">
-                            <ArchitectureExplorer
-                                selected={ui.selectedComponent}
-                                onSelect={(id) => {
-                                    ui.setSelectedComponent(id)
-                                    ui.setShowFullArchModal(false)
-                                }}
-                                onTrace={() => {
-                                    ui.setShowFullArchModal(false)
-                                    ui.setTrackingView('SIGNALS')
-                                }}
-                                onRequirements={() => {
-                                    ui.setShowFullArchModal(false)
-                                    ui.setTrackingView('STANDARDS')
-                                }}
-                            />
                         </div>
                     </div>
                 </div>

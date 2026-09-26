@@ -1,7 +1,7 @@
 import type { CaseState, IncidentFrame } from '../../../runtime/case/PropulsionCase'
 import type { CaseDefinition } from '../../../runtime/investigation/CaseDefinition'
 import type { DiscoveredFinding, InvestigationMilestones, PlayerHypothesis } from '../../../runtime/investigation/InvestigationSession'
-import { interfaceEdges } from '../../../registries/investigation/Architecture.ts'
+import { architectureNode, getSignalDefinition, interfaceEdges } from '../../../registries/investigation/Architecture.ts'
 
 export type { InvestigationPage, InvestigationView as TrackingView } from '../../../runtime/investigation/InvestigationSession'
 
@@ -63,7 +63,7 @@ export interface InvestigationPresentationModel {
   // Snapshots for selected frame
   currentFrame: IncidentFrame | undefined
   previousFrame: IncidentFrame | undefined
-  relevantContextSignals: { key: string; label: string; value: string | number; unit?: string }[]
+  relevantContextSignals: { key: string; label: string; value: string | number; unit?: string; description?: string; relatedFunctions?: string }[]
   inputSignalsSnapshot: PresentationSignalItem[]
   outputSignalsSnapshot: PresentationSignalItem[]
 }
@@ -115,11 +115,20 @@ export function createInvestigationPresentationModel(
 
   const getInterfaceEdges = (): InterfaceEdgeModel[] => interfaceEdges.map(edge => ({
     id:edge.id, from:edge.sourceId, to:edge.targetId, signals:edge.signalIds,
-    mainSignal:edge.signalIds[0] ?? '', signalCount:edge.signalIds.length, status:getNodeStatus(edge.sourceId),
+    mainSignal:edge.signalIds[0] ?? '', signalCount:edge.signalIds.length,
+    status:(() => {
+      const finding=discoveredFindings.find(item =>
+        (item.kind === 'INTERFACE' && item.subjectId === edge.id)
+        || (item.kind === 'SIGNAL' && edge.signalIds.includes(item.subjectId))
+      )
+      return finding?.outcome === 'MISMATCH' ? 'DIFFERENCE_FOUND'
+        : finding?.outcome === 'MATCH' ? 'NO_DIFFERENCE'
+        : 'UNINSPECTED'
+    })(),
   }))
 
   // Context Signals for Page 1 Card Grid from real state
-  const relevantContextSignals = [
+  const contextSignals = [
     { key: 'GearState', label: 'GearState', value: currentFrame?.sw.output.gearState ?? '—' },
     { key: 'VehicleReady', label: 'VehicleReady', value: currentFrame?.sw.input.vehicleReady ? 'TRUE' : 'FALSE' },
     { key: 'VehicleSpeed', label: 'VehicleSpeed', value: currentFrame?.plant?.speed?.toFixed(3) ?? (currentFrame?.sw.input.vehicleSpeed?.toFixed(3) ?? '—'), unit: 'm/s' },
@@ -127,6 +136,16 @@ export function createInvestigationPresentationModel(
     { key: 'Brake', label: 'Brake', value: currentFrame?.brake !== undefined ? Math.round(currentFrame.brake * 100) : '—', unit: '%' },
     { key: 'DriveMode', label: 'DriveMode', value: 'NORMAL' }
   ]
+  const relevantContextSignals = contextSignals.map(item => {
+    const canonicalId=item.key==='AccelPedal'?'AcceleratorPedalPosition':item.key
+    const signal=getSignalDefinition(canonicalId)
+    const relatedIds=signal?[...new Set([...signal.producerIds,...signal.consumerIds])]:[]
+    return {
+      ...item,
+      description:signal?.description,
+      relatedFunctions:relatedIds.map(id=>architectureNode(id)?.label??id).join(' · ')||undefined,
+    }
+  })
 
   // Snapshots for Page 1 from real frame
   const inputSignalsSnapshot: PresentationSignalItem[] = [

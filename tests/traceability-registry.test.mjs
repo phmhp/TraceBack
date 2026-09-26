@@ -127,3 +127,28 @@ test('selected test resolves requirement and allocated component without losing 
   assert.equal(selection.requirementId,'SWR-EDR-001')
   assert.equal(selection.componentId,'eDrive')
 })
+
+test('function-flow signal handoff preserves the selected component context', () => {
+  const base={componentId:'eDrive',frameIndex:0}
+  const input=reconcileInvestigationSelection(base,{signalId:'DriveTorqueRequest'})
+  assert.equal(input.componentId,'eDrive')
+  assert.equal(input.interfaceId,'VMC->eDrive')
+  const output=reconcileInvestigationSelection(base,{signalId:'EDriveCommand'})
+  assert.equal(output.componentId,'eDrive')
+  assert.equal(output.interfaceId,'eDrive->DriveAdapter')
+})
+
+test('function-flow interface and requirement handoffs remain Back-restorable', () => {
+  let state=initialInvestigationSession()
+  const component=reconcileInvestigationSelection(state.context.selection,{componentId:'eDrive'})
+  state=investigationSessionReducer(state,{type:'NAVIGATE',context:{page:2,view:'FLOW',selection:component},origin:'select eDrive'})
+  const edge=reconcileInvestigationSelection(state.context.selection,{interfaceId:'VMC->eDrive'})
+  state=investigationSessionReducer(state,{type:'NAVIGATE',context:{view:'INTERFACES',selection:edge},origin:'function to interface'})
+  assert.equal(state.context.selection.componentId,'eDrive')
+  state=investigationSessionReducer(state,{type:'BACK'})
+  assert.equal(state.context.view,'FLOW')
+  assert.equal(state.context.selection.componentId,'eDrive')
+  const requirement=reconcileInvestigationSelection(state.context.selection,{requirementId:'SWR-EDR-001'})
+  state=investigationSessionReducer(state,{type:'NAVIGATE',context:{view:'STANDARDS',selection:requirement},origin:'function to requirement'})
+  assert.equal(state.context.selection.requirementId,'SWR-EDR-001')
+})
