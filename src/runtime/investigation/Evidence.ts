@@ -5,5 +5,5 @@ export interface Evidence {
   reference:{frameId?:number;runId?:number;requirementId?:string;testCaseId?:string}
   discovered:boolean; selectedForReport:boolean; status:'OBSERVED'|'MATCH'|'MISMATCH'|'REFERENCE'
 }
-export interface RootCauseReport { faultLocation:string; failureType:string; detailedCause:string; evidenceIds:string[] }
+export interface RootCauseReport { faultLocation:string; failureType:string; detailedCause?:string; evidenceIds:string[] }
 export interface EvidenceAssessment { sufficient:boolean; reasons:string[]; ratios:number[]; supportingRunIds:number[] }

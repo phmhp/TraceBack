@@ -27,6 +27,21 @@ export function InvestigationWorkspace() {
 
     const [videoSlot, setVideoSlot] = useState<HTMLDivElement | null>(null)
     const [showReqMapModal, setShowReqMapModal] = useState(false)
+    const [guidedReviewStep, setGuidedReviewStep] = useState<number | null>(null)
+    const guidedReview = [
+        { page: 1 as const, view: 'FLOW' as const, selection: {}, title: '관찰된 차량 반응', copy: '조사는 내부 원인이 아니라 실제로 관찰된 약한 차량 반응에서 시작합니다.' },
+        { page: 2 as const, view: 'FLOW' as const, selection: { componentId: 'VehiclePhysics', signalId: 'VehicleSpeed' }, title: '차량 반응의 인접 구조', copy: '차량 반응 바로 앞의 명령과 기능을 구조에서 거슬러 올라갑니다.' },
+        { page: 2 as const, view: 'SIGNALS' as const, selection: { componentId: 'eDrive', signalId: 'EDriveCommand' }, title: '처음 확인되는 내부 차이', copy: '상류 요청과 출력 명령을 같은 시간축에서 비교해 차이가 생기는 위치를 좁힙니다.' },
+        { page: 2 as const, view: 'STANDARDS' as const, selection: { componentId: 'eDrive', requirementId: 'SWR-EDR-001' }, title: 'Expected의 근거', copy: 'Expected는 정상 주행 기록이 아니라 선택 조건에 적용되는 요구사항과 오라클에서 나옵니다.' },
+        { page: 3 as const, view: 'STANDARDS' as const, selection: { componentId: 'eDrive', requirementId: 'SWR-EDR-001', testCaseId: 'TC-PROP-NORMAL-010A' }, title: '가설 검증', copy: '전제조건을 고정하고 서로 다른 입력에서 Expected와 Actual의 반복 패턴을 확인합니다.' },
+        { page: 4 as const, view: 'STANDARDS' as const, selection: {}, title: '근거에서 결론으로', copy: '발견한 경계 차이와 반복 시험 결과가 함께 원인 위치와 문제 유형을 지지합니다.' },
+    ]
+    const showGuidedStep = (index: number) => {
+        const step = guidedReview[index]
+        if (!step) return
+        setGuidedReviewStep(index)
+        ui.navigate({ page: step.page, view: step.view, selection: step.selection }, `guided-review:${index}`, false)
+    }
 
     // Create presentation model
     const presentationModel = useMemo(() => {
@@ -178,7 +193,7 @@ export function InvestigationWorkspace() {
     }
 
     return (
-        <div className="investigation-new-container">
+        <div className={`investigation-new-container ${guidedReviewStep === null ? '' : `guided-review-active guided-review-step-${guidedReviewStep}`}`}>
             {/* 1. 상단 Stepper 헤더 */}
             <InvestigationHeader
                 currentPage={ui.page}
@@ -218,7 +233,7 @@ export function InvestigationWorkspace() {
                         model={presentationModel}
                         onStartTracking={() => {
                             ui.reviewPhenomenon()
-                            ui.navigate({ page: 2, view: 'FLOW' }, '현상 파악에서 원인 추적 시작')
+                            ui.navigate({ page: 2, view: 'FLOW', selection: { componentId: 'VehiclePhysics', signalId: presentationModel.startingObservation.signalId } }, '관찰된 차량 반응에서 원인 추적 시작')
                         }}
                     />
                 )}
@@ -267,12 +282,14 @@ export function InvestigationWorkspace() {
                         onCollectTestAsEvidence={handleCollectTest}
                         onJumpToEvent={handleJumpToEvent}
                         onNavigateToTracking={() => ui.navigate({ page: 2 }, '가설 수정')}
+                        onOpenRequirement={(requirementId) => ui.navigate({ page: 2, view: 'STANDARDS', selection: { requirementId } }, `가설 검증에서 ${requirementId} 요구사항 확인`)}
                     />
                 )}
 
                     {ui.page === 4 && (
                     <Page4Conclusion
                         definition={definition}
+                        hypothesis={ui.hypothesis}
                         evidenceList={state.evidence}
                         diagnosis={state.diagnosis}
                         repairs={state.repairs}
@@ -281,6 +298,11 @@ export function InvestigationWorkspace() {
                         onSubmitReport={handleSubmitReport}
                         onRunRepair={handleRunRepair}
                         onNavigateToDebrief={() => completeInvestigation('debrief')}
+                        onStartGuidedReview={() => showGuidedStep(0)}
+                        onRetryInvestigation={() => {
+                            controller.retryDiagnosis()
+                            ui.navigate({ page: 2, view: 'FLOW' }, '오답 후 다시 조사')
+                        }}
                     />
                     )}
                 </div>
@@ -367,6 +389,16 @@ export function InvestigationWorkspace() {
                     </div>
                 </div>
             )}
+            {guidedReviewStep !== null && <aside className="guided-review-controls" aria-live="polite">
+                <p className="investigation-section-label">조사 해설 {guidedReviewStep + 1} / {guidedReview.length}</p>
+                <h3>{guidedReview[guidedReviewStep]!.title}</h3>
+                <p>{guidedReview[guidedReviewStep]!.copy}</p>
+                <div>
+                    <button type="button" disabled={guidedReviewStep === 0} onClick={() => showGuidedStep(guidedReviewStep - 1)}>이전</button>
+                    {guidedReviewStep < guidedReview.length - 1 && <button type="button" onClick={() => showGuidedStep(guidedReviewStep + 1)}>다음</button>}
+                    <button type="button" onClick={() => setGuidedReviewStep(null)}>해설 종료</button>
+                </div>
+            </aside>}
         </div>
     )
 }

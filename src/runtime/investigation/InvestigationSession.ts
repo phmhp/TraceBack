@@ -79,7 +79,6 @@ export const initialInvestigationSession = (): InvestigationSessionState => ({
     page: 1,
     view: 'FLOW',
     selection: {
-      componentId: 'PropulsionFunction',
       frameIndex: 0,
     },
   },

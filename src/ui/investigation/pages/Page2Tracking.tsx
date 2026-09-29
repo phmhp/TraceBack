@@ -32,7 +32,7 @@ interface Page2Props {
 
 const views = [
   { id: 'FLOW' as TrackingView, label: '기능 흐름', icon: '🌲' },
-  { id: 'SIGNALS' as TrackingView, label: '신호 비교', icon: '📈' },
+  { id: 'SIGNALS' as TrackingView, label: 'Signal Monitor', icon: '📈' },
   { id: 'INTERFACES' as TrackingView, label: '인터페이스', icon: '🔗' },
   { id: 'STANDARDS' as TrackingView, label: '요구사항', icon: '📄' }
 ]
@@ -59,6 +59,7 @@ export function Page2Tracking({
   onOpenReqMap,
   onNavigateContext
 }: Page2Props) {
+  const requiresSelection=trackingView!=='FLOW'&&!selectedComponent
   return (
     <div className="investigation-main-content">
       {/* PAGE 2 상단 헤더 컨테이너 */}
@@ -68,12 +69,12 @@ export function Page2Tracking({
             <span style={{ fontSize: '24px' }}>🌲</span>
             <div>
               <h2>2. 원인 추적</h2>
-              <p>같은 조건의 기대값과 사건 기록을 비교해 차이가 시작되는 경계를 추적해보세요.</p>
+              <p>확인된 값에서 인접 관측점을 따라가며 차이가 처음 나타나는 위치를 좁혀보세요.</p>
             </div>
           </div>
 
           <div className="p2-guide-box">
-            💡 기대값은 같은 조건에서 계산한 모델 판정입니다. 별도의 정상 주행 기록과는 다릅니다.
+            현재 값의 한 단계 앞쪽을 확인하세요. 앞 단계부터 다르면 상류를, 같다면 이 경계 이후를 살펴볼 수 있습니다.
           </div>
         </div>
 
@@ -113,7 +114,9 @@ export function Page2Tracking({
         />
       )}
 
-      {trackingView === 'SIGNALS' && (
+      {requiresSelection&&<section className="selection-required"><p className="investigation-section-label">조사 컨텍스트 필요</p><h3>먼저 조사할 기능을 선택하세요.</h3><p>Signal Monitor, 인터페이스와 요구사항은 선택한 기능을 기준으로 정보를 보여줍니다.</p><button type="button" onClick={()=>onSelectView('FLOW')}>기능 흐름에서 선택 →</button></section>}
+
+      {trackingView === 'SIGNALS' && !requiresSelection && (
         <ViewBSignals
           selectedComponent={selectedComponent}
           selectedSignal={selectedSignal}
@@ -128,7 +131,7 @@ export function Page2Tracking({
         />
       )}
 
-      {trackingView === 'INTERFACES' && (
+      {trackingView === 'INTERFACES' && !requiresSelection && (
         <ViewCInterfaces
           model={model}
           selectedInterfaceId={selectedInterface}
@@ -142,7 +145,7 @@ export function Page2Tracking({
         />
       )}
 
-      {trackingView === 'STANDARDS' && (
+      {trackingView === 'STANDARDS' && !requiresSelection && (
         <ViewDStandards
           selectedComponent={selectedComponent}
           selectedRequirementId={selectedRequirement}

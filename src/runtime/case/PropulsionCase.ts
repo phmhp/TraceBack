@@ -140,11 +140,15 @@ export class PropulsionCase {
     if(!selected.length||selected.length!==new Set(report.evidenceIds).size)throw new Error('직접 확보한 근거를 선택하십시오.')
     const root=this.definition.rootCause
     const assessment=assessEvidence(this.definition,selected,this.state.frames,this.state.experiments)
-    const correct=report.faultLocation===root.location&&report.failureType===root.failureType&&report.detailedCause===root.detailedCause
+    const correct=report.faultLocation===root.location&&report.failureType===root.failureType&&(!report.detailedCause||report.detailedCause===root.detailedCause)
     const requirementIds=[...new Set(selected.filter(e=>e.type==='TEST_RESULT'||e.type==='TEST_CASE').flatMap(e=>e.relatedTestCaseIds).flatMap(id=>traceRequirements(id).map(r=>r.id)))]
     const frameId=selected.find(e=>e.type==='SIGNAL_BOUNDARY')?.reference.frameId??0
     const testRunId=selected.find(e=>e.type==='TEST_RESULT')?.reference.runId??0
-    this.update({phase:'SUBMITTED',evidence:this.state.evidence.map(e=>({...e,selectedForReport:report.evidenceIds.includes(e.id)})),pinned:frameId,diagnosis:{component:report.faultLocation,mechanism:report.detailedCause,requirement:requirementIds.join(', '),frameId,testRunId,correct,evidenceSufficient:assessment.sufficient,report:structuredClone(report),assessment,requirementIds}})
+    this.update({phase:'SUBMITTED',evidence:this.state.evidence.map(e=>({...e,selectedForReport:report.evidenceIds.includes(e.id)})),pinned:frameId,diagnosis:{component:report.faultLocation,mechanism:report.detailedCause??report.failureType,requirement:requirementIds.join(', '),frameId,testRunId,correct,evidenceSufficient:assessment.sufficient,report:structuredClone(report),assessment,requirementIds}})
+  }
+  retryDiagnosis() {
+    if (!this.state.diagnosis || this.state.diagnosis.correct) return
+    this.update({ phase:'CAPTURED', diagnosis:null, repairs:[] })
   }
   submit(component: string, mechanism: string, requirement: string) {
     if (this.state.diagnosis) throw new Error('첫 제출은 보존됩니다.')

@@ -7,6 +7,12 @@ export interface ArchitectureNode {
   implementation: 'IMPLEMENTED' | 'REFERENCE_ONLY'; role: string; inputs: string[]; outputs: string[]
 }
 export type SignalValue = number | string | boolean | Record<string, unknown> | null
+export type SignalComparisonBasis =
+  | { kind:'EXPECTED_TRAJECTORY' }
+  | { kind:'VALID_RANGE'; min:number; max:number }
+  | { kind:'ALLOWED_STATE'; allowed:readonly (string|boolean)[] }
+  | { kind:'REQUIREMENT_CONDITION'; requirementIds:readonly string[] }
+  | { kind:'OBSERVATION_ONLY' }
 export interface SignalDefinition {
   id: string
   label: string
@@ -15,9 +21,12 @@ export interface SignalDefinition {
   consumerIds: string[]
   interfaceIds: string[]
   unit?: string
+  semanticRole?: 'STATE_OR_PRECONDITION' | 'VALUE'
+  comparisonBasis: SignalComparisonBasis
   readIncidentActual?: (frame: IncidentFrame) => SignalValue
   readOracleExpected?: (frame: IncidentFrame, previous?: IncidentFrame) => SignalValue
 }
+export type SignalTimelineCapability = 'SNAPSHOT_ONLY' | 'ACTUAL_TIMELINE' | 'COMPARE_TIMELINE' | 'STATE_TIMELINE'
 export interface InterfaceEdge {
   id: string
   sourceId: string
@@ -126,6 +135,15 @@ const signalDescriptions: Partial<Record<string,string>> = {
   steering:'조향 어댑터가 플랜트에 전달하는 조향각',
 }
 
+// Bounds below come from the runtime input setters / propulsion clamp, not from UI guesses.
+const validRanges: Partial<Record<string,{min:number;max:number}>> = {
+  AcceleratorPedalPosition:{min:0,max:1}, Brake:{min:0,max:1}, Steering:{min:-1,max:1}, PropulsionRequest:{min:0,max:1},
+}
+const stateOrPreconditionSignals = new Set([
+  'AcceleratorPedalValidity','GearRequestValidity','VehicleReady','PropulsionEnable',
+  'GearState','GearStateValidity','TransitionAccepted','PropulsionState',
+])
+
 const signalIds = [...new Set([
   ...architectureNodes.flatMap(node => [...node.inputs, ...node.outputs]),
   ...interfaceEdges.flatMap(edge => edge.signalIds),
@@ -141,6 +159,8 @@ export const signalDefinitions: SignalDefinition[] = signalIds.map(id => {
     producerIds:[...new Set([...declaredProducers,...carried.map(edge => edge.sourceId)])],
     consumerIds:[...new Set([...declaredConsumers,...carried.map(edge => edge.targetId)])],
     interfaceIds:carried.map(edge => edge.id), unit:units[id],
+    semanticRole:stateOrPreconditionSignals.has(id)?'STATE_OR_PRECONDITION':'VALUE',
+    comparisonBasis:oracleReaders[id]?{kind:'EXPECTED_TRAJECTORY'}:validRanges[id]?{kind:'VALID_RANGE',...validRanges[id]}:{kind:'OBSERVATION_ONLY'},
     readIncidentActual:actualReaders[id], readOracleExpected:oracleReaders[id],
   }
 })
@@ -160,6 +180,15 @@ export const getSignalObservation = (signalId:string, frame:IncidentFrame, previ
   if(signal?.readOracleExpected)observation.expected={semantics:'ORACLE_EXPECTED',value:signal.readOracleExpected(frame,previous)}
   // No recorded normal/reference run exists in the repository; do not synthesize one.
   return observation
+}
+/** Capability is derived from registered incident/oracle readers, never from a UI allow-list. */
+export const getSignalTimelineCapability = (signalId:string, frames:readonly IncidentFrame[] = []): SignalTimelineCapability => {
+  const signal=getSignalDefinition(signalId)
+  if (!signal?.readIncidentActual) return 'SNAPSHOT_ONLY'
+  if (signal.readOracleExpected) return 'COMPARE_TIMELINE'
+  const observed=frames.map(frame=>signal.readIncidentActual?.(frame)).find(value=>value!==null&&value!==undefined)
+  if (typeof observed === 'boolean' || typeof observed === 'string') return 'STATE_TIMELINE'
+  return 'ACTUAL_TIMELINE'
 }
 
 /** Read-only compatibility projection for legacy consumers. */

@@ -66,6 +66,13 @@ export interface InvestigationPresentationModel {
   relevantContextSignals: { key: string; label: string; value: string | number; unit?: string; description?: string; relatedFunctions?: string }[]
   inputSignalsSnapshot: PresentationSignalItem[]
   outputSignalsSnapshot: PresentationSignalItem[]
+  startingObservation: {
+    origin:'SYMPTOM_DRIVEN'|'TEST_FAIL_DRIVEN'|'INTERFACE_FAIL_DRIVEN'
+    kind:'VEHICLE_RESPONSE'|'FUNCTION_OUTPUT'|'INTERFACE_BOUNDARY'|'TEST_FAILURE'
+    signalId:string; producerId?:string; label:string; comparisonBasis:'EXPECTED_TRAJECTORY'|'VALID_RANGE'|'ALLOWED_STATE'|'REQUIREMENT_CONDITION'|'OBSERVATION_ONLY'; expected?:string; actual:string; unit?:string; timestamp:number; meaning:string
+    selectedIndex:number
+    samples:{ time:number; actual:number|null; expected:number|null }[]
+  }
 }
 
 /** Helper to format numeric or object values cleanly */
@@ -235,5 +242,20 @@ export function createInvestigationPresentationModel(
     relevantContextSignals,
     inputSignalsSnapshot,
     outputSignalsSnapshot
+    ,startingObservation: (() => {
+      const signalId='VehicleSpeed'
+      const observation=eventFrame ? getSignalDefinition(signalId) : undefined
+      const actual=eventFrame && observation?.readIncidentActual?.(eventFrame)
+      return {
+        origin:'SYMPTOM_DRIVEN' as const, kind:'VEHICLE_RESPONSE' as const, signalId, producerId:observation?.producerIds[0], label:'관찰된 차량 속도 반응', comparisonBasis:observation?.comparisonBasis.kind??'OBSERVATION_ONLY',
+        actual:formatValue(actual), unit:observation?.unit, timestamp:eventTimeSeconds,
+        meaning:'가속 입력에 비해 차량 반응이 약하다는 현상이 보고되었습니다. 내부 신호의 차이와 원인 위치는 아직 확인되지 않았습니다.',
+        selectedIndex:state.selected,
+        samples:state.frames.map((frame)=>{
+          const actualValue=observation?.readIncidentActual?.(frame)
+          return { time:frame.sw.executionTime, actual:typeof actualValue==='number'?actualValue:null, expected:null }
+        }),
+      }
+    })()
   }
 }

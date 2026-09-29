@@ -1,123 +1,49 @@
-import type { InvestigationPresentationModel } from '../presentation/InvestigationPresentationModel'
+import { useEffect, useId, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import type { InvestigationPresentationModel, PresentationSignalItem } from '../presentation/InvestigationPresentationModel'
+import { architectureNode, getSignalDefinition } from '../../../registries/investigation/Architecture'
 
-interface Page1Props {
-  model: InvestigationPresentationModel
-  onStartTracking: () => void
-  onOpenStateModal?: () => void
+interface Page1Props { model:InvestigationPresentationModel; onStartTracking:()=>void; onOpenStateModal?:()=>void }
+
+function SignalHelp({id,description,relatedFunctions,unit}:{id:string;description?:string;relatedFunctions?:string;unit?:string}){
+  const signal=getSignalDefinition(id)
+  const tooltipId=useId(),anchorRef=useRef<HTMLSpanElement>(null)
+  const [position,setPosition]=useState<{left:number;top:number;below:boolean}|null>(null)
+  const functions=relatedFunctions||[...(signal?.producerIds??[]),...(signal?.consumerIds??[])].map(nodeId=>architectureNode(nodeId)?.label??nodeId).join(' · ')
+  const role=signal?.semanticRole==='STATE_OR_PRECONDITION'?'상태 / 전제조건':signal?.producerIds.length?'입력 또는 출력 신호':'관찰값'
+  const basis=signal?.comparisonBasis
+  const basisLabel=basis?.kind==='VALID_RANGE'?`유효 범위 · ${basis.min}–${basis.max} ${unit||signal?.unit||''}`:basis?.kind==='ALLOWED_STATE'?`허용 상태 · ${basis.allowed.join(' / ')}`:basis?.kind==='EXPECTED_TRAJECTORY'?'판정 기준 · Expected trajectory 제공':'판정 기준 · 미지원'
+  const place=()=>{const rect=anchorRef.current?.getBoundingClientRect();if(!rect)return;const width=240,below=rect.top<150;setPosition({left:Math.max(12,Math.min(window.innerWidth-width-12,rect.left+rect.width/2-width/2)),top:below?rect.bottom+8:rect.top-8,below})}
+  const close=()=>setPosition(null)
+  useEffect(()=>{if(!position)return;window.addEventListener('resize',place);window.addEventListener('scroll',place,true);return()=>{window.removeEventListener('resize',place);window.removeEventListener('scroll',place,true)}},[position])
+  return <><span ref={anchorRef} className="signal-help" tabIndex={0} aria-label={`${id} 설명`} aria-describedby={position?tooltipId:undefined} onMouseEnter={place} onMouseLeave={close} onFocus={place} onBlur={close}><span aria-hidden="true">?</span></span>{position&&typeof document!=='undefined'&&createPortal(<span id={tooltipId} className="signal-help-portal" role="tooltip" style={{left:position.left,top:position.top,transform:position.below?'none':'translateY(-100%)'}}><b>{description??signal?.description??'등록된 설명 없음'}</b>{functions&&<small>관련 기능 · {functions}</small>}{(unit||signal?.unit)&&<small>단위 · {unit||signal?.unit}</small>}<small>역할 · {role}</small><small>{basisLabel}</small></span>,document.body)}</>
 }
 
-function SignalTable({ rows }: { rows: InvestigationPresentationModel['inputSignalsSnapshot'] }) {
-  return (
-    <div className="fault-report-table-wrap">
-      <table className="fault-report-table">
-        <colgroup><col /><col className="value-column" /><col className="unit-column" /><col /></colgroup>
-        <thead><tr><th>신호</th><th>값</th><th>단위</th><th>설명</th></tr></thead>
-        <tbody>
-          {rows.map(row => (
-            <tr key={row.name}>
-              <td><code className="investigation-tech-id">{row.name}</code></td>
-              <td className="investigation-number">{row.currentValue}</td>
-              <td>{row.unit}</td>
-              <td className="investigation-prose">{row.description}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
+function SignalTable({rows}:{rows:PresentationSignalItem[]}){
+  return <div className="fault-report-table-wrap"><table className="fault-report-table"><colgroup><col/><col className="value-column"/><col className="unit-column"/><col/></colgroup><thead><tr><th>신호</th><th>관찰값</th><th>단위</th><th>의미</th></tr></thead><tbody>{rows.map(row=><tr key={row.name}><td><span className="signal-id-with-help"><code className="investigation-tech-id">{row.name}</code><SignalHelp id={row.name} description={row.description} unit={row.unit}/></span></td><td className="investigation-number">{row.currentValue}</td><td>{row.unit}</td><td className="investigation-prose">{row.description}</td></tr>)}</tbody></table></div>
 }
 
-export function Page1Phenomenon({ model, onStartTracking, onOpenStateModal }: Page1Props) {
-  return (
-    <main className="investigation-main-content fault-report-desk">
-      <article className="fault-report" aria-labelledby="fault-report-title">
-        <header className="fault-report-header">
-          <div>
-            <p className="investigation-page-title">현상 파악 · FAULT REPORT</p>
-            <h1 id="fault-report-title">고장 현상 기록</h1>
-            <p className="fault-report-case-title investigation-prose">{model.caseTitle}</p>
-          </div>
-          <dl className="fault-report-meta">
-            <div><dt>CASE</dt><dd><code className="investigation-tech-id">{model.caseId}</code></dd></div>
-            <div><dt>고장 시점</dt><dd className="investigation-number">{model.eventTimeSeconds.toFixed(3)} s</dd></div>
-            <div><dt>기록 상태</dt><dd>조사 중</dd></div>
-          </dl>
-        </header>
-
-        <section className="fault-report-lead" aria-labelledby="phenomenon-heading">
-          <p className="investigation-section-label">01 · REPORTED PHENOMENON</p>
-          <h2 id="phenomenon-heading">{model.symptomName}</h2>
-          <p className="investigation-prose fault-report-description">{model.symptomSummary}</p>
-        </section>
-
-        <section className="driver-testimony" aria-labelledby="driver-statement-heading">
-          <div className="driver-placeholder" aria-hidden="true"><span>운전자</span></div>
-          <div>
-            <p id="driver-statement-heading" className="investigation-section-label">DRIVER STATEMENT</p>
-            <blockquote>“{model.driverQuote}”</blockquote>
-            <p className="investigation-annotation">운전자 진술 원문 · 원인 판단 전 기록</p>
-          </div>
-        </section>
-
-        <section className="fault-report-section" aria-labelledby="condition-heading">
-          <div className="fault-report-section-heading">
-            <div><p className="investigation-section-label">02 · OPERATING CONDITION</p><h2 id="condition-heading">고장 시점 운행 조건</h2></div>
-            {onOpenStateModal && <button type="button" className="report-text-button" onClick={onOpenStateModal}>전체 상태 보기 →</button>}
-          </div>
-          <dl className="operating-condition-grid">
-            {model.relevantContextSignals.map(signal => (
-              <div key={signal.key}>
-                <dt><code className="investigation-tech-id">{signal.label}</code></dt>
-                <dd className="investigation-number">{signal.value}{signal.unit ? <small> {signal.unit}</small> : null}</dd>
-                {(signal.description || signal.relatedFunctions) && <details className="condition-help">
-                  <summary aria-label={`${signal.label} 설명 보기`}>?</summary>
-                  {signal.description&&<p>{signal.description}</p>}
-                  {signal.relatedFunctions&&<small>관련 기능 · {signal.relatedFunctions}</small>}
-                </details>}
-              </div>
-            ))}
-          </dl>
-        </section>
-
-        <figure className="report-semantics-flow" aria-label="입력과 운행 조건, 차량 반응의 관계">
-          <div><span>INPUT</span><b>운전자 / 시스템 입력</b></div>
-          <strong aria-hidden="true">+</strong>
-          <div><span>SHARED STATE</span><b>운행 조건</b></div>
-          <i aria-hidden="true">↓</i>
-          <div><span>PROCESS</span><b>차량 기능 처리</b></div>
-          <i aria-hidden="true">↓</i>
-          <div><span>OUTPUT</span><b>차량 반응</b></div>
-        </figure>
-
-        <section className="fault-report-section" aria-labelledby="input-heading">
-          <p className="investigation-section-label">03 · DRIVER / SYSTEM INPUT</p>
-          <h2 id="input-heading">운전자 및 시스템 입력</h2>
-          <p className="investigation-annotation">고장 시점에 기록된 입력 신호입니다.</p>
-          <SignalTable rows={model.inputSignalsSnapshot} />
-        </section>
-
-        <section className="fault-report-section" aria-labelledby="response-heading">
-          <p className="investigation-section-label">04 · VEHICLE RESPONSE</p>
-          <h2 id="response-heading">차량 반응</h2>
-          <p className="investigation-annotation">고장 시점에 기록된 차량 거동 신호입니다.</p>
-          <SignalTable rows={model.outputSignalsSnapshot} />
-        </section>
-
-        <figure className="investigation-scope-strip" aria-label="조사 범위 개요">
-          <figcaption>조사 범위</figcaption>
-          <span>입력</span><i aria-hidden="true">→</i><span>차량 기능</span><i aria-hidden="true">→</i><span>차량 반응</span>
-        </figure>
-
-        <aside className="investigation-note">
-          <span className="investigation-note-mark" aria-hidden="true">?</span>
-          <div><p className="investigation-section-label">INVESTIGATION QUESTION</p><p>입력과 차량 반응 사이에서 어떤 기능부터 확인해야 할까요?</p></div>
-        </aside>
-
-        <footer className="fault-report-footer">
-          <p className="investigation-annotation">보고서 검토를 마치면 원인 추적 기록이 시작됩니다.</p>
-          <button type="button" className="p1-cta-btn" onClick={onStartTracking}>원인 추적 시작 →</button>
-        </footer>
-      </article>
-    </main>
-  )
+function ObservationTimeline({observation}:{observation:InvestigationPresentationModel['startingObservation']}){
+  const {samples}=observation;if(!samples.length)return null
+  const width=720,height=112,left=44,right=14,top=14,bottom=24
+  const values=samples.flatMap(point=>[point.actual,point.expected]).filter((item):item is number=>item!==null)
+  const rawMin=Math.min(...values),rawMax=Math.max(...values),span=Math.max(1,rawMax-rawMin),min=rawMin-span*.12,max=rawMax+span*.12
+  const x=(index:number)=>left+(index/Math.max(1,samples.length-1))*(width-left-right),y=(value:number)=>top+(max-value)/(max-min)*(height-top-bottom)
+  const points=samples.map((point,index)=>point.actual===null?null:`${x(index).toFixed(1)},${y(point.actual).toFixed(1)}`).filter(Boolean).join(' ')
+  const expectedPoints=samples.map((point,index)=>point.expected===null?null:`${x(index).toFixed(1)},${y(point.expected).toFixed(1)}`).filter(Boolean).join(' ')
+  const firstDifference=samples.findIndex(point=>point.actual!==null&&point.expected!==null&&Math.abs(point.actual-point.expected)>1e-6)
+  const selected=Math.max(0,Math.min(samples.length-1,observation.selectedIndex))
+  return <figure className="observation-timeline compact"><figcaption><span><i className="actual"/>Actual · 사건 기록{expectedPoints&&<><i className="expected"/>Expected</>}</span><small>선택 시점 {samples[selected]?.time.toFixed(3)} s</small></figcaption><svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${observation.signalId} 실제 차량 반응 시간 흐름`}>{[0,.5,1].map(r=><line key={r} className="observation-grid" x1={left} x2={width-right} y1={top+r*(height-top-bottom)} y2={top+r*(height-top-bottom)}/>)}{expectedPoints&&<polyline className="observation-expected" points={expectedPoints}/>}<polyline className="observation-actual" points={points}/>{firstDifference>=0&&<><line className="observation-difference-marker" x1={x(firstDifference)} x2={x(firstDifference)} y1={top} y2={height-bottom}/><text className="observation-difference-label" x={x(firstDifference)+4} y={top+9}>첫 차이</text></>}<line className="observation-event-marker" x1={x(samples.length-1)} x2={x(samples.length-1)} y1={top} y2={height-bottom}/><line className="observation-cursor" x1={x(selected)} x2={x(selected)} y1={top} y2={height-bottom}/><text x={left} y={height-6}>{samples[0]?.time.toFixed(2)} s</text><text x={width-right} y={height-6} textAnchor="end">{samples.at(-1)?.time.toFixed(2)} s</text></svg></figure>
 }
+
+export function Page1Phenomenon({model,onStartTracking,onOpenStateModal}:Page1Props){const observation=model.startingObservation;const firstDifference=observation.samples.find(point=>point.actual!==null&&point.expected!==null&&Math.abs(point.actual-point.expected)>1e-6);const selectedSample=observation.samples[observation.selectedIndex];const expectedAtSelection=selectedSample?.expected;const actualAtSelection=selectedSample?.actual;const difference=actualAtSelection!==null&&actualAtSelection!==undefined&&expectedAtSelection!==null&&expectedAtSelection!==undefined?actualAtSelection-expectedAtSelection:null;return <main className="investigation-main-content fault-report-desk"><article className="fault-report" aria-labelledby="fault-report-title">
+  <header className="fault-report-header"><div><p className="investigation-page-title">현상 파악 · FAULT REPORT</p><h1 id="fault-report-title">고장 현상 기록</h1><p className="fault-report-case-title investigation-prose">{model.caseTitle}</p></div><dl className="fault-report-meta"><div><dt>CASE</dt><dd><code className="investigation-tech-id">{model.caseId}</code></dd></div><div><dt>고장 시점</dt><dd className="investigation-number">{model.eventTimeSeconds.toFixed(3)} s</dd></div><div><dt>기록 상태</dt><dd>조사 중</dd></div></dl></header>
+  <section className="fault-report-lead" aria-labelledby="phenomenon-heading"><p className="investigation-section-label">01 · 고장 현상</p><h2 id="phenomenon-heading">{model.symptomName}</h2><p className="investigation-prose fault-report-description">{model.symptomSummary}</p></section>
+  <section className="driver-testimony" aria-labelledby="driver-statement-heading"><div className="driver-placeholder" aria-hidden="true"><span>운전자</span></div><div><p id="driver-statement-heading" className="investigation-section-label">운전자 진술</p><blockquote>“{model.driverQuote}”</blockquote><p className="investigation-annotation">운전자 진술 원문 · 원인 판단 전 기록</p></div></section>
+  <figure className="report-semantics-flow" aria-label="입력과 운행 조건, 차량 반응의 관계"><div><span>INPUT</span><b>운전자 / 시스템 입력</b></div><strong aria-hidden="true">+</strong><div><span>SHARED STATE</span><b>운행 조건</b></div><i aria-hidden="true">↓</i><div><span>PROCESS</span><b>차량 기능 처리</b></div><i aria-hidden="true">↓</i><div><span>RESPONSE</span><b>차량 반응</b></div></figure>
+  <section className="fault-report-section" aria-labelledby="input-heading"><p className="investigation-section-label">02 · 운전자 및 시스템 입력</p><h2 id="input-heading">사건 당시 무엇을 요청했는가?</h2><p className="investigation-annotation">고장 시점에 기록된 실제 입력입니다.</p><SignalTable rows={model.inputSignalsSnapshot}/></section>
+  <section className="fault-report-section" aria-labelledby="condition-heading"><div className="fault-report-section-heading"><div><p className="investigation-section-label">03 · 운행 조건 / 상태</p><h2 id="condition-heading">고장 시점 운행 조건</h2></div>{onOpenStateModal&&<button type="button" className="report-text-button" onClick={onOpenStateModal}>전체 상태 보기 →</button>}</div><dl className="operating-condition-grid">{model.relevantContextSignals.map(signal=><div key={signal.key}><dt><span className="signal-id-with-help"><code className="investigation-tech-id">{signal.label}</code><SignalHelp id={signal.key==='AccelPedal'?'AcceleratorPedalPosition':signal.key} description={signal.description} relatedFunctions={signal.relatedFunctions} unit={signal.unit}/></span></dt><dd className="investigation-number">{signal.value}{signal.unit?<small> {signal.unit}</small>:null}</dd></div>)}</dl></section>
+  <section className="fault-report-section" aria-labelledby="response-heading"><p className="investigation-section-label">04 · 차량 반응</p><h2 id="response-heading">실제로 어떻게 반응했는가?</h2><p className="investigation-annotation">가속 입력에 비해 차량 반응이 약하다는 현상이 보고되었습니다.</p><SignalTable rows={model.outputSignalsSnapshot}/><div className="observed-response" aria-labelledby="observed-response-title"><header className="observed-response-heading"><div><p className="investigation-section-label">관찰된 차량 반응</p><h3 id="observed-response-title">선택한 반응 신호</h3></div><code className="observed-signal-code">{observation.signalId}</code></header><div className="observation-comparison-grid"><article><small>Actual · 선택 시점</small><strong>{observation.actual} <em>{observation.unit}</em></strong><span>{observation.timestamp.toFixed(3)} s 사건 기록</span></article><article><small>Expected · 판정 기준</small><strong>{observation.expected??'미지원'}</strong><span>{observation.expected?'정상 기준 데이터':'정상 궤적 없음'}</span></article><article><small>Actual − Expected</small><strong>{difference===null?'판정 불가':`${difference.toFixed(3)} ${observation.unit??''}`}</strong><span>{difference===null?'비교 기준 미지원':'선택 시점의 차이'}</span></article><article><small>첫 차이 발생 시점</small><strong>{firstDifference?`${firstDifference.time.toFixed(3)} s`:'판정 불가'}</strong><span>{firstDifference?'Actual과 Expected가 처음 달라진 시점':'Expected가 없어 계산할 수 없음'}</span></article></div><p className="investigation-prose observed-response-meaning">{observation.meaning}</p>{!observation.expected&&<p className="observation-basis-note"><b>현재 데이터에서는 정상 판정 기준 미지원</b><span>Expected가 없으므로 차이 크기와 첫 차이 발생 시점을 판단하지 않습니다. 아래 그래프는 Actual 사건 기록만 표시합니다.</span></p>}<ObservationTimeline observation={observation}/></div></section>
+  <aside className="investigation-note"><span className="investigation-note-mark" aria-hidden="true">?</span><div><p className="investigation-section-label">조사 질문</p><p>입력과 차량 반응 사이에서 어떤 기능부터 확인해야 할까요?</p></div></aside>
+  <footer className="fault-report-footer"><p className="investigation-annotation">보고서 검토를 마치면 원인 추적 기록이 시작됩니다.</p><button type="button" className="p1-cta-btn" onClick={onStartTracking}>원인 추적 시작 →</button></footer>
+</article></main>}

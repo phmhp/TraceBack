@@ -84,15 +84,17 @@ export function ViewAFlow({
   onNavigateToRequirement,
   onSetHypothesisTarget,
 }: ViewAFlowProps) {
-  const node = architectureNode(selectedComponent) ?? architectureNode('PropulsionFunction')
-  const inputSignals = getInputSignals(node.id)
-  const outputSignals = getOutputSignals(node.id)
-  const incomingInterfaces = getIncomingInterfaces(node.id)
-  const outgoingInterfaces = getOutgoingInterfaces(node.id)
-  const requirements = getRequirementsForComponent(node.id)
-  const processing = normalFunctionFlows[node.id] ?? [node.role]
+  const node = selectedComponent?architectureNode(selectedComponent):undefined
+  const inputSignals = node?getInputSignals(node.id):[]
+  const stateSignals = inputSignals.filter(signal => signal.semanticRole === 'STATE_OR_PRECONDITION')
+  const valueInputSignals = inputSignals.filter(signal => signal.semanticRole !== 'STATE_OR_PRECONDITION')
+  const outputSignals = node?getOutputSignals(node.id):[]
+  const incomingInterfaces = node?getIncomingInterfaces(node.id):[]
+  const outgoingInterfaces = node?getOutgoingInterfaces(node.id):[]
+  const requirements = node?getRequirementsForComponent(node.id):[]
+  const processing = node?(normalFunctionFlows[node.id] ?? [node.role]):[]
   const relevantPath = new Set(model.relevantFunctionPath)
-  const discoveredMismatch = model.getNodeStatus(node.id) === 'DIFFERENCE_FOUND'
+  const discoveredMismatch = node?model.getNodeStatus(node.id) === 'DIFFERENCE_FOUND':false
 
   return (
     <div className="function-flow-workspace">
@@ -100,7 +102,7 @@ export function ViewAFlow({
         <header className="diagram-heading">
           <div>
             <p className="investigation-section-label">LEVEL 1 · VEHICLE FUNCTIONAL ARCHITECTURE</p>
-            <h3 id="vehicle-architecture-title">차량 기능 구조에서 어디를 먼저 조사할 것인가?</h3>
+            <h3 id="vehicle-architecture-title">이 관측값은 차량 구조의 어디와 연결되는가?</h3>
           </div>
           <div className="architecture-legend" aria-label="다이어그램 범례">
             <span><i className="legend-line case" />사건 우선 경로</span>
@@ -181,7 +183,7 @@ export function ViewAFlow({
         </div>
       </section>
 
-      <section className="selected-function-sheet" aria-labelledby="selected-function-title">
+      {!node?<section className="selection-required function-selection-prompt"><p className="investigation-section-label">기능 선택</p><h3>위 구조에서 조사할 기능을 선택하세요.</h3><p>선택한 기능의 상태·입력·출력과 연결된 인터페이스, 요구사항을 여기에서 확인할 수 있습니다.</p></section>:<section className="selected-function-sheet" aria-labelledby="selected-function-title">
         <header className="selected-function-header">
           <div>
             <p className="investigation-section-label">LEVEL 2 · SELECTED FUNCTION FLOW</p>
@@ -194,17 +196,17 @@ export function ViewAFlow({
           </div>
         </header>
 
-        <p className="function-investigation-question">입력과 출력 사이에서 어떤 신호를 비교해볼까요?</p>
+        <p className="function-investigation-question">다음에는 어떤 인접 값을 확인하면 이상이 시작된 위치를 좁힐 수 있을까요?</p>
 
         <div className="selected-function-flow">
           <section className="function-flow-stage signal-stage">
-            <header><span>INPUT</span><b>입력 / 공유 상태</b></header>
+            <header><span>STATE + INPUT</span><b>전제조건 / 입력</b></header>
             <div className="actionable-signal-list">
-              {inputSignals.length ? inputSignals.map(signal => (
+              {[...stateSignals,...valueInputSignals].length ? [...stateSignals,...valueInputSignals].map(signal => (
                 <div className="function-signal-node" key={signal.id}>
                   <code>{signal.id}</code>
                   {signal.description&&<p>{signal.description}</p>}
-                  <button type="button" onClick={() => onNavigateToSignal(signal.id)}>신호 비교에서 보기 →</button>
+                  <button type="button" onClick={() => onNavigateToSignal(signal.id)}>{signal.semanticRole==='STATE_OR_PRECONDITION'?'전제조건 시간 흐름 보기':'기능 입력 시간 흐름 보기'} →</button>
                 </div>
               )) : <p>등록된 입력 신호 없음</p>}
             </div>
@@ -259,7 +261,7 @@ export function ViewAFlow({
             </div>
           </div>
         </footer>
-      </section>
+      </section>}
     </div>
   )
 }
