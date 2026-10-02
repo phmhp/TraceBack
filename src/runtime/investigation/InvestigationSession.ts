@@ -1,3 +1,5 @@
+import type { InvestigationTargetType, StructuredInvestigationContext } from './Verification.ts'
+
 export type InvestigationPage = 1 | 2 | 3 | 4
 export type InvestigationView = 'FLOW' | 'SIGNALS' | 'INTERFACES' | 'STANDARDS'
 
@@ -11,10 +13,19 @@ export interface InvestigationSelection {
 }
 
 export interface PlayerHypothesis {
+  id?: string
+  targetType?: InvestigationTargetType
   target: string
-  type: string
+  domainScope?: string
+  observedReason?: string
   signal?: string
   requirementId?: string
+  testCaseId?: string
+  condition?: string
+  prediction: string
+  relevantSignalIds?: string[]
+  relevantInterfaceId?: string
+  investigationContext?: StructuredInvestigationContext
   status?: 'ACTIVE' | 'MAINTAINED' | 'REJECTED'
 }
 
@@ -33,6 +44,7 @@ export type InvestigationActionType =
   | 'REVIEW_PHENOMENON'
   | 'INSPECT_COMPONENT'
   | 'INSPECT_SIGNAL'
+  | 'COMPARE_SIGNAL'
   | 'OPEN_INTERFACE'
   | 'OPEN_REQUIREMENT'
   | 'SELECT_TEST_CASE'
@@ -41,6 +53,14 @@ export type InvestigationActionType =
   | 'COLLECT_EVIDENCE'
   | 'INTERPRET_VERIFICATION'
   | 'SUBMIT_DIAGNOSIS'
+  | 'MEANINGFUL_DISCOVERY'
+  | 'EVIDENCE_SAVED'
+  | 'HYPOTHESIS_CREATED'
+  | 'TEST_EXECUTED'
+  | 'TEST_RESULT_INTERPRETED'
+  | 'CONCLUSION_SUBMITTED'
+  | 'CONCLUSION_CONFIRMED'
+  | 'EXPECTED_BASIS_IDENTIFIED'
 
 export interface InvestigationActionRecord {
   id: number
@@ -54,6 +74,8 @@ export interface DiscoveredFinding {
   subjectId: string
   source: 'INCIDENT_OBSERVATION' | 'REFERENCE' | 'EXPERIMENT'
   outcome?: 'OBSERVED' | 'MATCH' | 'MISMATCH' | 'REFERENCE'
+  claim?: string
+  clueType?: 'NORMAL_CONFIRMATION' | 'MISMATCH' | 'EXPECTED_BASIS' | 'TEST_RESULT' | 'OBSERVATION'
 }
 
 export interface InvestigationMilestones {
@@ -128,15 +150,17 @@ export function investigationSessionReducer(state: InvestigationSessionState, ac
   }
   if (action.type === 'RECORD') return appendAction(state, action.actionType, action.subjectId)
   if (action.type === 'SET_HYPOTHESIS') {
-    const next = { ...state, hypothesis: action.hypothesis }
-    return appendAction(next, 'CHANGE_HYPOTHESIS', action.hypothesis?.target)
+    let next = appendAction({ ...state, hypothesis: action.hypothesis }, 'CHANGE_HYPOTHESIS', action.hypothesis?.target)
+    if (action.hypothesis) next = appendAction(next, 'HYPOTHESIS_CREATED', action.hypothesis.target)
+    return next
   }
   if (action.type === 'DISCOVER') {
     if (state.discoveredFindings.some(item => item.id === action.finding.id)) return state
-    return { ...state, discoveredFindings: [...state.discoveredFindings, action.finding] }
+    return appendAction({ ...state, discoveredFindings: [...state.discoveredFindings, action.finding] }, 'MEANINGFUL_DISCOVERY', action.finding.subjectId)
   }
   if (state.collectedEvidenceIds.includes(action.evidenceId)) return state
-  return appendAction({ ...state, collectedEvidenceIds: [...state.collectedEvidenceIds, action.evidenceId] }, 'COLLECT_EVIDENCE', action.evidenceId)
+  const collected = appendAction({ ...state, collectedEvidenceIds: [...state.collectedEvidenceIds, action.evidenceId] }, 'COLLECT_EVIDENCE', action.evidenceId)
+  return appendAction(collected, 'EVIDENCE_SAVED', action.evidenceId)
 }
 
 export function deriveInvestigationMilestones(state: InvestigationSessionState): InvestigationMilestones {

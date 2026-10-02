@@ -14,6 +14,7 @@ import { WasmVehicleSw } from '../runtime/c/WasmVehicleSw'
 import { PropulsionCase } from '../runtime/case/PropulsionCase'
 import { CaseContext } from '../ui/state/CaseContext'
 import buildInfo from '../runtime/c/generated/build.json'
+import { SimulationRuntimeContext } from '../ui/state/SimulationRuntimeContext'
 
 /** Composition root: wires browser input, runtime, engine adapter and UI without reverse imports. */
 export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssembly.Module }) {
@@ -94,7 +95,7 @@ export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssem
   }, [enterDebugXRay, screen, incident])
 
   const worldView = useMemo(() => ({ map, readVehicleState: runtime.readVehicleState }), [map, runtime])
-  return <CaseContext.Provider value={incident}><WorldViewContext.Provider value={worldView}><RaceActionsContext.Provider value={actions}>
+  return <SimulationRuntimeContext.Provider value={runtime}><CaseContext.Provider value={incident}><WorldViewContext.Provider value={worldView}><RaceActionsContext.Provider value={actions}>
     <App scene={<GameViewport screen={screen} runtime={runtime} map={map} />} />
-  </RaceActionsContext.Provider></WorldViewContext.Provider></CaseContext.Provider>
+  </RaceActionsContext.Provider></WorldViewContext.Provider></CaseContext.Provider></SimulationRuntimeContext.Provider>
 }

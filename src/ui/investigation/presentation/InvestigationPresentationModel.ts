@@ -2,6 +2,7 @@ import type { CaseState, IncidentFrame } from '../../../runtime/case/PropulsionC
 import type { CaseDefinition } from '../../../runtime/investigation/CaseDefinition'
 import type { DiscoveredFinding, InvestigationMilestones, PlayerHypothesis } from '../../../runtime/investigation/InvestigationSession'
 import { architectureNode, getSignalDefinition, interfaceEdges } from '../../../registries/investigation/Architecture.ts'
+import { getRequirement } from '../../../registries/investigation/Trace.ts'
 
 export type { InvestigationPage, InvestigationView as TrackingView } from '../../../runtime/investigation/InvestigationSession'
 
@@ -41,10 +42,12 @@ export interface InvestigationPresentationModel {
   // Case info
   caseId: string
   caseTitle: string
+  localizedCaseTitle: string
   symptomName: string
   symptomSummary: string
   driverQuote: string
   eventTimeSeconds: number
+  incidentRequirements: { id:string; statement:string; level:string }[]
   
   // Investigation status calculations
   progress: {
@@ -113,7 +116,9 @@ export function createInvestigationPresentationModel(
     if (hypothesis?.target === nodeId) return 'HYPOTHESIS_TARGET'
     
     // Oracle truth is not player knowledge. Only an explicitly discovered finding can color a node.
-    const finding = discoveredFindings.find(item => item.subjectId === nodeId || item.id.includes(`boundary:${nodeId}:`))
+    const finding = discoveredFindings.find(item => item.subjectId === nodeId
+      || item.id.includes(`boundary:${nodeId}:`)
+      || (item.kind === 'SIGNAL' && getSignalDefinition(item.subjectId)?.producerIds.includes(nodeId)))
     if (finding?.outcome === 'MISMATCH') return 'DIFFERENCE_FOUND'
     if (finding?.outcome === 'MATCH') return 'NO_DIFFERENCE'
 
@@ -124,10 +129,7 @@ export function createInvestigationPresentationModel(
     id:edge.id, from:edge.sourceId, to:edge.targetId, signals:edge.signalIds,
     mainSignal:edge.signalIds[0] ?? '', signalCount:edge.signalIds.length,
     status:(() => {
-      const finding=discoveredFindings.find(item =>
-        (item.kind === 'INTERFACE' && item.subjectId === edge.id)
-        || (item.kind === 'SIGNAL' && edge.signalIds.includes(item.subjectId))
-      )
+      const finding=discoveredFindings.find(item => item.kind === 'INTERFACE' && item.subjectId === edge.id)
       return finding?.outcome === 'MISMATCH' ? 'DIFFERENCE_FOUND'
         : finding?.outcome === 'MATCH' ? 'NO_DIFFERENCE'
         : 'UNINSPECTED'
@@ -227,10 +229,12 @@ export function createInvestigationPresentationModel(
   return {
     caseId: definition.id,
     caseTitle: definition.title,
-    symptomName: definition.title || '고장 현상',
+    localizedCaseTitle: definition.localizedTitle,
+    symptomName: definition.localizedTitle || '고장 현상',
     symptomSummary: definition.symptom,
     driverQuote: '페달을 밟아도 차가 잘 안 나가요…',
     eventTimeSeconds,
+    incidentRequirements:definition.incidentRequirementIds.map(getRequirement).filter((item):item is NonNullable<typeof item>=>Boolean(item)).map(item=>({id:item.id,statement:item.statement,level:item.level})),
     progress: {
       ...milestones
     },

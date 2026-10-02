@@ -6,7 +6,7 @@
     padding: 18px;
     background: #e9eee4;
     color: #28483f;
-    font: 13px/1.6 'Noto Sans KR', sans-serif;
+    font:var(--type-body)/1.6 'Noto Sans KR', sans-serif;
     box-sizing: border-box
 }
 
@@ -25,24 +25,24 @@
 }
 
 .investigation-desk h1 {
-    font-size: 26px;
+    font-size:var(--type-display);
     margin: 0
 }
 
 .investigation-desk h1 span {
-    font-size: 14px;
+    font-size:var(--type-section-title);
     font-weight: 500;
     margin-left: 12px
 }
 
 .investigation-desk h2 {
-    font-size: 19px;
+    font-size:var(--type-page-title);
     line-height: 1.4;
     margin: 8px 0 12px
 }
 
 .investigation-desk h3 {
-    font-size: 13px;
+    font-size:var(--type-body);
     margin: 22px 0 9px
 }
 
@@ -53,7 +53,7 @@
 .investigation-desk small {
     display: block;
     color: #637970;
-    font-size: 11px
+    font-size:var(--type-secondary-body)
 }
 
 .investigation-desk code {
@@ -62,7 +62,7 @@
     border: 1px solid #d4e0d6;
     border-radius: 5px;
     padding: 2px 5px;
-    font: 11px/1.8 ui-monospace, Consolas, monospace;
+    font:var(--type-secondary-body)/1.8 ui-monospace, Consolas, monospace;
     box-decoration-break: clone
 }
 
@@ -137,7 +137,7 @@
 
 .investigation-desk pre {
     white-space: pre-wrap;
-    font: 12px/1.7 Consolas, monospace
+    font:var(--type-secondary-body)/1.7 Consolas, monospace
 }
 
 .desk-header {
@@ -161,7 +161,7 @@
     border: 1px solid #acc9b7;
     padding: 6px 10px;
     border-radius: 20px;
-    font-size: 10px;
+    font-size:var(--type-meta);
     font-weight: 700
 }
 
@@ -176,7 +176,7 @@
 }
 
 .desk-question>b {
-    font-size: 11px;
+    font-size:var(--type-secondary-body);
     color: #648473
 }
 
@@ -200,7 +200,7 @@
 
 .desk-nav button {
     text-align: left;
-    font-size: 12px
+    font-size:var(--type-secondary-body)
 }
 
 .desk-nav>small {
@@ -222,13 +222,13 @@
 }
 
 .tool-heading h2 {
-    font-size: 13px;
+    font-size:var(--type-body);
     letter-spacing: 1px;
     margin: 0
 }
 
 .tool-heading button {
-    font-size: 11px
+    font-size:var(--type-secondary-body)
 }
 
 .desk-paper {
@@ -250,7 +250,7 @@
 }
 
 .symptom {
-    font-size: 16px;
+    font-size:var(--type-page-question);
     color: #3b6151
 }
 
@@ -263,7 +263,7 @@
     background: #edf3e9;
     border-radius: 12px;
     padding: 12px;
-    font-size: 10px;
+    font-size:var(--type-meta);
     letter-spacing: 1px
 }
 
@@ -304,12 +304,12 @@
 
 .tool-cards b {
     display: block;
-    font-size: 15px;
+    font-size:var(--type-page-question);
     margin: 8px 0
 }
 
 .tool-cards span {
-    font-size: 11px;
+    font-size:var(--type-secondary-body);
     font-weight: 500
 }
 
@@ -345,7 +345,7 @@
     align-items: center;
     gap: 12px;
     flex: 1;
-    font-size: 11px;
+    font-size:var(--type-secondary-body);
     margin: 0
 }
 
@@ -402,7 +402,7 @@
 
 .architecture-node small,
 .architecture-node span {
-    font-size: 9px
+    font-size:var(--type-meta)
 }
 
 .reference-node {
@@ -419,7 +419,7 @@
     text-align: center;
     padding: 8px;
     color: #488572;
-    font-size: 12px
+    font-size:var(--type-secondary-body)
 }
 
 .feedback-line {
@@ -434,7 +434,7 @@
 }
 
 .runtime-edge {
-    font-size: 10px;
+    font-size:var(--type-meta);
     border-bottom: 1px solid #cfddcf;
     padding-bottom: 6px
 }
@@ -462,7 +462,7 @@
 }
 
 .artifact-fields dt {
-    font-size: 10px;
+    font-size:var(--type-meta);
     color: #66806e
 }
 
@@ -482,7 +482,7 @@
 
 .bench-grid .case-result-row {
     grid-template-columns: 1.2fr 1fr 1fr .7fr;
-    font-size: 11px
+    font-size:var(--type-secondary-body)
 }
 
 .bench-grid .case-paper {
@@ -513,11 +513,11 @@
 
 .boundary-path button {
     flex: 1;
-    font-size: 11px
+    font-size:var(--type-secondary-body)
 }
 
 .boundary-path small {
-    font-size: 9px;
+    font-size:var(--type-meta);
     font-weight: 400
 }
 
@@ -535,11 +535,11 @@
 
 .boundary-grid h3 {
     margin-top: 0;
-    font-size: 10px
+    font-size:var(--type-meta)
 }
 
 .boundary-grid p {
-    font-size: 11px
+    font-size:var(--type-secondary-body)
 }
 
 .boundary-verdict {
@@ -553,7 +553,7 @@
 }
 
 .board-columns h2 {
-    font-size: 14px
+    font-size:var(--type-section-title)
 }
 
 .pinned-note {
@@ -615,11 +615,11 @@
 }
 
 .desk-content .case-chart-legend {
-    font-size: 11px
+    font-size:var(--type-secondary-body)
 }
 
 .desk-content .case-signals strong {
-    font-size: 26px
+    font-size:var(--type-display)
 }
 
 .desk-content .case-trend svg {
@@ -666,7 +666,7 @@
 @media(max-width:850px) {
     .investigation-desk {
         padding: 9px;
-        font-size: 12px
+        font-size:var(--type-secondary-body)
     }
 
     .desk-layout {
@@ -714,7 +714,7 @@
     }
 
     .desk-nav button {
-        font-size: 10px;
+        font-size:var(--type-meta);
         padding: 7px
     }
 
@@ -723,7 +723,7 @@
     }
 
     .desk-timeline button {
-        font-size: 10px
+        font-size:var(--type-meta)
     }
 
     .desk-timeline label {
@@ -767,7 +767,7 @@
 }
 
 .investigation-desk .architecture-node b {
-    font-size: 12px
+    font-size:var(--type-secondary-body)
 }
 
 /* Mint stationery: folder tabs, layered paper and pinned engineering artifacts. */
@@ -788,7 +788,7 @@
 }
 
 .desk-header h1 {
-    font-size: 25px
+    font-size:var(--type-display)
 }
 
 .desk-layout {
@@ -820,7 +820,7 @@
     display: inline-block;
     margin-right: 9px;
     color: #78947e;
-    font: 11px ui-monospace, monospace
+    font:var(--type-secondary-body) ui-monospace, monospace
 }
 
 .desk-nav small {
@@ -838,7 +838,7 @@
 }
 
 .tool-heading h2 {
-    font-size: 16px;
+    font-size:var(--type-page-question);
     letter-spacing: 1px
 }
 
@@ -892,13 +892,13 @@
     border: 2px double #91b3a0;
     border-radius: 50%;
     background: #e1eee1;
-    font-size: 12px;
+    font-size:var(--type-secondary-body);
     font-weight: 800;
     transform: rotate(-6deg)
 }
 
 .document-masthead h2 {
-    font-size: 20px
+    font-size:var(--type-page-title)
 }
 
 .report-route {
@@ -928,14 +928,14 @@
 }
 
 .report-signals dt code {
-    font-size: 11px;
+    font-size:var(--type-secondary-body);
     cursor: help
 }
 
 .report-signals dd {
     margin: 4px 0;
     font-weight: 800;
-    font-size: 17px
+    font-size:var(--type-page-question)
 }
 
 .software-sheet {
@@ -1028,7 +1028,7 @@
 }
 
 .architecture-node b {
-    font-size: 12px
+    font-size:var(--type-secondary-body)
 }
 
 .io-table {
@@ -1043,7 +1043,7 @@
     text-align: left;
     padding: 9px;
     border: 1px solid #c8d2bf;
-    font-size: 12px
+    font-size:var(--type-secondary-body)
 }
 
 .io-table th {
@@ -1057,7 +1057,7 @@
 }
 
 .trace-columns h3 {
-    font-size: 11px
+    font-size:var(--type-secondary-body)
 }
 
 .trace-columns button {
@@ -1068,7 +1068,7 @@
 }
 
 .trace-columns code {
-    font-size: 10px
+    font-size:var(--type-meta)
 }
 
 .pinboard {
@@ -1160,16 +1160,16 @@
 }
 
 .investigation-desk .req-map-node {
-    font-size: 12px;
+    font-size:var(--type-secondary-body);
     padding: 6px
 }
 
 .investigation-desk .req-map-node small {
-    font-size: 9px
+    font-size:var(--type-meta)
 }
 
 .investigation-desk .req-map-node b {
-    font-size: 12px
+    font-size:var(--type-secondary-body)
 }
 
 .investigation-desk .req-map-legend button[aria-pressed=true] {
@@ -1242,7 +1242,7 @@
     .cat-seal {
         width: 60px;
         height: 60px;
-        font-size: 10px
+        font-size:var(--type-meta)
     }
 
     .mini-flow {
@@ -1259,7 +1259,7 @@
 }
 
 .mini-flow code {
-    font-size: 10px;
+    font-size:var(--type-meta);
     white-space: nowrap
 }
 
@@ -1328,11 +1328,11 @@
 
 .report-signals dd {
     margin: 0;
-    font-size: 16px
+    font-size:var(--type-page-question)
 }
 
 .report-signals dt code {
-    font-size: 10px
+    font-size:var(--type-meta)
 }
 
 .report-route {
@@ -1517,7 +1517,7 @@
     }
 
     .desk-nav button {
-        font-size: 12px
+        font-size:var(--type-secondary-body)
     }
 
     .report-route {
@@ -1529,7 +1529,7 @@
     }
 
     .desk-header h1 {
-        font-size: 22px
+        font-size:var(--type-page-title)
     }
 }
 

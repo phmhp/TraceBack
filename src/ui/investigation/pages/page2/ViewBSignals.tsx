@@ -3,8 +3,9 @@ import type { CSSProperties, MouseEvent } from 'react'
 import type { IncidentFrame } from '../../../../runtime/case/PropulsionCase'
 import type { SignalDefinition, SignalValue } from '../../../../registries/investigation/Architecture'
 import { architectureNode, getInputSignals, getOutputSignals, getSignalDefinition, getSignalInterfaces, getSignalObservation, getSignalTimelineCapability } from '../../../../registries/investigation/Architecture'
+import { compareSignalAtFrame } from '../../../../runtime/investigation/SignalComparison'
 
-interface Props { selectedComponent:string; selectedSignal:string; onSelectSignal:(id:string)=>void; currentFrame:IncidentFrame|undefined; frames:readonly IncidentFrame[]; onSelectFrameIndex:(i:number)=>void; onSaveAsEvidence:(id:string)=>void; onNavigateToStandards:()=>void; onNavigateToInterfaces:()=>void; onNavigateToComponent:(id:string)=>void }
+interface Props { selectedComponent:string; selectedSignal:string; onSelectSignal:(id:string)=>void; currentFrame:IncidentFrame|undefined; frames:readonly IncidentFrame[]; onSelectFrameIndex:(i:number)=>void; onCompareSignal:(id:string)=>void; onSaveAsEvidence:(id:string)=>void; onNavigateToStandards:()=>void; onNavigateToInterfaces:()=>void; onNavigateToComponent:(id:string)=>void }
 const format=(v:SignalValue|undefined)=>v==null?'—':typeof v==='number'?v.toFixed(3):typeof v==='boolean'?(v?'TRUE':'FALSE'):typeof v==='object'?JSON.stringify(v):String(v)
 const seriesColors=['#b45c37','#315d8a','#7a5b99','#7a6b24','#2f7664','#9a4b67']
 
@@ -17,6 +18,7 @@ export function ViewBSignals(p:Props) {
   const selected=getSignalDefinition(p.selectedSignal)??outputs[0]??inputs[0]
   const [visibleIds,setVisibleIds]=useState<string[]>([])
   const [savedSignal,setSavedSignal]=useState('')
+  const [openGroups,setOpenGroups]=useState<string[]>(['output'])
 
   useEffect(()=>{
     const defaults=[states[0]?.id,valueInputs[0]?.id,selected?.id,outputs[0]?.id].filter((id):id is string=>Boolean(id))
@@ -25,6 +27,11 @@ export function ViewBSignals(p:Props) {
       return [...new Set(retained.length?retained:defaults)]
     })
   },[p.selectedComponent]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(()=>{
+    const relevant=states.some(signal=>signal.id===selected?.id)?'state':valueInputs.some(signal=>signal.id===selected?.id)?'input':'output'
+    setOpenGroups([relevant])
+  },[p.selectedComponent,selected?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(()=>{
     if(selected&&!visibleIds.includes(selected.id))setVisibleIds(ids=>[...ids,selected.id])
@@ -36,30 +43,32 @@ export function ViewBSignals(p:Props) {
   const toggle=(id:string)=>setVisibleIds(ids=>ids.includes(id)?ids.filter(item=>item!==id):[...ids,id])
   const select=(id:string)=>p.onSelectSignal(id)
   const setGroup=(items:SignalDefinition[],visible:boolean)=>setVisibleIds(ids=>visible?[...new Set([...ids,...items.map(item=>item.id)])]:ids.filter(id=>!items.some(item=>item.id===id)))
-  const group=(title:string,items:SignalDefinition[])=><section className="monitor-signal-group"><header><h4>{title}</h4>{items.length>0&&<span><button type="button" onClick={()=>setGroup(items,true)}>전체 선택</button><button type="button" onClick={()=>setGroup(items,false)}>전체 해제</button></span>}</header>{items.length?items.map(signal=><label key={signal.id} title={signal.description}><input type="checkbox" checked={visibleIds.includes(signal.id)} onChange={()=>toggle(signal.id)}/><button type="button" aria-pressed={selected?.id===signal.id} onClick={()=>select(signal.id)}><code className="investigation-tech-id">{signal.id}</code></button></label>):<p>등록된 관측 신호 없음</p>}</section>
+  const group=(key:string,title:string,items:SignalDefinition[])=><details className="monitor-signal-group" open={openGroups.includes(key)} onToggle={event=>{const isOpen=event.currentTarget.open;setOpenGroups(groups=>isOpen?[...new Set([...groups,key])]:groups.filter(item=>item!==key))}}><summary><b>{title}</b><span>{items.length}개</span></summary><header>{items.length>0&&<span><button type="button" onClick={()=>setGroup(items,true)}>전체 선택</button><button type="button" onClick={()=>setGroup(items,false)}>전체 해제</button></span>}</header>{items.length?items.map(signal=><label key={signal.id} title={signal.description}><input type="checkbox" checked={visibleIds.includes(signal.id)} onChange={()=>toggle(signal.id)}/><button type="button" aria-pressed={selected?.id===signal.id} onClick={()=>select(signal.id)}><code className="investigation-tech-id">{signal.id}</code></button></label>):<p>등록된 관측 신호 없음</p>}</details>
   const visibleSignals=available.filter(signal=>visibleIds.includes(signal.id))
 
   return <div className="signal-monitor-workspace">
     <section className="monitor-heading">
       <div><p className="investigation-section-label">Signal Monitor · 사건 신호 비교</p><h3>현재 기능 · <code className="investigation-tech-id">{architectureNode(p.selectedComponent)?.label??p.selectedComponent}</code></h3></div>
-      <p className="investigation-prose">상태·입력·출력을 같은 시간축에서 비교해 차이가 처음 나타나는 인접 관측점을 찾아보세요.</p>
+      <p className="tool-question">상태·입력·출력 중 어디서부터 차이가 생기나요?</p>
     </section>
     <div className="monitor-selection-note"><span>모니터링 대상 기능은 기능 흐름에서 선택할 수 있습니다.</span><button type="button" onClick={()=>p.onNavigateToComponent(p.selectedComponent)}>기능 흐름에서 선택</button></div>
 
-    <div className="monitor-signal-groups">{group('A. 전제조건 / 상태',states)}{group('B. 기능 입력',valueInputs)}{group('C. 기능 출력',outputs)}</div>
+    <div className="monitor-signal-groups">{group('state','A. 전제조건 / 상태',states)}{group('input','B. 기능 입력',valueInputs)}{group('output','C. 기능 출력',outputs)}</div>
+
+    {selected&&<section className="signal-identity-card" aria-label="선택 신호 의미와 위치"><header><div><p className="investigation-section-label">SELECTED SIGNAL IDENTITY</p><h3>{selected.description??selected.label}</h3></div><code className="investigation-tech-id">{selected.id}</code></header><dl><div><dt>역할</dt><dd>{selected.semanticRole==='STATE_OR_PRECONDITION'?'상태 / 전제조건':'기능 값'}</dd></div><div><dt>Domain</dt><dd>{architectureNode(p.selectedComponent)?.area??'—'}</dd></div><div><dt>단위</dt><dd>{selected.unit??'상태값'}</dd></div><div><dt>등록 기준</dt><dd>{selected.comparisonBasis.kind==='EXPECTED_TRAJECTORY'?'현재 조건의 Expected trajectory':selected.comparisonBasis.kind==='VALID_RANGE'?`${selected.comparisonBasis.min}–${selected.comparisonBasis.max} ${selected.unit??''}`:selected.comparisonBasis.kind==='ALLOWED_STATE'?selected.comparisonBasis.allowed.join(' / '):selected.comparisonBasis.kind==='REQUIREMENT_CONDITION'?selected.comparisonBasis.requirementIds.join(', '):'Actual observation only · Expected 미등록'}</dd></div></dl><div className="signal-path-strip"><span>{selected.producerIds.map(id=>architectureNode(id)?.label??id).join(' · ')||'외부/관찰 Source'}</span><i>→</i><code>{selected.id}</code><i>→</i><span>{selected.consumerIds.map(id=>architectureNode(id)?.label??id).join(' · ')||'등록된 Destination 없음'}</span><i>→</i><span>downstream behavior</span></div></section>}
 
     <SynchronizedTimeline frames={p.frames} signals={visibleSignals} selectedIndex={selectedIndex} onSelectFrame={p.onSelectFrameIndex}/>
 
-    <section className="monitor-selected-summaries"><p className="investigation-section-label">선택 신호 요약</p><div>{visibleSignals.map(signal=>{const item=p.currentFrame?getSignalObservation(signal.id,p.currentFrame,p.frames[selectedIndex-1]):undefined;const hasExpected=item?.expected?.value!==undefined&&item.expected.value!==null;const matches=hasExpected&&JSON.stringify(item?.actual.value)===JSON.stringify(item?.expected?.value);return <article key={signal.id}><code className="investigation-tech-id">{signal.id}</code><small>{signal.semanticRole==='STATE_OR_PRECONDITION'?'상태 / 전제조건':outputs.some(output=>output.id===signal.id)?'기능 출력':'기능 입력'}</small><dl><div><dt>Actual</dt><dd>{format(item?.actual.value)} {signal.unit}</dd></div><div><dt>판정 기준</dt><dd>{hasExpected?`Expected ${format(item?.expected?.value)} ${signal.unit??''}`:'미지원'}</dd></div><div><dt>상태</dt><dd>{hasExpected?(matches?'기준과 일치':'차이 확인'):'관찰만 가능'}</dd></div></dl></article>})}</div></section>
+    <section className="monitor-selected-summaries compact"><p className="investigation-section-label">선택 신호 요약</p><div>{visibleSignals.map(signal=>{const comparison=p.currentFrame?compareSignalAtFrame(signal.id,p.selectedComponent,p.currentFrame,p.frames[selectedIndex-1]):undefined;return <article key={signal.id}><code className="investigation-tech-id">{signal.id}</code><span><b>Actual</b> {comparison?.actual??'—'}</span><span className={`signal-summary-status ${comparison?.status?.toLowerCase()}`}>{comparison?.status==='MATCH'?'기준과 일치':comparison?.status==='MISMATCH'?'차이 확인':'판단 불가'}</span></article>})}</div></section>
 
     <div className="monitor-lower-grid">
       <section className="monitor-signal-detail">
-        <p className="investigation-section-label">선택 신호</p><h3><code className="investigation-tech-id">{selected?.id??'—'}</code></h3><p className="investigation-prose">{selected?.description??'등록된 설명 없음'}</p>
-        <dl><div><dt>Actual · 사건 기록</dt><dd>{format(observation?.actual.value)} {selected?.unit}</dd></div><div><dt>판정 기준</dt><dd>{observation?.expected?`Expected ${format(observation.expected.value)} ${selected?.unit??''}`:'판정 기준 미지원'}</dd></div><div><dt>관찰 결과</dt><dd>{observation?.expected?JSON.stringify(observation.actual.value)===JSON.stringify(observation.expected.value)?'기준과 일치':'차이 확인':'Actual만 관찰 가능'}</dd></div></dl>
-        <details><summary>신호 관계 보기</summary><dl className="monitor-signal-facts"><div><dt>Source 기능</dt><dd>{selected?.producerIds.map(id=>architectureNode(id)?.label??id).join(', ')||'—'}</dd></div><div><dt>Destination 기능</dt><dd>{selected?.consumerIds.map(id=>architectureNode(id)?.label??id).join(', ')||'—'}</dd></div><div><dt>단위</dt><dd>{selected?.unit??'상태값'}</dd></div></dl></details>
-        <div className="evidence-save-control"><button type="button" className="save-comparison-button" onClick={()=>{if(selected){p.onSaveAsEvidence(selected.id);setSavedSignal(selected.id)}}}>근거에 추가</button>{savedSignal===selected?.id&&<small role="status">✓ 조사 노트에 기록됨</small>}</div>
+        <p className="investigation-section-label">선택 신호</p><h3><code className="investigation-tech-id">{selected?.id??'—'}</code></h3>
+        {(()=>{const comparison=p.currentFrame&&selected?compareSignalAtFrame(selected.id,p.selectedComponent,p.currentFrame,p.frames[selectedIndex-1]):undefined;return <dl><div><dt>Actual · 사건 기록</dt><dd>{comparison?.actual??`${format(observation?.actual.value)} ${selected?.unit??''}`}</dd></div><div><dt>판정 기준</dt><dd>{comparison?.criterionKind==='NONE'?'판정 기준 미지원':`${comparison?.criterionLabel} · ${comparison?.criterionValue}`}</dd></div><div><dt>관찰 결과</dt><dd>{comparison?.status==='MATCH'?'기준과 일치':comparison?.status==='MISMATCH'?'차이 확인':'판단 불가'}</dd></div></dl>})()}
+        <section className="monitor-signal-meaning"><p className="investigation-prose">{selected?.description??'등록된 설명 없음'}</p><dl className="monitor-signal-facts"><div><dt>Source 기능</dt><dd>{selected?.producerIds.map(id=>architectureNode(id)?.label??id).join(', ')||'—'}</dd></div><div><dt>Destination 기능</dt><dd>{selected?.consumerIds.map(id=>architectureNode(id)?.label??id).join(', ')||'—'}</dd></div><div><dt>단위</dt><dd>{selected?.unit??'상태값'}</dd></div></dl></section>
+        <div className="evidence-save-control"><span className="comparison-actions"><button type="button" onClick={()=>selected&&p.onCompareSignal(selected.id)}>비교 결과 확인</button><button type="button" className="save-comparison-button" onClick={()=>{if(selected){p.onSaveAsEvidence(selected.id);setSavedSignal(selected.id)}}}>이 관찰을 근거에 추가</button></span>{savedSignal===selected?.id&&<small role="status">✓ 조사 노트에 기록됨 · 보고서에는 아직 미포함</small>}</div>
       </section>
-      <aside className="adjacent-observation-guide"><p className="investigation-section-label">조사 노트</p><h3>어느 인접 값을 확인할까요?</h3><p>현재 관측값의 Source 쪽 조건과 입력을 확인하면 이상이 이미 상류에서 발생했는지 좁힐 수 있습니다.</p><div>{selected?.producerIds.map(id=><button type="button" key={`producer:${id}`} onClick={()=>p.onNavigateToComponent(id)}>Source 기능 · {architectureNode(id)?.label??id}</button>)}{selected?.consumerIds.map(id=><button type="button" key={`consumer:${id}`} onClick={()=>p.onNavigateToComponent(id)}>Destination 기능 · {architectureNode(id)?.label??id}</button>)}{interfaces.length>0&&<button type="button" onClick={p.onNavigateToInterfaces}>전달 경계 비교</button>}<button type="button" onClick={p.onNavigateToStandards}>관련 요구사항 확인</button></div></aside>
+      <aside className="adjacent-observation-guide"><p className="investigation-section-label">다음 조사</p><h3>인접 값 확인</h3><div>{selected?.producerIds.map(id=><button type="button" key={`producer:${id}`} onClick={()=>p.onNavigateToComponent(id)}>Source 기능 · {architectureNode(id)?.label??id}</button>)}{selected?.consumerIds.map(id=><button type="button" key={`consumer:${id}`} onClick={()=>p.onNavigateToComponent(id)}>Destination 기능 · {architectureNode(id)?.label??id}</button>)}{interfaces.length>0&&<button type="button" onClick={p.onNavigateToInterfaces}>전달 경계 비교</button>}<button type="button" onClick={p.onNavigateToStandards}>관련 요구사항 확인</button></div></aside>
     </div>
   </div>
 }
@@ -71,7 +80,7 @@ function SynchronizedTimeline({frames,signals,selectedIndex,onSelectFrame}:{fram
   const indexAt=(event:MouseEvent<SVGSVGElement>)=>{const rect=event.currentTarget.getBoundingClientRect(),svgX=(event.clientX-rect.left)/rect.width*width,ratio=Math.max(0,Math.min(1,(svgX-left)/(width-left-right)));return Math.round(ratio*Math.max(0,frames.length-1))}
   const choose=(event:MouseEvent<SVGSVGElement>)=>onSelectFrame(indexAt(event))
   const hoverFrame=hoverIndex===null?undefined:frames[hoverIndex]
-  return <section className="monitor-timeline-sheet"><header><div><p className="investigation-section-label">통합 신호 분석</p><h3>하나의 시간축에서 비교</h3><small>각 행은 단위별 독립 스케일을 사용하며 물리 크기를 서로 직접 비교하지 않습니다.</small><div className="monitor-series-key">{signals.map((signal,index)=><span key={signal.id} style={{'--series-color':seriesColors[index%seriesColors.length]} as CSSProperties}><i aria-hidden="true"/><code>{signal.id}</code></span>)}</div></div><div className="monitor-legend"><span className="actual">Actual</span><span className="expected">Expected</span><span className="cursor">재생 커서</span></div></header>
+  return <section className="monitor-timeline-sheet"><header><div><p className="investigation-section-label">통합 신호 분석</p><h3>하나의 시간축에서 비교</h3><details className="monitor-reading-help"><summary>그래프 읽는 법</summary><small>각 행은 단위별 독립 스케일을 사용하며 물리 크기를 서로 직접 비교하지 않습니다.</small></details><div className="monitor-series-key">{signals.map((signal,index)=><span key={signal.id} style={{'--series-color':seriesColors[index%seriesColors.length]} as CSSProperties}><i aria-hidden="true"/><code>{signal.id}</code></span>)}</div></div><div className="monitor-legend"><span className="actual">Actual</span><span className="expected">Expected</span><span className="cursor">재생 커서</span></div></header>
     {signals.length?<div className="monitor-plot-wrap"><svg viewBox={`0 0 ${width} ${height}`} onClick={choose} onMouseMove={event=>setHoverIndex(indexAt(event))} onMouseLeave={()=>setHoverIndex(null)} role="img" aria-label="선택 신호의 동기화 시간 흐름">
       {signals.map((signal,row)=><SignalTrack key={signal.id} signal={signal} frames={frames} row={row} x={x} left={left} right={right} width={width} top={top} rowHeight={rowHeight}/>)}
       <line className="monitor-event-marker event-marker" x1={x(frames.length-1)} x2={x(frames.length-1)} y1={top} y2={height-bottom}/><text className="monitor-event-label" x={x(frames.length-1)-4} y={12} textAnchor="end">사건</text>

@@ -11,6 +11,7 @@ import type { LoadedMap } from '../world/MapLoader'
 import { VehicleShadowLight } from '../graphics/VehicleShadowLight'
 import { useRaceHud } from '../ui/state/raceHud'
 import { useCase } from '../ui/state/CaseContext'
+import { useSyncExternalStore } from 'react'
 
 const RaceViewport = lazy(() => import('../graphics/RaceViewport'))
 const RapierWorld = lazy(() => import('../physics/RapierWorld').then((m) => ({ default: m.RapierWorld })))
@@ -23,7 +24,9 @@ class PhysicsBoundary extends Component<{ runtime: SimulationRuntime; children: 
 }
 export function GameViewport({ screen, runtime, map }: { screen: Screen; runtime: SimulationRuntime; map: LoadedMap }) {
   const { state } = useCase()
-  const recorded = screen === 'xray' ? state.frames[state.selected] : undefined
+  const scenario=useSyncExternalStore(runtime.subscribeScenario,runtime.getScenarioSnapshot)
+  const scenarioView=screen==='xray'&&scenario.status!=='IDLE'
+  const recorded = screen === 'xray'&&!scenarioView ? state.frames[state.selected] : undefined
   const readState = useCallback(() => recorded?.plant ?? runtime.readVehicleState(), [recorded, runtime])
   const readPrevious = useCallback(() => recorded?.plant ?? runtime.readPreviousPose(), [recorded, runtime])
   const readAlpha = useCallback(() => recorded?.plant ? 1 : runtime.readInterpolationAlpha(), [recorded, runtime])

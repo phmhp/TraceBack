@@ -139,6 +139,11 @@ const signalDescriptions: Partial<Record<string,string>> = {
 const validRanges: Partial<Record<string,{min:number;max:number}>> = {
   AcceleratorPedalPosition:{min:0,max:1}, Brake:{min:0,max:1}, Steering:{min:-1,max:1}, PropulsionRequest:{min:0,max:1},
 }
+const allowedStates:Partial<Record<string,readonly (string|boolean)[]>>={
+  AcceleratorPedalValidity:['VALID','INVALID'],GearRequest:['P','N','D','R'],GearRequestValidity:['VALID','INVALID'],
+  VehicleReady:[true,false],PropulsionEnable:[true,false],GearState:['P','N','D','R'],GearStateValidity:['VALID','INVALID'],
+  TransitionAccepted:[true,false],PropulsionState:['PROP_DISABLED','PROP_ENABLED'],
+}
 const stateOrPreconditionSignals = new Set([
   'AcceleratorPedalValidity','GearRequestValidity','VehicleReady','PropulsionEnable',
   'GearState','GearStateValidity','TransitionAccepted','PropulsionState',
@@ -160,7 +165,7 @@ export const signalDefinitions: SignalDefinition[] = signalIds.map(id => {
     consumerIds:[...new Set([...declaredConsumers,...carried.map(edge => edge.targetId)])],
     interfaceIds:carried.map(edge => edge.id), unit:units[id],
     semanticRole:stateOrPreconditionSignals.has(id)?'STATE_OR_PRECONDITION':'VALUE',
-    comparisonBasis:oracleReaders[id]?{kind:'EXPECTED_TRAJECTORY'}:validRanges[id]?{kind:'VALID_RANGE',...validRanges[id]}:{kind:'OBSERVATION_ONLY'},
+    comparisonBasis:oracleReaders[id]?{kind:'EXPECTED_TRAJECTORY'}:validRanges[id]?{kind:'VALID_RANGE',...validRanges[id]}:allowedStates[id]?{kind:'ALLOWED_STATE',allowed:allowedStates[id]}:{kind:'OBSERVATION_ONLY'},
     readIncidentActual:actualReaders[id], readOracleExpected:oracleReaders[id],
   }
 })

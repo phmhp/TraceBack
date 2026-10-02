@@ -16,7 +16,7 @@ interface ViewAFlowProps {
   onNavigateToSignal: (id: string) => void
   onNavigateToInterface: (id: string) => void
   onNavigateToRequirement: (id: string) => void
-  onSetHypothesisTarget: (target: string, type: string) => void
+  onSetHypothesisTarget: (target: string) => void
 }
 
 const propulsionNodes = ['GearLogic', 'PropulsionFunction', 'VMC', 'eDrive'] as const
@@ -26,18 +26,20 @@ function ArchitectureNodeButton({
   selectedComponent,
   relevantPath,
   onSelect,
+  status,
 }: {
   id: string
   selectedComponent: string
   relevantPath: ReadonlySet<string>
   onSelect: (id: string) => void
+  status: string
 }) {
   const node = architectureNode(id)
   const selected = selectedComponent === id
   return (
     <button
       type="button"
-      className={`vehicle-architecture-node investigation-target ${selected ? 'selected' : ''} ${relevantPath.has(id) ? 'case-path-node' : ''}`}
+      className={`vehicle-architecture-node investigation-target ${selected ? 'selected' : ''} ${relevantPath.has(id) ? 'case-path-node' : ''} status-${status.toLowerCase()}`}
       aria-pressed={selected}
       onClick={() => onSelect(id)}
     >
@@ -54,6 +56,7 @@ function ContextNode({
   selectedComponent,
   relevantPath,
   onSelect,
+  status,
 }: {
   id: string
   label: string
@@ -61,11 +64,12 @@ function ContextNode({
   selectedComponent: string
   relevantPath: ReadonlySet<string>
   onSelect: (id: string) => void
+  status: string
 }) {
   return (
     <button
       type="button"
-      className={`vehicle-architecture-node ${kind} ${selectedComponent === id ? 'selected' : ''} ${relevantPath.has(id) ? 'case-path-node' : ''}`}
+      className={`vehicle-architecture-node ${kind} ${selectedComponent === id ? 'selected' : ''} ${relevantPath.has(id) ? 'case-path-node' : ''} status-${status.toLowerCase()}`}
       aria-pressed={selectedComponent === id}
       onClick={() => onSelect(id)}
     >
@@ -102,10 +106,10 @@ export function ViewAFlow({
         <header className="diagram-heading">
           <div>
             <p className="investigation-section-label">LEVEL 1 · VEHICLE FUNCTIONAL ARCHITECTURE</p>
-            <h3 id="vehicle-architecture-title">이 관측값은 차량 구조의 어디와 연결되는가?</h3>
+            <h3 id="vehicle-architecture-title">이 반응과 연결된 기능은 어디인가요?</h3>
           </div>
           <div className="architecture-legend" aria-label="다이어그램 범례">
-            <span><i className="legend-line case" />사건 우선 경로</span>
+            <span><i className="legend-line case" />현재 차량 흐름</span>
             <span><i className="legend-box selectable" />선택 가능</span>
             <span><i className="legend-box unavailable" />상세 미지원</span>
           </div>
@@ -120,6 +124,7 @@ export function ViewAFlow({
               selectedComponent={selectedComponent}
               relevantPath={relevantPath}
               onSelect={onSelectComponent}
+              status={model.getNodeStatus('DriverInput')}
             />
             <div className="driver-demand-split" aria-hidden="true"><span /><span /><span /></div>
           </div>
@@ -127,7 +132,7 @@ export function ViewAFlow({
           <div className="shared-context-node">
             <span>SHARED CONTEXT</span>
             <b>Vehicle State / Mode</b>
-            <small>상태·모드는 각 기능 영역에 공통으로 작용합니다.</small>
+            <small>모든 기능의 공통 조건</small>
             <div className="shared-context-fanout" aria-hidden="true"><i /><i /><i /></div>
           </div>
 
@@ -143,6 +148,7 @@ export function ViewAFlow({
                       selectedComponent={selectedComponent}
                       relevantPath={relevantPath}
                       onSelect={onSelectComponent}
+                      status={model.getNodeStatus(id)}
                     />
                   </div>
                 ))}
@@ -151,12 +157,12 @@ export function ViewAFlow({
 
             <section className="vehicle-domain unavailable-domain" aria-label="Braking 상세 미지원">
               <header><span>VEHICLE DOMAIN</span><h4>Braking</h4></header>
-              <div className="unavailable-domain-body"><b>Brake control</b><span aria-hidden="true">× × ×</span><small>구조상 주요 영역 · 상세 미지원</small></div>
+              <div className="unavailable-domain-body"><b>Brake control</b><span aria-hidden="true">× × ×</span><small>상세 미지원</small></div>
             </section>
 
             <section className="vehicle-domain unavailable-domain" aria-label="Steering 상세 미지원">
               <header><span>VEHICLE DOMAIN</span><h4>Steering</h4></header>
-              <div className="unavailable-domain-body"><b>Steering control</b><span aria-hidden="true">× × ×</span><small>구조상 주요 영역 · 상세 미지원</small></div>
+              <div className="unavailable-domain-body"><b>Steering control</b><span aria-hidden="true">× × ×</span><small>상세 미지원</small></div>
             </section>
           </div>
 
@@ -165,9 +171,9 @@ export function ViewAFlow({
           <section className="actuation-band" aria-label="액추에이션 경계">
             <p>ACTUATION BOUNDARY</p>
             <div>
-              <ContextNode id="DriveAdapter" label="Drive Force" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} />
-              <ContextNode id="BrakeAdapter" label="Brake Force" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} />
-              <ContextNode id="SteeringAdapter" label="Steering Angle" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} />
+              <ContextNode id="DriveAdapter" label="Drive Force" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} status={model.getNodeStatus('DriveAdapter')} />
+              <ContextNode id="BrakeAdapter" label="Brake Force" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} status={model.getNodeStatus('BrakeAdapter')} />
+              <ContextNode id="SteeringAdapter" label="Steering Angle" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} status={model.getNodeStatus('SteeringAdapter')} />
             </div>
           </section>
 
@@ -179,6 +185,7 @@ export function ViewAFlow({
             selectedComponent={selectedComponent}
             relevantPath={relevantPath}
             onSelect={onSelectComponent}
+            status={model.getNodeStatus('VehiclePhysics')}
           />
         </div>
       </section>
@@ -188,15 +195,13 @@ export function ViewAFlow({
           <div>
             <p className="investigation-section-label">LEVEL 2 · SELECTED FUNCTION FLOW</p>
             <h3 id="selected-function-title">{node.label} <code>{node.id}</code></h3>
-            <p className="selected-function-role investigation-prose">{node.role}</p>
+            <details className="selected-function-description"><summary>기능 설명</summary><p className="selected-function-role investigation-prose">{node.role}</p></details>
           </div>
           <div className="selected-function-actions">
             {discoveredMismatch && <span className="discovered-mismatch">확인된 차이</span>}
-            <button type="button" className="report-text-button" onClick={() => onSetHypothesisTarget(node.id, '계산 / 로직 오류')}>가설 대상으로 설정</button>
+            <button type="button" className="report-text-button" onClick={() => onSetHypothesisTarget(node.id)}>이 기능으로 가설 만들기</button>
           </div>
         </header>
-
-        <p className="function-investigation-question">다음에는 어떤 인접 값을 확인하면 이상이 시작된 위치를 좁힐 수 있을까요?</p>
 
         <div className="selected-function-flow">
           <section className="function-flow-stage signal-stage">
@@ -205,7 +210,7 @@ export function ViewAFlow({
               {[...stateSignals,...valueInputSignals].length ? [...stateSignals,...valueInputSignals].map(signal => (
                 <div className="function-signal-node" key={signal.id}>
                   <code>{signal.id}</code>
-                  {signal.description&&<p>{signal.description}</p>}
+                  {signal.description&&<details><summary>설명</summary><p>{signal.description}</p></details>}
                   <button type="button" onClick={() => onNavigateToSignal(signal.id)}>{signal.semanticRole==='STATE_OR_PRECONDITION'?'전제조건 시간 흐름 보기':'기능 입력 시간 흐름 보기'} →</button>
                 </div>
               )) : <p>등록된 입력 신호 없음</p>}
@@ -229,7 +234,7 @@ export function ViewAFlow({
               {outputSignals.length ? outputSignals.map(signal => (
                 <div className="function-signal-node" key={signal.id}>
                   <code>{signal.id}</code>
-                  {signal.description&&<p>{signal.description}</p>}
+                  {signal.description&&<details><summary>설명</summary><p>{signal.description}</p></details>}
                   <button type="button" onClick={() => onNavigateToSignal(signal.id)}>신호 비교에서 보기 →</button>
                 </div>
               )) : <p>등록된 출력 신호 없음</p>}
@@ -237,7 +242,7 @@ export function ViewAFlow({
           </section>
         </div>
 
-        <footer className="function-handoffs">
+        <details className="function-handoffs-details"><summary>연결 정보 자세히</summary><footer className="function-handoffs">
           <div>
             <p className="investigation-section-label">CONNECTED INTERFACES</p>
             <div className="handoff-links">
@@ -260,7 +265,7 @@ export function ViewAFlow({
               {!requirements.length && <span>연결된 요구사항 없음</span>}
             </div>
           </div>
-        </footer>
+        </footer></details>
       </section>}
     </div>
   )

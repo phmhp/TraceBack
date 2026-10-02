@@ -10,6 +10,7 @@ import { SimulationRuntime } from './src/runtime/SimulationRuntime'
 import { GameViewport } from './src/app/GameViewport'
 import { PANGYO2_MAP_ID, loadMapDefinition } from './src/registries/MapRegistry'
 import { createLoadedMap } from './src/world/MapLoader'
+import { SimulationRuntimeContext } from './src/ui/state/SimulationRuntimeContext'
 import './src/ui/styles.css'
 import url from './src/runtime/c/generated/vehicle-sw.wasm?url'
 const module = await WebAssembly.compile(await (await fetch(url)).arrayBuffer())
@@ -18,5 +19,5 @@ incident.reproduce()
 const runtime = new SimulationRuntime(calibration,undefined,undefined,new WasmVehicleSw(module,calibration))
 runtime.configureCase(incident)
 const map = createLoadedMap(loadMapDefinition(PANGYO2_MAP_ID))
-function Preview(){const [office,setOffice]=useState(false);const screen=office?'xray':'race';return <CaseContext.Provider value={incident}><div className={'game-shell mode-'+screen}><GameViewport screen={screen} runtime={runtime} map={map}/><main className="game-overlay">{office?<InvestigationWorkspace/>:<IncidentDialogue investigate={()=>setOffice(true)}/>}</main></div></CaseContext.Provider>}
+function Preview(){const [office,setOffice]=useState(false);const screen=office?'xray':'race';return <SimulationRuntimeContext.Provider value={runtime}><CaseContext.Provider value={incident}><div className={'game-shell mode-'+screen}><GameViewport screen={screen} runtime={runtime} map={map}/><main className="game-overlay">{office?<InvestigationWorkspace/>:<IncidentDialogue investigate={()=>setOffice(true)}/>}</main></div></CaseContext.Provider></SimulationRuntimeContext.Provider>}
 createRoot(document.getElementById('root')!).render(<Preview/>)

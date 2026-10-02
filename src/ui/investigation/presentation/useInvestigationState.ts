@@ -1,5 +1,6 @@
 import { useMemo, useReducer, useState } from 'react'
 import { deriveInvestigationMilestones, initialInvestigationSession, investigationSessionReducer } from '../../../runtime/investigation/InvestigationSession'
+import { deriveInvestigationMissions } from '../../../runtime/investigation/Mission'
 import type { DiscoveredFinding, InvestigationActionType, InvestigationContext, InvestigationPage, InvestigationSelection, InvestigationView, PlayerHypothesis } from '../../../runtime/investigation/InvestigationSession'
 import { reconcileInvestigationSelection } from '../../../registries/investigation/Trace'
 
@@ -20,6 +21,7 @@ export function useInvestigationUIState() {
   return {
     session,
     milestones: useMemo(() => deriveInvestigationMilestones(session), [session]),
+    missions: useMemo(() => deriveInvestigationMissions(session), [session]),
     page: session.context.page,
     trackingView: session.context.view,
     selectedComponent: session.context.selection.componentId ?? '',

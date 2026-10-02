@@ -12,6 +12,10 @@ import { LegacyVehicleSw } from './c/LegacyVehicleSw.ts'
 import { calibrationSlots } from './c/VehicleSwPort.ts'
 import type { VehicleSwPort, VehicleSwSnapshot } from './c/VehicleSwPort.ts'
 import type { PropulsionCase } from './case/PropulsionCase.ts'
+import { EMPTY_VEHICLE_SCENARIO, scenarioPhaseAt, scheduledStimulusValue, validateVehicleScenario } from './scenario/VehicleScenario.ts'
+import type { VehicleScenarioDefinition, VehicleScenarioRun, VehicleScenarioSample, VehicleScenarioSnapshot } from './scenario/VehicleScenario.ts'
+import { FaultInjectionRuntime, summarizeInterfaceComparison } from './scenario/FaultInjection.ts'
+import type { FaultInjectionTelemetry, InterfaceEndpointTelemetry } from './scenario/FaultInjection.ts'
 
 export interface SimulationPropulsionCalibration {
   keyboardPedalResponse: {
@@ -101,6 +105,12 @@ export class SimulationRuntime {
   private finishElapsed = 0
   private sessionConfig: SessionConfig | null = null
   private readonly calibration: Readonly<SimulationPropulsionCalibration>
+  private scenario:VehicleScenarioSnapshot=EMPTY_VEHICLE_SCENARIO
+  private scenarioListeners=new Set<()=>void>()
+  private scenarioSerial=0
+  private readonly faultInjection=new FaultInjectionRuntime()
+  private currentFaultTelemetry:FaultInjectionTelemetry|undefined
+  private currentInterfaceTelemetry:InterfaceEndpointTelemetry|undefined
 
   constructor(
     calibration: Readonly<SimulationPropulsionCalibration>,
@@ -123,15 +133,19 @@ export class SimulationRuntime {
     if (!this.vehicleSw.setCaseVariant) throw new Error('Case requires a C case-capable backend')
     this.incident = incident
   }
+  readonly subscribeScenario=(listener:()=>void)=>{this.scenarioListeners.add(listener);return()=>{this.scenarioListeners.delete(listener)}}
+  readonly getScenarioSnapshot=()=>this.scenario
+  private publishScenario(){this.scenarioListeners.forEach(listener=>listener())}
+  private setScenario(patch:Partial<VehicleScenarioSnapshot>){this.scenario={...this.scenario,...patch};this.publishScenario()}
   readSessionConfig() { return this.sessionConfig ? { ...this.sessionConfig } : null }
   private copyPreviousPose() {
     Object.assign(this.previousPose.position, this.vehicle.position)
     Object.assign(this.previousPose.rotation, this.vehicle.rotation)
   }
-  private resetLogicalState() {
+  private resetLogicalState(resetIncident=true) {
     this.driverInput.reset()
     this.vehicleSw.reset()
-    this.incident?.reset()
+    if(resetIncident)this.incident?.reset()
     this.swSnapshot = null
     this.executionStep = 0
     this.vehicle.gearState = 'D'
@@ -142,6 +156,86 @@ export class SimulationRuntime {
     this.propulsionRequest = { magnitude: 0, direction: 'NONE', validity: 'VALID' }
     this.driveTorqueRequest = { magnitudeNm: 0, direction: 'NONE', validity: 'VALID' }
     this.eDriveCommand = { magnitudeNm: 0, direction: 'NONE', validity: 'VALID' }
+    this.faultInjection.reset()
+    this.currentFaultTelemetry=undefined
+    this.currentInterfaceTelemetry=undefined
+  }
+
+  startVehicleScenario(definition:VehicleScenarioDefinition){
+    if(!this.physics)throw new Error('차량 물리 런타임이 준비되지 않았습니다.')
+    validateVehicleScenario(definition)
+    this.clock.reset();this.error=null;this.raceFinished=false;this.finishElapsed=0;this.accumulator=0;this.ticksSincePublish=0
+    this.resetLogicalState(false)
+    this.physics.reset();this.physics.readState(this.vehicle);this.copyPreviousPose()
+    this.driverInput.setGearRequest(definition.preconditions.gear)
+    const runId=`vehicle-scenario-${++this.scenarioSerial}`
+    this.scenario={status:'RUNNING',phase:'PRECONDITION',runId,elapsedSeconds:0,definition:structuredClone(definition),samples:[]}
+    this.clock.start();this.skipResumeDelta=true;this.publishScenario();this.publishNow()
+    return runId
+  }
+  replayVehicleScenario(){
+    const definition=this.scenario.definition
+    if(!definition)throw new Error('재실행할 차량 시나리오가 없습니다.')
+    return this.startVehicleScenario(definition)
+  }
+  reviewVehicleScenario(run:VehicleScenarioRun){
+    this.clock.pause();this.driverInput.resetMotion()
+    this.scenario={status:run.status,phase:'RESULT',runId:run.runId,elapsedSeconds:run.events.end,definition:structuredClone(run.definition),samples:structuredClone(run.samples),completedRun:structuredClone(run)}
+    this.publishScenario();this.publishNow()
+  }
+  abortVehicleScenario(reason='사용자가 실행을 중단했습니다.'){
+    if(this.scenario.status!=='RUNNING')return
+    this.clock.pause();this.driverInput.resetMotion()
+    this.setScenario({status:'ABORTED',phase:'RESULT',error:reason})
+    this.publishNow()
+  }
+  private applyVehicleScenario(timeSeconds:number){
+    const definition=this.scenario.definition
+    if(this.scenario.status!=='RUNNING'||!definition)return
+    this.driverInput.setAccelerator(0);this.driverInput.setBrake(0);this.driverInput.setSteering(0)
+    for(const stimulus of definition.stimuli){
+      const value=scheduledStimulusValue(stimulus,timeSeconds)
+      if(stimulus.target.id==='accelerator')this.driverInput.setAccelerator(value)
+      else if(stimulus.target.id==='brake')this.driverInput.setBrake(value)
+      else this.driverInput.setSteering(value)
+    }
+  }
+  private recordVehicleScenarioSample(timeSeconds:number){
+    const definition=this.scenario.definition
+    if(this.scenario.status!=='RUNNING'||!definition)return
+    const input=this.driverInput.getState()
+    const available:Record<string,number|string>={
+      accelerator:input.accelerator,brake:input.brake,steering:input.steering,gearState:this.vehicle.gearState,
+      propulsionRequest:this.propulsionRequest.magnitude,driveTorqueRequest:this.driveTorqueRequest.magnitudeNm,eDriveCommand:this.eDriveCommand.magnitudeNm,
+      driveForce:this.command.driveForce,brakeForce:this.command.brakeForce,speedKmh:this.vehicle.speed*3.6,longitudinalVelocity:this.vehicle.longitudinalVelocity,
+      longitudinalAcceleration:this.vehicle.longitudinalAcceleration,positionX:this.vehicle.position.x,positionZ:this.vehicle.position.z,
+    }
+    const sample:VehicleScenarioSample={
+      timeSeconds,phase:scenarioPhaseAt(definition,timeSeconds),values:Object.fromEntries(definition.monitors.map(id=>[id,available[id]!])),
+      faultTelemetry:this.currentFaultTelemetry?structuredClone(this.currentFaultTelemetry):undefined,
+      interfaceTelemetry:this.currentInterfaceTelemetry?structuredClone(this.currentInterfaceTelemetry):undefined,
+    }
+    const samples=[...this.scenario.samples,sample]
+    if(timeSeconds+1e-9>=definition.durationSeconds){
+      this.driverInput.resetMotion();this.clock.pause()
+      const firstStimulus=Math.min(...definition.stimuli.map(item=>item.startTimeSeconds))
+      const faultTelemetry=samples.flatMap(item=>item.faultTelemetry?[item.faultTelemetry]:[])
+      const interfaceTelemetry=samples.flatMap(item=>item.interfaceTelemetry?[item.interfaceTelemetry]:[])
+      const fault=definition.faultInjection
+      const run:VehicleScenarioRun={
+        runId:this.scenario.runId!,definition:structuredClone(definition),status:'COMPLETED',phase:'RESULT',fixedTimestepSeconds:PHYSICS_TIMESTEP,samples,
+        events:{precondition:0,stimulusStart:firstStimulus,faultStart:fault?.activationStartSeconds,faultEnd:fault?.activationEndSeconds,observationStart:definition.observationWindow.startSeconds,end:definition.durationSeconds},
+        faultTelemetry,interfaceTelemetry,interfaceComparison:summarizeInterfaceComparison(interfaceTelemetry),verdict:'OBSERVED',
+        interpretation:fault
+          ?'설정한 고장 주입이 실제 fixed-step 경로에 적용되었고 원본값·전달값·복구 상태와 차량 반응이 기록되었습니다. 이 관찰만으로 근본 원인을 확정하지 않습니다.'
+          :'선택한 입력이 실제 차량 런타임에 적용되었고 지원되는 값들이 동일한 fixed-step 시간축으로 기록되었습니다.',
+      }
+      this.scenario={...this.scenario,status:'COMPLETED',phase:'RESULT',elapsedSeconds:definition.durationSeconds,samples,completedRun:run}
+      this.publishScenario();this.publishNow()
+    }else{
+      this.scenario={...this.scenario,phase:sample.phase,elapsedSeconds:timeSeconds,samples}
+      if(samples.length%6===0)this.publishScenario()
+    }
   }
 
   attach(physics: VehiclePhysicsPort) {
@@ -210,7 +304,7 @@ export class SimulationRuntime {
     this.error = message
     this.pause()
   }
-  isInvestigationLocked() { const phase = this.incident?.getSnapshot().phase; return phase === 'CAPTURED' || phase === 'SUBMITTED' }
+  isInvestigationLocked() { if(this.scenario.status==='RUNNING')return false;const phase = this.incident?.getSnapshot().phase; return phase === 'CAPTURED' || phase === 'SUBMITTED' }
   acceptsDrivingInput() { return this.clock.running && !this.clock.paused && !this.error && !this.isInvestigationLocked() }
   /** Render elapsed time is accumulated; only fixed-size physics steps are issued. */
   advance(frameDeltaSeconds: number) {
@@ -220,10 +314,14 @@ export class SimulationRuntime {
     // Cap catch-up to 6 steps: do not fast-forward a suspended browser or spiral on a slow machine.
     this.accumulator += Math.min(frameDeltaSeconds, 0.1)
     while (this.accumulator + 1e-10 >= PHYSICS_TIMESTEP) {
+      const tickTime=this.clock.currentTime
+      this.applyVehicleScenario(tickTime)
       this.driverInput.advance(PHYSICS_TIMESTEP, this.calibration.keyboardPedalResponse)
       const input = this.driverInput.getState()
+      const acceleratorDelivery=this.faultInjection.applyAccelerator(this.scenario.status==='RUNNING'?this.scenario.definition?.faultInjection:undefined,input.accelerator,tickTime)
+      this.currentFaultTelemetry=acceleratorDelivery.telemetry
       const swInput = {
-        acceleratorPedalPosition: input.accelerator,
+        acceleratorPedalPosition: acceleratorDelivery.deliveredValue,
         acceleratorPedalValidity: input.acceleratorValidity,
         gearRequest: input.gearRequest,
         gearRequestValidity: input.gearRequestValidity,
@@ -233,7 +331,8 @@ export class SimulationRuntime {
         vehicleSpeed: this.vehicle.speed,
       }
       let swOutput
-      if (this.incident) this.vehicleSw.setCaseVariant?.(this.incident.beforeStep(swInput, input.brake, input.steering, PHYSICS_TIMESTEP))
+      if (this.incident&&this.scenario.status!=='RUNNING') this.vehicleSw.setCaseVariant?.(this.incident.beforeStep(swInput, input.brake, input.steering, PHYSICS_TIMESTEP))
+      else if(this.scenario.status==='RUNNING')this.vehicleSw.setCaseVariant?.(this.incident?.vehicleScenarioVariant()??0)
       try { swOutput = this.vehicleSw.step(swInput) }
       catch (error) { this.fail(error instanceof Error ? error.message : 'Vehicle SW failed'); return }
       this.swSnapshot = {
@@ -247,7 +346,10 @@ export class SimulationRuntime {
       this.propulsionRequest = swOutput.propulsionRequest
       this.driveTorqueRequest = swOutput.driveTorqueRequest
       this.eDriveCommand = swOutput.eDriveCommand
-      writeEDrivePhysicsCommand(this.eDriveCommand, this.calibration.torqueToForce.value, input.brake > 0, this.command)
+      const eDriveDelivery=this.faultInjection.applyEDriveCommand(this.scenario.status==='RUNNING'?this.scenario.definition?.faultInjection:undefined,this.eDriveCommand,tickTime)
+      if(eDriveDelivery.telemetry)this.currentFaultTelemetry=eDriveDelivery.telemetry
+      this.currentInterfaceTelemetry=this.scenario.status==='RUNNING'?eDriveDelivery.endpointTelemetry:undefined
+      writeEDrivePhysicsCommand(eDriveDelivery.deliveredValue, this.calibration.torqueToForce.value, input.brake > 0, this.command)
       writeTemporaryBrakeCommand(input, this.command)
       writeTemporarySteeringCommand(input, this.vehicle.speed, this.command)
       if (this.raceFinished) {
@@ -268,7 +370,8 @@ export class SimulationRuntime {
       }
       this.previousLongitudinalVelocity = this.vehicle.longitudinalVelocity
       // Captured incidents lock movement until repair verification.
-      this.incident?.afterStep(this.swSnapshot, this.vehicle, this.command, input.brake, input.steering)
+      if(this.scenario.status!=='RUNNING')this.incident?.afterStep(this.swSnapshot, this.vehicle, this.command, input.brake, input.steering)
+      else this.recordVehicleScenarioSample(this.clock.currentTime)
       if (this.isInvestigationLocked()) { this.copyPreviousPose(); this.accumulator = 0; this.driverInput.resetMotion(); this.publishNow(); return }
       if (!this.raceFinished && this.outsideRoute()) { this.fail('주행 경로를 벗어났습니다. 레이스를 다시 시작해 주세요.'); return }
       if (!this.raceFinished && this.finish) {

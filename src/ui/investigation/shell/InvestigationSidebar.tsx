@@ -1,6 +1,6 @@
 import type { InvestigationPresentationModel, HypothesisModel } from '../presentation/InvestigationPresentationModel'
 import type { Evidence } from '../../../runtime/investigation/Evidence'
-import { type Ref } from 'react'
+import { useState, type Ref } from 'react'
 
 interface SidebarProps {
   model: InvestigationPresentationModel
@@ -22,6 +22,14 @@ export function InvestigationSidebar({
   onNavigateToTracking
 }: SidebarProps) {
   const { progress } = model
+  const [notesOpen,setNotesOpen]=useState(true)
+  const investigationNotes=evidenceList.filter(item=>item.type!=='TEST_RESULT')
+  const verificationEvidence=evidenceList.filter(item=>item.type==='TEST_RESULT')
+  const evidenceButton=(ev:Evidence) => {
+    const icon=ev.type==='SIGNAL_BOUNDARY'||ev.type==='SIGNAL_COMPARISON'||ev.type==='SIGNAL_OBSERVATION'?'📈':ev.type==='REQUIREMENT'?'📄':'📌'
+    const label=ev.type==='SIGNAL_COMPARISON'?(ev.status==='MATCH'?'정상 확인':'차이 단서'):ev.type==='SIGNAL_OBSERVATION'?'관찰 기록':ev.type==='REQUIREMENT'?'기준 근거':'조사 메모'
+    return <button key={ev.id} type="button" className="evidence-mini-btn" onClick={()=>onSelectEvidence?.(ev)}><span className="evidence-mini-content"><span className="evidence-mini-icon">{icon}</span><span className="evidence-mini-copy" title={ev.claim}><b>{label}</b><code>{ev.details?.subjectId??ev.title??ev.relatedComponent}</code><small>{ev.claim}</small></span></span><span>다시 확인하기 ›</span></button>
+  }
 
   return (
     <aside className="investigation-sidebar">
@@ -101,19 +109,18 @@ export function InvestigationSidebar({
             <span className="case-meta-key">관련 신호</span>
             <span className="case-meta-val">{hypothesis.signal || '—'}</span>
 
-            <span className="case-meta-key">유형</span>
-            <span className="case-meta-val">{hypothesis.type}</span>
+            <span className="case-meta-key">예상</span>
+            <span className="case-meta-val">{hypothesis.prediction}</span>
           </div>
         ) : (
-          <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', lineHeight: 1.4 }}>
-            <p style={{ margin: '0 0 6px 0' }}>아직 등록된 가설이 없습니다.</p>
-            <p style={{ margin: '0 0 6px 0' }}>원인 추적 단계에서 의심되는 기능을 찾아 가설을 설정해보세요.</p>
+          <div className="sidebar-empty-guidance">
+            <p>아직 등록된 가설이 없습니다.</p>
+            <p>원인 추적 단계에서 의심되는 기능을 찾아 가설을 설정해보세요.</p>
             {onNavigateToTracking && (
               <button
                 type="button"
-                className="timeline-btn"
                 onClick={onNavigateToTracking}
-                style={{ fontSize: '10px', padding: '3px 8px' }}
+                className="timeline-btn sidebar-guidance-action"
               >
                 원인 추적으로 이동 →
               </button>
@@ -122,25 +129,19 @@ export function InvestigationSidebar({
         )}
       </section>
 
-      {/* 4. 확보한 근거 */}
+      {/* 4. 조사 메모와 검증 근거는 서로 다른 생명주기를 가진다. */}
       <section className="sidebar-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         <div className="sidebar-card-header">
           <div className="sidebar-card-title">
             <span>📁</span>
-            <span>확보한 근거 ({evidenceList.length})</span>
+            <span>조사 메모 ({investigationNotes.length})</span>
           </div>
+          <button type="button" className="notes-toggle" onClick={()=>setNotesOpen(value=>!value)}>{notesOpen?'메모 닫기':'메모 열기'}</button>
           {onOpenAddEvidenceModal && (
             <button
               type="button"
               onClick={onOpenAddEvidenceModal}
-              style={{
-                background: '#f1f5f9',
-                border: '1px solid #cbd5e1',
-                borderRadius: '4px',
-                padding: '2px 6px',
-                fontSize: '12px',
-                cursor: 'pointer'
-              }}
+              className="sidebar-add-evidence"
               title="근거 추가"
             >
               +
@@ -149,36 +150,13 @@ export function InvestigationSidebar({
         </div>
 
         <div className="evidence-mini-list" style={{ overflowY: 'auto', flex: 1 }}>
-          {evidenceList.length === 0 ? (
-            <p style={{ fontSize: '11px', color: '#94a3b8', margin: '4px 0' }}>
-              조사 중 의심스러운 신호나 요구사항을 근거로 저장하세요.
+          {!notesOpen?null:investigationNotes.length === 0 ? (
+            <p className="sidebar-empty-notes">
+              Page 1·2에서 확인한 관찰과 기준을 메모로 저장하세요.
             </p>
-          ) : (
-            evidenceList.map((ev) => {
-              const icon =
-                ev.type === 'SIGNAL_BOUNDARY' ? '📈' :
-                  ev.type === 'TEST_RESULT' ? '🧪' :
-                    ev.type === 'REQUIREMENT' ? '📄' : '📌'
-
-              return (
-                <button
-                  key={ev.id}
-                  type="button"
-                  className="evidence-mini-btn"
-                  onClick={() => onSelectEvidence?.(ev)}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                    <span>{icon}</span>
-                    <span style={{ textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                      {ev.title || ev.relatedComponent}
-                    </span>
-                  </span>
-                  <span>›</span>
-                </button>
-              )
-            })
-          )}
+          ) : investigationNotes.map(evidenceButton)}
         </div>
+        <div className="verification-evidence-mini"><strong>검증 근거 ({verificationEvidence.length})</strong>{verificationEvidence.length?verificationEvidence.map(ev=><button key={ev.id} type="button" className="evidence-mini-btn verification" onClick={()=>onSelectEvidence?.(ev)}><span className="evidence-mini-content"><span className="evidence-mini-icon">🧪</span><span className="evidence-mini-copy"><b>{ev.details?.designOrigin==='VEHICLE_SCENARIO_TEST'?'Vehicle Scenario Evidence':'Verification Evidence'}</b><code>{ev.reference.scenarioId??`시험 #${ev.reference.runId}`}</code><small>{ev.claim}</small></span></span><span>다시 확인하기 ›</span></button>):<small>Page 3 실행 결과를 저장하면 표시됩니다.</small>}</div>
       </section>
     </aside>
   )
