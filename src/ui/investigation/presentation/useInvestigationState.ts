@@ -7,7 +7,6 @@ import { reconcileInvestigationSelection } from '../../../registries/investigati
 export function useInvestigationUIState() {
   const [session, dispatch] = useReducer(investigationSessionReducer, undefined, initialInvestigationSession)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [showVideoModal, setShowVideoModal] = useState(false)
   const navigate = (context: Partial<Omit<InvestigationContext, 'selection'>> & { selection?: Partial<InvestigationSelection> }, origin: string, remember = true) => dispatch({
     type: 'NAVIGATE',
     context: context.selection ? { ...context, selection: reconcileInvestigationSelection(session.context.selection, context.selection) } : context,
@@ -47,6 +46,6 @@ export function useInvestigationUIState() {
     recordAction: (actionType: InvestigationActionType, subjectId?: string) => dispatch({ type: 'RECORD', actionType, subjectId }),
     discover: (finding: DiscoveredFinding) => dispatch({ type: 'DISCOVER', finding }),
     collectEvidence: (evidenceId: string) => dispatch({ type: 'COLLECT_EVIDENCE', evidenceId }),
-    isPlaying, setIsPlaying, showVideoModal, setShowVideoModal,
+    isPlaying, setIsPlaying,
   }
 }

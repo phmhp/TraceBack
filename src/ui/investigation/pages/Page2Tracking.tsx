@@ -31,17 +31,16 @@ interface Page2Props {
   onInspectInterfaceCapability: (id:string) => void
   onSetHypothesisTarget: (target: string) => void
   onOpenBenchWithTc?: (tcId: string) => void
-  onOpenReqMap?: () => void
   onNavigateContext: (view: TrackingView, selection?: Partial<InvestigationSelection>, origin?: string) => void
   discoveredFindings: readonly DiscoveredFinding[]
   collectedEvidenceIds: readonly string[]
 }
 
 const views = [
-  { id: 'FLOW' as TrackingView, label: '기능 판독' },
-  { id: 'SIGNALS' as TrackingView, label: '시간 흐름' },
-  { id: 'INTERFACES' as TrackingView, label: '전달 경계' },
-  { id: 'STANDARDS' as TrackingView, label: '정상 기준' }
+  { id: 'FLOW' as TrackingView, label: '구조 및 기능' },
+  { id: 'SIGNALS' as TrackingView, label: '연관 신호' },
+  { id: 'INTERFACES' as TrackingView, label: '인터페이스' },
+  { id: 'STANDARDS' as TrackingView, label: '요구사항' }
 ]
 
 export function Page2Tracking({
@@ -66,7 +65,6 @@ export function Page2Tracking({
   onInspectInterfaceCapability,
   onSetHypothesisTarget,
   onOpenBenchWithTc,
-  onOpenReqMap,
   onNavigateContext,
   discoveredFindings,
   collectedEvidenceIds,
@@ -85,7 +83,7 @@ export function Page2Tracking({
             <span className="p2-title-icon">🌲</span>
             <div>
               <h2>2. 조사 지도</h2>
-              <p>차량 반응에서 상류로 거슬러 올라가며 처음 달라지는 지점을 찾으세요.</p>
+              <p>주행 중 이상이 나타난 영역을 고른 뒤, 출력에서 입력 방향으로 흐름을 추적하세요.</p>
             </div>
           </div>
 
@@ -105,15 +103,11 @@ export function Page2Tracking({
           ))}
         </div>
 
-        <Page2ContextBar
-          selection={{ componentId:selectedComponent, signalId:selectedSignal, interfaceId:selectedInterface, requirementId:selectedRequirement, testCaseId:selectedTestCase }}
-        />
-        {currentPath.length>0&&<div className="current-investigation-path"><span>현재 조사 경로</span><div>{currentPath.map((id,index)=><span key={id}>{index>0&&<i>←</i>}<code>{id==='VehiclePhysics'?'Vehicle Response':id}</code></span>)}</div></div>}
         {discoveredFindings.length>0&&<div className="reasoning-trace" aria-label="확인한 조사 사실"><span>확인한 사실</span><div>{discoveredFindings.slice(-4).map(finding=><span key={finding.id} className={(finding.outcome??'observed').toLowerCase()}>{finding.outcome==='MATCH'?'✓':finding.outcome==='MISMATCH'?'!':finding.kind==='REQUIREMENT'?'▣':'·'} {finding.claim??finding.subjectId}</span>)}</div>{collectedEvidenceIds.length>0&&<small>조사 노트 {collectedEvidenceIds.length}건</small>}</div>}
       </div>
 
       <div className="investigation-map-layout">
-        <aside className="investigation-map-pane">
+        <aside className="investigation-map-pane" onClick={event=>{if(event.target===event.currentTarget)onSelectComponent('')}}>
           <ViewAFlow
           model={model}
           selectedComponent={selectedComponent}
@@ -128,6 +122,7 @@ export function Page2Tracking({
           />
         </aside>
         <div className="context-inspector-pane">
+          <Page2ContextBar selection={{ componentId:selectedComponent, signalId:selectedSignal, interfaceId:selectedInterface, requirementId:selectedRequirement, testCaseId:selectedTestCase }} currentPath={currentPath}/>
           {trackingView === 'FLOW' && <FunctionInspector
             model={model}
             selectedComponent={selectedComponent}
@@ -185,8 +180,8 @@ export function Page2Tracking({
           onSaveAsEvidence={onSaveAsEvidence}
           onIdentifyExpectedBasis={onIdentifyExpectedBasis}
           onOpenBenchWithTc={onOpenBenchWithTc}
-          onOpenReqMap={onOpenReqMap}
           currentFrame={currentFrame}
+          onOpenSignals={()=>onNavigateContext('SIGNALS',{signalId:selectedSignal},'요구사항에서 연관 신호로 이동')}
         />
       )}
         </div>

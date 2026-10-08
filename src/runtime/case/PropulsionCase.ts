@@ -59,6 +59,13 @@ export class PropulsionCase {
   vehicleScenarioVariant():CaseVariant{return this.active&&this.state.phase!=='RESOLVED'?1:0}
   private update(patch: Partial<CaseState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()) }
   reset() { this.ring = []; this.normalExposure = this.elapsed = this.qualifying = this.post = this.serial = 0; this.active = false; this.state = initial(); this.listeners.forEach(fn => fn()) }
+  /** The explicit give-up walkthrough applies the known-good repair before returning to the road. */
+  completeGuidedResolution() {
+    this.active = false
+    this.qualifying = 0
+    this.post = 0
+    this.update({ phase: 'RESOLVED' })
+  }
   beforeStep(input: VehicleSwInput, brake: number, steering: number, dt: number): CaseVariant {
     if (this.state.phase === 'RESOLVED') return 0
     if (this.state.phase !== 'DRIVING') return this.active ? 1 : 0

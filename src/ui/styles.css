@@ -2137,7 +2137,7 @@ h1:focus {
   visibility: var(--case-video-visibility, visible) !important;
   z-index: 6 !important;
   border: 2px solid #729783 !important;
-  border-radius: 14px !important;
+  border-radius: 10px !important;
   pointer-events: none !important;
   overflow: hidden !important;
   box-shadow: none !important;
@@ -2146,7 +2146,7 @@ h1:focus {
 }
 
 .mode-xray .game-viewport canvas {
-  border-radius: 12px;
+  border-radius: 8px;
 }
 
 .mode-xray .game-overlay {
@@ -3282,7 +3282,7 @@ h1:focus {
 
 .mode-xray * {
   scrollbar-width: thin;
-  scrollbar-color: #4b6568 #0b171b
+  scrollbar-color: #b9aa91 #f3ecdf !important
 }
 
 .mode-xray *::-webkit-scrollbar {
@@ -3291,12 +3291,14 @@ h1:focus {
 }
 
 .mode-xray *::-webkit-scrollbar-track {
-  background: #0b171b
+  background: #f3ecdf !important;
+  border-radius: 999px
 }
 
 .mode-xray *::-webkit-scrollbar-thumb {
-  background: #4b6568;
-  border-radius: 0
+  background: #b9aa91 !important;
+  border: 2px solid #f3ecdf;
+  border-radius: 999px
 }
 
 .runtime-flow>span small {

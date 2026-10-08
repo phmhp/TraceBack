@@ -10,7 +10,6 @@ interface TimelineProps {
   onTogglePlay: () => void
   onSeek: (index: number) => void
   onJumpToEvent: () => void
-  onOpenVideo: () => void
 }
 
 function formatTimeString(seconds: number): string {
@@ -28,8 +27,7 @@ export function InvestigationTimeline({
   isPlaying,
   onTogglePlay,
   onSeek,
-  onJumpToEvent,
-  onOpenVideo
+  onJumpToEvent
 }: TimelineProps) {
   // Calculate relative percent of event time along total timeline
   const eventPercent = useMemo(() => {
@@ -85,16 +83,6 @@ export function InvestigationTimeline({
         >
           <span>🎯</span>
           <span>사건 시점으로 이동</span>
-        </button>
-
-        <button
-          type="button"
-          className="timeline-btn"
-          onClick={onOpenVideo}
-          title="저장된 주행 영상 보기"
-        >
-          <span>📹</span>
-          <span>영상 보기</span>
         </button>
 
         <button

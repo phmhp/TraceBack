@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { GameApplication } from './app/GameApplication'
+import 'pretendard/dist/web/variable/pretendardvariable.css'
 import './ui/styles.css'
 import vehicleSwUrl from './runtime/c/generated/vehicle-sw.wasm?url'
 

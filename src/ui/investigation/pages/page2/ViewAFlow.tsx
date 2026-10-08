@@ -42,6 +42,7 @@ function ArchitectureNodeButton({
       className={`vehicle-architecture-node investigation-target ${selected ? 'selected' : ''} ${relevantPath.has(id) ? 'case-path-node' : ''} status-${status.toLowerCase()}`}
       aria-pressed={selected}
       onClick={() => onSelect(id)}
+      title={node.role}
     >
       <b>{node.label}</b>
       <code>{node.id}</code>
@@ -72,6 +73,7 @@ function ContextNode({
       className={`vehicle-architecture-node ${kind} ${selectedComponent === id ? 'selected' : ''} ${relevantPath.has(id) ? 'case-path-node' : ''} status-${status.toLowerCase()}`}
       aria-pressed={selectedComponent === id}
       onClick={() => onSelect(id)}
+      title={architectureNode(id)?.role??`${label}의 차량 기능 역할`}
     >
       <span>{kind === 'observation' ? 'OBSERVATION' : 'ACTUATION'}</span>
       <b>{label}</b>

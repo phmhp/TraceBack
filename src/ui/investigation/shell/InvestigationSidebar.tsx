@@ -22,9 +22,9 @@ export function InvestigationSidebar({
   onNavigateToTracking
 }: SidebarProps) {
   const { progress } = model
+  const [collapsed,setCollapsed]=useState(false)
   const [notesOpen,setNotesOpen]=useState(true)
   const investigationNotes=evidenceList.filter(item=>item.type!=='TEST_RESULT')
-  const verificationEvidence=evidenceList.filter(item=>item.type==='TEST_RESULT')
   const evidenceButton=(ev:Evidence) => {
     const icon=ev.type==='SIGNAL_BOUNDARY'||ev.type==='SIGNAL_COMPARISON'||ev.type==='SIGNAL_OBSERVATION'?'📈':ev.type==='REQUIREMENT'?'📄':'📌'
     const label=ev.type==='SIGNAL_COMPARISON'?(ev.status==='MATCH'?'정상 확인':'차이 단서'):ev.type==='SIGNAL_OBSERVATION'?'관찰 기록':ev.type==='REQUIREMENT'?'기준 근거':'조사 메모'
@@ -32,7 +32,11 @@ export function InvestigationSidebar({
   }
 
   return (
-    <aside className="investigation-sidebar">
+    <aside className={`investigation-sidebar ${collapsed?'collapsed':''}`}>
+      <button type="button" className="sidebar-collapse-toggle" aria-expanded={!collapsed} aria-label={collapsed?'조사 패널 펼치기':'조사 패널 접기'} onClick={()=>setCollapsed(value=>!value)}>
+        <span aria-hidden="true">{collapsed?'›':'‹'}</span><b>{collapsed?'패널 열기':'패널 접기'}</b>
+      </button>
+      {!collapsed&&<>
       {/* 1. 사건 정보 카드 */}
       <section className="sidebar-card sidebar-case-card">
         <div className="sidebar-case-line">
@@ -102,16 +106,7 @@ export function InvestigationSidebar({
         </div>
 
         {hypothesis ? (
-          <div className="case-meta-grid" style={{ marginTop: '4px' }}>
-            <span className="case-meta-key">대상</span>
-            <span className="case-meta-val">{hypothesis.target}</span>
-
-            <span className="case-meta-key">관련 신호</span>
-            <span className="case-meta-val">{hypothesis.signal || '—'}</span>
-
-            <span className="case-meta-key">예상</span>
-            <span className="case-meta-val">{hypothesis.prediction}</span>
-          </div>
+          <div className="sidebar-hypothesis-summary"><b>{hypothesis.target}</b><p>{hypothesis.prediction}</p><button type="button" onClick={onNavigateToTracking}>조사 지도에서 보기 →</button></div>
         ) : (
           <div className="sidebar-empty-guidance">
             <p>아직 등록된 가설이 없습니다.</p>
@@ -152,12 +147,12 @@ export function InvestigationSidebar({
         <div className="evidence-mini-list" style={{ overflowY: 'auto', flex: 1 }}>
           {!notesOpen?null:investigationNotes.length === 0 ? (
             <p className="sidebar-empty-notes">
-              Page 1·2에서 확인한 관찰과 기준을 메모로 저장하세요.
+              등록된 메모가 없습니다.
             </p>
           ) : investigationNotes.map(evidenceButton)}
         </div>
-        <div className="verification-evidence-mini"><strong>검증 근거 ({verificationEvidence.length})</strong>{verificationEvidence.length?verificationEvidence.map(ev=><button key={ev.id} type="button" className="evidence-mini-btn verification" onClick={()=>onSelectEvidence?.(ev)}><span className="evidence-mini-content"><span className="evidence-mini-icon">🧪</span><span className="evidence-mini-copy"><b>{ev.details?.designOrigin==='VEHICLE_SCENARIO_TEST'?'Vehicle Scenario Evidence':'Verification Evidence'}</b><code>{ev.reference.scenarioId??`시험 #${ev.reference.runId}`}</code><small>{ev.claim}</small></span></span><span>다시 확인하기 ›</span></button>):<small>Page 3 실행 결과를 저장하면 표시됩니다.</small>}</div>
       </section>
+      </>}
     </aside>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react'
 import { useCase } from '../state/CaseContext'
 import { useNavigation } from '../state/navigation'
 import { useInvestigationUIState } from './presentation/useInvestigationState'
@@ -6,12 +6,11 @@ import { createInvestigationPresentationModel } from './presentation/Investigati
 import { InvestigationHeader } from './shell/InvestigationHeader'
 import { InvestigationSidebar } from './shell/InvestigationSidebar'
 import { InvestigationTimeline } from './shell/InvestigationTimeline'
-import { ClueToast, DriverDialogue, MissionCompleteToast, MissionStrip, NotebookToast, type DialogueBeat } from './shell/InvestigationMissionLayer'
+import { ClueToast, DriverDialogue, MissionCompleteToast, NotebookToast, type DialogueBeat } from './shell/InvestigationMissionLayer'
 import { Page1Phenomenon } from './pages/Page1Phenomenon'
 import { Page2Tracking } from './pages/Page2Tracking'
 import { Page3Verification } from './pages/Page3Verification'
 import { Page4Conclusion } from './pages/Page4Conclusion'
-import { RequirementMap } from '../xray/RequirementMap'
 import { defaultExperimentOptions } from '../../runtime/case/CaseExperiment'
 import type { RootCauseReport } from '../../runtime/investigation/Evidence'
 import { getRequirement, getRequirementsForComponent, getTestCase, getTestsForRequirement } from '../../registries/investigation/Trace'
@@ -24,6 +23,15 @@ import type { VehicleScenarioDefinition } from '../../runtime/scenario/VehicleSc
 import '../case.css'
 import './investigation-layout.css'
 
+const guidedReview = [
+    { page: 1 as const, view: 'FLOW' as const, selection: {}, title: '관찰된 차량 반응', copy: '조사는 내부 원인이 아니라 실제로 관찰된 약한 차량 반응에서 시작합니다.' },
+    { page: 2 as const, view: 'FLOW' as const, selection: { componentId: 'VehiclePhysics', signalId: 'VehicleSpeed' }, title: '차량 반응의 인접 구조', copy: '차량 반응 바로 앞의 명령과 기능을 구조에서 거슬러 올라갑니다.' },
+    { page: 2 as const, view: 'SIGNALS' as const, selection: { componentId: 'eDrive', signalId: 'EDriveCommand' }, title: '처음 확인되는 내부 차이', copy: '상류 요청과 출력 명령을 같은 시간축에서 비교해 차이가 생기는 위치를 좁힙니다.' },
+    { page: 2 as const, view: 'STANDARDS' as const, selection: { componentId: 'eDrive', requirementId: 'SWR-EDR-001' }, title: 'Expected의 근거', copy: 'Expected는 정상 주행 기록이 아니라 선택 조건에 적용되는 요구사항과 오라클에서 나옵니다.' },
+    { page: 3 as const, view: 'STANDARDS' as const, selection: { componentId: 'eDrive', requirementId: 'SWR-EDR-001', testCaseId: 'TC-PROP-NORMAL-010A' }, title: '가설 검증', copy: '전제조건을 고정하고 서로 다른 입력에서 Expected와 Actual의 반복 패턴을 확인합니다.' },
+    { page: 4 as const, view: 'STANDARDS' as const, selection: {}, title: '근거에서 결론으로', copy: '발견한 경계 차이와 반복 시험 결과가 함께 원인 위치와 문제 유형을 지지합니다.' },
+]
+
 export function InvestigationWorkspace() {
     const { controller, state } = useCase()
     const {runtime,scenario}=useSimulationRuntime()
@@ -34,7 +42,7 @@ export function InvestigationWorkspace() {
     const definition = controller.definition
 
     const [videoSlot, setVideoSlot] = useState<HTMLDivElement | null>(null)
-    const [showReqMapModal, setShowReqMapModal] = useState(false)
+    const [scenarioVideoSlot,setScenarioVideoSlot]=useState<HTMLDivElement|null>(null)
     const [guidedReviewStep, setGuidedReviewStep] = useState<number | null>(null)
     const [clueFeedback,setClueFeedback]=useState<(typeof ui.session.discoveredFindings)[number]|null>(null)
     const [notebookFeedback,setNotebookFeedback]=useState(false)
@@ -43,26 +51,19 @@ export function InvestigationWorkspace() {
     const [catReaction,setCatReaction]=useState<CatReactionState>('CAT_FAULT')
     const processedActionId=useRef(0)
     const completedMissionIds=useRef(new Set<string>())
-    const guidedReview = [
-        { page: 1 as const, view: 'FLOW' as const, selection: {}, title: '관찰된 차량 반응', copy: '조사는 내부 원인이 아니라 실제로 관찰된 약한 차량 반응에서 시작합니다.' },
-        { page: 2 as const, view: 'FLOW' as const, selection: { componentId: 'VehiclePhysics', signalId: 'VehicleSpeed' }, title: '차량 반응의 인접 구조', copy: '차량 반응 바로 앞의 명령과 기능을 구조에서 거슬러 올라갑니다.' },
-        { page: 2 as const, view: 'SIGNALS' as const, selection: { componentId: 'eDrive', signalId: 'EDriveCommand' }, title: '처음 확인되는 내부 차이', copy: '상류 요청과 출력 명령을 같은 시간축에서 비교해 차이가 생기는 위치를 좁힙니다.' },
-        { page: 2 as const, view: 'STANDARDS' as const, selection: { componentId: 'eDrive', requirementId: 'SWR-EDR-001' }, title: 'Expected의 근거', copy: 'Expected는 정상 주행 기록이 아니라 선택 조건에 적용되는 요구사항과 오라클에서 나옵니다.' },
-        { page: 3 as const, view: 'STANDARDS' as const, selection: { componentId: 'eDrive', requirementId: 'SWR-EDR-001', testCaseId: 'TC-PROP-NORMAL-010A' }, title: '가설 검증', copy: '전제조건을 고정하고 서로 다른 입력에서 Expected와 Actual의 반복 패턴을 확인합니다.' },
-        { page: 4 as const, view: 'STANDARDS' as const, selection: {}, title: '근거에서 결론으로', copy: '발견한 경계 차이와 반복 시험 결과가 함께 원인 위치와 문제 유형을 지지합니다.' },
-    ]
-    const showGuidedStep = (index: number) => {
+    const navigateRef=useRef(ui.navigate)
+    navigateRef.current=ui.navigate
+    const showGuidedStep = useCallback((index: number) => {
         const step = guidedReview[index]
         if (!step) return
         setGuidedReviewStep(index)
-        ui.navigate({ page: step.page, view: step.view, selection: step.selection }, `guided-review:${index}`, false)
-    }
+        navigateRef.current({ page: step.page, view: step.view, selection: step.selection }, `guided-review:${index}`, false)
+    },[])
 
     // Create presentation model
     const presentationModel = useMemo(() => {
         return createInvestigationPresentationModel(state, definition, ui.hypothesis, ui.milestones, ui.session.discoveredFindings)
     }, [state, definition, ui.hypothesis, ui.milestones, ui.session.discoveredFindings])
-    const currentMission=ui.missions.find(mission=>mission.current)??ui.missions[0]!
 
     useEffect(()=>{
         const unseen=ui.session.actions.filter(action=>action.id>processedActionId.current)
@@ -100,6 +101,11 @@ export function InvestigationWorkspace() {
     useEffect(()=>{if(!clueFeedback)return;const timer=window.setTimeout(()=>setClueFeedback(null),3600);return()=>window.clearTimeout(timer)},[clueFeedback])
     useEffect(()=>{if(!notebookFeedback)return;const timer=window.setTimeout(()=>setNotebookFeedback(false),2600);return()=>window.clearTimeout(timer)},[notebookFeedback])
     useEffect(()=>{if(!missionFeedback)return;const timer=window.setTimeout(()=>setMissionFeedback(null),2800);return()=>window.clearTimeout(timer)},[missionFeedback])
+    useEffect(()=>{
+        if(guidedReviewStep===null||guidedReviewStep>=guidedReview.length-1)return
+        const timer=window.setTimeout(()=>showGuidedStep(guidedReviewStep+1),2600)
+        return()=>window.clearTimeout(timer)
+    },[guidedReviewStep,showGuidedStep]) // guided review intentionally advances through the known investigation path
 
     // InvestigationSession owns the player hypothesis; the case report receives an explicit synchronized copy.
     useEffect(() => {
@@ -116,10 +122,11 @@ export function InvestigationWorkspace() {
 
     // 3D viewport projection: 원본 desk-video getBoundingClientRect 방식 복원 (commit 79ec3b baseline)
     useLayoutEffect(() => {
-        if (!videoSlot) return
+        const projectionSlot=ui.page===3?scenarioVideoSlot:videoSlot
+        if (!projectionSlot) return
         const resize = () => {
-            const rect = videoSlot.getBoundingClientRect()
-            const box = videoSlot.closest('.investigation-sidebar')?.getBoundingClientRect()
+            const rect = projectionSlot.getBoundingClientRect()
+            const headerBottom = document.querySelector('.investigation-top-header')?.getBoundingClientRect().bottom ?? 0
             for (const [name, value] of Object.entries({
                 left: rect.left,
                 top: rect.top,
@@ -128,20 +135,12 @@ export function InvestigationWorkspace() {
             })) {
                 document.documentElement.style.setProperty(`--case-video-${name}`, `${value}px`)
             }
-            if (box) {
-                const clipTop = Math.max(0, box.top - rect.top)
-                const clipRight = Math.max(0, rect.right - box.right)
-                const clipBottom = Math.max(0, rect.bottom - box.bottom)
-                const clipLeft = Math.max(0, box.left - rect.left)
-                document.documentElement.style.setProperty(
-                    '--case-video-clip',
-                    `inset(${clipTop}px ${clipRight}px ${clipBottom}px ${clipLeft}px round 10px)`
-                )
-            }
+            const clipTop = Math.max(0, headerBottom - rect.top)
+            document.documentElement.style.setProperty('--case-video-clip',`inset(${clipTop}px 0 0 0 round 16px)`)
         }
         resize()
         const observer = new ResizeObserver(resize)
-        observer.observe(videoSlot)
+        observer.observe(projectionSlot)
         window.addEventListener('resize', resize)
         window.addEventListener('scroll', resize, true)
         return () => {
@@ -153,7 +152,7 @@ export function InvestigationWorkspace() {
             }
             document.documentElement.style.removeProperty('--case-video-clip')
         }
-    }, [videoSlot])
+    }, [videoSlot,scenarioVideoSlot,ui.page])
 
     // Playback timer loop
     useEffect(() => {
@@ -349,12 +348,11 @@ export function InvestigationWorkspace() {
                         </div>
                     )}
 
-                    <MissionStrip mission={currentMission}/>
-
                     {/* 4개 사고 흐름 PAGE */}
                     {ui.page === 1 && (
                     <Page1Phenomenon
                         model={presentationModel}
+                        onSelectFrameIndex={handleSeek}
                         onSaveIncidentObservation={handleSaveIncidentObservation}
                         onStartTracking={() => {
                             ui.reviewPhenomenon()
@@ -408,7 +406,6 @@ export function InvestigationWorkspace() {
                             ui.navigate({ page: 3, selection: { testCaseId: tcId } }, `요구사항에서 ${tcId} 검증으로 이동`)
                             ui.recordAction('SELECT_TEST_CASE', tcId)
                         }}
-                        onOpenReqMap={() => setShowReqMapModal(true)}
                         onNavigateContext={(view, selection, origin) => ui.navigate({ page: 2, view, selection }, origin ?? `원인 추적 ${view} 보기`)}
                         discoveredFindings={ui.session.discoveredFindings}
                         collectedEvidenceIds={ui.session.collectedEvidenceIds}
@@ -433,6 +430,7 @@ export function InvestigationWorkspace() {
                         onNavigateToTracking={() => ui.navigate({ page: 2 }, '가설 수정')}
                         onOpenRequirement={(requirementId) => ui.navigate({ page: 2, view: 'STANDARDS', selection: { requirementId } }, `가설 검증에서 ${requirementId} 요구사항 확인`)}
                         vehicleScenario={scenario}
+                        scenarioViewportRef={setScenarioVideoSlot}
                         onRunVehicleScenario={handleRunVehicleScenario}
                         onReplayVehicleScenario={()=>runtime.replayVehicleScenario()}
                         onAbortVehicleScenario={()=>runtime.abortVehicleScenario()}
@@ -481,84 +479,21 @@ export function InvestigationWorkspace() {
                 onTogglePlay={handleTogglePlay}
                 onSeek={handleSeek}
                 onJumpToEvent={handleJumpToEvent}
-                onOpenVideo={() => ui.setShowVideoModal(true)}
             />
 
-            {/* 영상 보기 모달 */}
-            {ui.showVideoModal && (
-                <div className="investigation-modal-overlay" onClick={() => ui.setShowVideoModal(false)}>
-                    <div className="investigation-modal-content" onClick={(e) => e.stopPropagation()}>
-                        <div className="investigation-modal-header">
-                            <b style={{ fontSize: '15px' }}>📹 주행 상황 현장 기록</b>
-                            <button
-                                type="button"
-                                onClick={() => ui.setShowVideoModal(false)}
-                                style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer' }}
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div className="investigation-modal-body" style={{ textAlign: 'center' }}>
-                            <img
-                                src="/assets/investigation/driver-front-polaroid.png"
-                                alt="주행 상황 현장 사진"
-                                style={{ maxWidth: '100%', maxHeight: '420px', borderRadius: '8px' }}
-                                onError={(e) => {
-                                    (e.target as HTMLImageElement).src = '/assets/investigation/village-polaroid.png'
-                                }}
-                            />
-                            <p style={{ marginTop: '12px', fontSize: '13px', color: '#475569' }}>
-                                사건 발생 시점 ({presentationModel.eventTimeSeconds.toFixed(3)} s) 전후의 차량 거동 스냅샷입니다.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {/* 전체 요구사항 계층 구조 / Mind-Map 모달 */}
-            {showReqMapModal && (
-                <div className="investigation-modal-overlay" onClick={() => setShowReqMapModal(false)}>
-                    <div className="investigation-modal-content" style={{ maxWidth: '1100px', width: '92vw' }} onClick={(e) => e.stopPropagation()}>
-                        <div className="investigation-modal-header">
-                            <b style={{ fontSize: '15px' }}>🗺️ 전체 요구사항 계층 구조 & Mind-Map</b>
-                            <button
-                                type="button"
-                                onClick={() => setShowReqMapModal(false)}
-                                style={{ background: 'none', border: 'none', fontSize: '16px', cursor: 'pointer' }}
-                            >
-                                ✕
-                            </button>
-                        </div>
-                        <div className="investigation-modal-body" style={{ minHeight: '520px', overflowX: 'auto' }}>
-                            <RequirementMap
-                                initialRequirement={ui.selectedRequirement}
-                                onComponent={(id) => {
-                                    ui.setSelectedComponent(id)
-                                    setShowReqMapModal(false)
-                                }}
-                                onRequirement={(id) => {
-                                    ui.setSelectedRequirement(id)
-                                    setShowReqMapModal(false)
-                                    ui.setTrackingView('STANDARDS')
-                                }}
-                                onTest={(tcId) => {
-                                    ui.navigate({ page: 3, selection: { testCaseId: tcId } }, `요구사항 지도에서 ${tcId} 검증으로 이동`)
-                                    ui.recordAction('SELECT_TEST_CASE', tcId)
-                                    setShowReqMapModal(false)
-                                }}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
             {guidedReviewStep !== null && <aside className="guided-review-controls" aria-live="polite">
+                <span className="guided-cursor" aria-hidden="true">☝</span>
                 <p className="investigation-section-label">조사 해설 {guidedReviewStep + 1} / {guidedReview.length}</p>
                 <h3>{guidedReview[guidedReviewStep]!.title}</h3>
                 <p>{guidedReview[guidedReviewStep]!.copy}</p>
                 <div>
                     <button type="button" disabled={guidedReviewStep === 0} onClick={() => showGuidedStep(guidedReviewStep - 1)}>이전</button>
                     {guidedReviewStep < guidedReview.length - 1 && <button type="button" onClick={() => showGuidedStep(guidedReviewStep + 1)}>다음</button>}
-                    <button type="button" onClick={() => setGuidedReviewStep(null)}>해설 종료</button>
+                    <button type="button" onClick={() => {
+                        if(guidedReviewStep===guidedReview.length-1)controller.completeGuidedResolution()
+                        setGuidedReviewStep(null)
+                        completeInvestigation('race')
+                    }}>{guidedReviewStep===guidedReview.length-1?'해설을 마치고 주행으로 돌아가기':'해설 종료'}</button>
                 </div>
             </aside>}
         </div>

@@ -1,0 +1,50 @@
+﻿boundaryId,producerFunction,consumerFunction,signalName,boundaryKind,designStatus,limitation
+IFC-DESIGN-001,LF-DRV-ACQ,LF-PROP-ACQ,DriverInputRuntime.accelerator,DIRECT_INPUT,CODEX_REPORTED,source and downstream mapping audit needed
+IFC-DESIGN-002,LF-PROP-ACQ,LF-PROP-INTERP,DriverDriveRequestValid,LOGICAL_REF,SRC_DRAFT,not runtime observed
+IFC-DESIGN-003,LF-PROP-INTERP,LF-PROP-GEN,DriverDriveDemand,LOGICAL_REF,SRC_DRAFT,PropulsionRequest alias unapproved
+IFC-DESIGN-004,LF-PROP-GEN,LF-PROP-EDRV,DriveTorqueRequest,SOFTWARE_BOUNDARY,CODEX_REPORTED,producer/dest independent endpoint not established
+IFC-DESIGN-005,LF-PROP-EDRV,LF-ACT-DRIVE,EDriveCommand,SOFTWARE_ADAPTER,CODEX_REPORTED,"software output to adapter input, endpoint telemetry not established"
+IFC-DESIGN-006,LF-ACT-DRIVE,LF-PLANT-MOTION,DriveForce,PLANT_APPLY,CODEX_REPORTED,"force is transformed, do not compare directly with torque"
+IFC-DESIGN-007,LF-DRV-ACQ,LF-ACT-BRAKE,DriverInputRuntime.brake,DIRECT_PHYSICS_INPUT,CODEX_REPORTED,not BrakeController software
+IFC-DESIGN-008,LF-DRV-ACQ,LF-ACT-STEER,DriverInputRuntime.steering,DIRECT_PHYSICS_INPUT,CODEX_REPORTED,not EPS software
+IFC-DESIGN-009,LF-PLANT-MOTION,LF-SEN-MOTION,VehicleSpeed,PLANT_OBSERVATION,CODEX_REPORTED,plant truth != sensor model
+IFC-DESIGN-010,LF-GEAR-STATE,LF-VS-PERM,GearState,LOGICAL_REF,SRC_DRAFT,request != applied
+IFC-DESIGN-011,LF-VS-PERM,LF-PROP-STA,DriveEnable,LOGICAL_REF,SRC_DRAFT,DriveEnable generation OPEN
+IFC-DESIGN-012,LF-PROP-MON,LF-PROP-REACT,PropulsionFaultStatus,LOGICAL_REF,SRC_DRAFT,confirmation threshold unknown
+IFC-DESIGN-013,LF-FM-REC,LF-PROP-REC,RecoveryConditionsSatisfied,LOGICAL_REF,SRC_DRAFT,recovery condition unknown
+IFC-DESIGN-014,LF-GEAR-ACQ,LF-GEAR-INTERLOCK,GearRequest,PROPOSED_LOGICAL,PROPOSED,gear applied path missing
+IFC-DESIGN-015,LF-BRK-ACQ,LF-BRK-DEMAND,BrakeDemandValidity,PROPOSED_LOGICAL,PROPOSED,independent BrakeSW missing
+IFC-DESIGN-016,LF-BRK-DEMAND,LF-BRK-COORD,RequestedDeceleration,PROPOSED_LOGICAL,PROPOSED,unit m/s2 and sign policy OPEN
+IFC-DESIGN-017,LF-BRK-COORD,LF-BRK-BLEND,SelectedBrakingRequest,PROPOSED_LOGICAL,PROPOSED,regenerative path not executable
+IFC-DESIGN-018,LF-BRK-BLEND,LF-BRK-CMD,FrictionBrakeTorqueRequest,PROPOSED_LOGICAL,PROPOSED,no independent BrakeController
+IFC-DESIGN-019,LF-BRK-CMD,LF-ACT-BRAKE,BrakeCommand,PROPOSED_SOFTWARE,PROPOSED,Brake command unit unknown
+IFC-DESIGN-020,LF-STR-ACQ,LF-STR-DEMAND,SteeringDemandNormalized,PROPOSED_LOGICAL,PROPOSED,not steering angle
+IFC-DESIGN-021,LF-STR-DEMAND,LF-STR-COORD,RequestedSteeringAction,PROPOSED_LOGICAL,PROPOSED,angle vs torque vs yaw target OPEN
+IFC-DESIGN-022,LF-STR-COORD,LF-MC-LAT,SelectedSteeringRequest,PROPOSED_LOGICAL,PROPOSED,no same-tick back-edge to steering coordinator
+IFC-DESIGN-023,LF-STR-ACT,LF-ACT-STEER,EPSCommand,PROPOSED_SOFTWARE,PROPOSED,no EPS SW established
+IFC-DESIGN-024,LF-STB-COORD,LF-MC-REQ,StabilityConstraintRequest,PROPOSED_LOGICAL,PROPOSED,ABS vs AEB priority policy OPEN
+IFC-DESIGN-025,LF-ADAS-AEB,LF-MC-REQ,AebBrakeRequest,PROPOSED_LOGICAL,PROPOSED,threat criterion absent
+IFC-DESIGN-026,LF-ADAS-ACC,LF-MC-REQ,AccLongitudinalRequest,PROPOSED_LOGICAL,PROPOSED,request shape OPEN
+IFC-DESIGN-027,LF-ADAS-LKA,LF-MC-REQ,LkaAssistRequest,PROPOSED_LOGICAL,PROPOSED,request shape OPEN
+IFC-DESIGN-028,LF-MC-REQ,LF-MC-AUTH,MotionRequestEnvelope,PROPOSED_LOGICAL,PROPOSED,not current VMC request type
+IFC-DESIGN-029,LF-MC-AUTH,LF-MC-LON,ControlAuthority,PROPOSED_LOGICAL,PROPOSED,owner priority OPEN
+IFC-DESIGN-030,LF-MC-AUTH,LF-MC-LAT,ControlAuthority,PROPOSED_LOGICAL,PROPOSED,owner priority OPEN
+IFC-DESIGN-031,LF-MC-LON,LF-MC-ALLOC,CoordinatedLongitudinalRequest,PROPOSED_LOGICAL,PROPOSED,same as VMC calculation? OPEN
+IFC-DESIGN-032,LF-MC-LAT,LF-MC-ALLOC,CoordinatedLateralRequest,PROPOSED_LOGICAL,PROPOSED,actual steering actuator unimplemented
+IFC-DESIGN-033,LF-MC-ALLOC,LF-PROP-OUT,AllocatedActuatorCommand,PROPOSED_LOGICAL,PROPOSED,not current SW path
+IFC-DESIGN-034,LF-EN-LIMIT,LF-PROP-LIM,EnergyDriveTorqueLimit,PROPOSED_LOGICAL,PROPOSED,MaxAllowedDriveTorque alias not assumed
+IFC-DESIGN-035,LF-EN-LIMIT,LF-BRK-BLEND,RegenTorqueLimit,PROPOSED_LOGICAL,PROPOSED,blend unimplemented
+IFC-DESIGN-036,LF-ENV-STATE,LF-ADAS-AEB,ObjectRelativeDistance,PROPOSED_LOGICAL,PROPOSED,reference truth only
+IFC-DESIGN-037,LF-ENV-STATE,LF-ADAS-ACC,ObjectRelativeVelocity,PROPOSED_LOGICAL,PROPOSED,relative velocity sign OPEN
+IFC-DESIGN-038,LF-ENV-STATE,LF-ADAS-LKA,LaneOffset,PROPOSED_LOGICAL,PROPOSED,no lane detector
+IFC-DESIGN-039,OPEN,LF-STB-ABS,WheelSlipRatio,PROPOSED_SENSING,PROPOSED,no wheel sensors
+IFC-DESIGN-040,OPEN,LF-STB-ESC,YawRateEstimate,PROPOSED_SENSING,PROPOSED,no gyro
+IFC-DESIGN-041,LF-FM-DETECT,LF-FM-REACT,FaultDetectionStatus,PROPOSED_LOGICAL,PROPOSED,not automatically injected
+IFC-DESIGN-042,LF-FM-REACT,LF-VS-FAULT,FaultReactionConstraint,PROPOSED_LOGICAL,PROPOSED,safe-state/HARA not decided
+IFC-DESIGN-043,LF-COM-PORT,LF-SEN-ACT,PortSourceSample,INTERNAL_PORT_TELEMETRY,PROPOSED,endpoint capture is not transfer itself
+IFC-DESIGN-044,LF-COM-NET,LF-COM-SUP,VirtualCanFrameEvent,VIRTUAL_NETWORK,PROPOSED,network not implemented
+IFC-DESIGN-045,LF-EXE-SCHED,LF-EXE-SUP,RunnableExecutionEvent,LOGICAL_CLOCK,PROPOSED,10ms tasks not implemented
+IFC-DESIGN-046,LF-EXE-CLOCK,LF-PLANT-MOTION,SimulationTick,SIMULATION_CLOCK,PROPOSED,tick ID metadata candidate only
+IFC-DESIGN-047,LF-PLANT-MOTION,LF-EXE-RECORD,VehicleSpeed,RECORDED_EVENT,PROPOSED,actual recorder observation event to audit
+IFC-DESIGN-048,LF-OCC-IMPACT,LF-OCC-DECIDE,CrashRelatedObservation,PROPOSED_SAFETY,PROPOSED,not physical crash sensor
+IFC-DESIGN-049,LF-OCC-DECIDE,LF-OCC-DEPLOY,ProtectionDecision,PROPOSED_SAFETY,PROPOSED,safety decision not implemented
