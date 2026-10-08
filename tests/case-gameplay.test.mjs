@@ -130,3 +130,13 @@ test('one editable request per run; separate runs can establish scaling evidence
  single.submit('eDrive','scaling','SWR-EDR-001');assert.equal(single.getSnapshot().diagnosis.correct,true);
  assert.equal(single.getSnapshot().diagnosis.evidenceSufficient,false);
 });
+
+test('assisted solution records executable evidence but still requires repair verification',()=>{
+ const c=makeCase();c.reproduce();c.pin();c.runExperiment(45,90);c.submit('VMC','limit','SWR-VMC-001');assert.equal(c.getSnapshot().diagnosis.correct,false)
+ c.completeGuidedResolution();const state=c.getSnapshot()
+ assert.equal(state.assisted,true);assert.equal(state.diagnosis.correct,true);assert.equal(state.diagnosis.evidenceSufficient,true)
+ assert.equal(state.diagnosisHistory.length,2);assert.equal(state.diagnosisHistory[0].correct,false)
+ assert.equal(state.phase,'SUBMITTED');assert.equal(state.repairs.length,0)
+ const failed=c.runRepair(2);assert.ok(failed.rows.some(row=>!row.pass));assert.equal(c.getSnapshot().phase,'SUBMITTED')
+ const passed=c.runRepair(0);assert.ok(passed.rows.every(row=>row.pass));assert.equal(c.getSnapshot().phase,'RESOLVED')
+})

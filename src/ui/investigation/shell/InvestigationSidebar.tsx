@@ -109,7 +109,6 @@ export function InvestigationSidebar({
           <div className="sidebar-hypothesis-summary"><b>{hypothesis.target}</b><p>{hypothesis.prediction}</p><button type="button" onClick={onNavigateToTracking}>조사 지도에서 보기 →</button></div>
         ) : (
           <div className="sidebar-empty-guidance">
-            <p>아직 등록된 가설이 없습니다.</p>
             <p>원인 추적 단계에서 의심되는 기능을 찾아 가설을 설정해보세요.</p>
             {onNavigateToTracking && (
               <button

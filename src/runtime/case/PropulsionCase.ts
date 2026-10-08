@@ -30,9 +30,11 @@ export interface CaseState {
   frames: readonly IncidentFrame[]; selected: number; pinned: number | null
   source: 'DRIVE_RECORDING' | 'STANDARD_TEST'; elapsed: number
   experiments: readonly ExperimentRun[]; experiment: ExperimentRun | null; repairs: readonly ExperimentRun[]; diagnosis: Diagnosis | null
+  diagnosisHistory:readonly Diagnosis[]
   evidence: readonly Evidence[]; hypothesis:PlayerHypothesis|null; vehicleScenarioRuns:readonly VehicleScenarioRun[]
+  assisted:boolean
 }
-const initial = (): CaseState => ({ phase: 'DRIVING', frames: [], selected: 0, pinned: null, source: 'DRIVE_RECORDING', elapsed: 0, experiments: [], experiment: null, repairs: [], diagnosis: null, evidence:[],hypothesis:null,vehicleScenarioRuns:[] })
+const initial = (): CaseState => ({ phase: 'DRIVING', frames: [], selected: 0, pinned: null, source: 'DRIVE_RECORDING', elapsed: 0, experiments: [], experiment: null, repairs: [], diagnosis: null, diagnosisHistory:[], evidence:[],hypothesis:null,vehicleScenarioRuns:[],assisted:false })
 const baseInput: VehicleSwInput = { acceleratorPedalPosition: .5, acceleratorPedalValidity: 'VALID', gearRequest: 'D', gearRequestValidity: 'VALID', vehicleReady: true, propulsionEnable: true, longitudinalVelocity: 0, vehicleSpeed: 0 }
 
 /** Case orchestration only: all observed component results execute in isolated C instances. */
@@ -59,12 +61,15 @@ export class PropulsionCase {
   vehicleScenarioVariant():CaseVariant{return this.active&&this.state.phase!=='RESOLVED'?1:0}
   private update(patch: Partial<CaseState>) { this.state = { ...this.state, ...patch }; this.listeners.forEach(fn => fn()) }
   reset() { this.ring = []; this.normalExposure = this.elapsed = this.qualifying = this.post = this.serial = 0; this.active = false; this.state = initial(); this.listeners.forEach(fn => fn()) }
-  /** The explicit give-up walkthrough applies the known-good repair before returning to the road. */
+  /** Assisted walkthrough records a real executable test and supported diagnosis; repair remains a separate player decision. */
   completeGuidedResolution() {
-    this.active = false
-    this.qualifying = 0
-    this.post = 0
-    this.update({ phase: 'RESOLVED' })
+    if(this.state.phase==='SUBMITTED')this.update({phase:'CAPTURED',diagnosis:null,repairs:[]})
+    if(this.state.phase!=='CAPTURED')return
+    this.select(this.state.frames.length-1);this.pin()
+    this.runExperiment(45,90,'eDrive')
+    this.collectTest(this.state.experiment!.id)
+    this.submit('eDrive','scaling','SWR-EDR-001')
+    this.update({assisted:true})
   }
   beforeStep(input: VehicleSwInput, brake: number, steering: number, dt: number): CaseVariant {
     if (this.state.phase === 'RESOLVED') return 0
@@ -191,10 +196,11 @@ export class PropulsionCase {
     const requirementIds=[...new Set(formalEvidence.flatMap(e=>[...e.relatedRequirementIds,...e.relatedTestCaseIds.flatMap(id=>traceRequirements(id).map(r=>r.id))]))]
     const frameId=selected.find(e=>e.type==='SIGNAL_BOUNDARY')?.reference.frameId??0
     const testRunId=selected.find(e=>e.type==='TEST_RESULT')?.reference.runId??0
-    this.update({phase:'SUBMITTED',evidence:this.state.evidence.map(e=>({...e,selectedForReport:report.evidenceIds.includes(e.id)})),pinned:frameId,diagnosis:{component:report.faultLocation,mechanism:report.detailedCause??report.failureType,requirement:requirementIds.join(', '),frameId,testRunId,correct,evidenceSufficient:assessment.sufficient,report:structuredClone(report),assessment,requirementIds}})
+    const diagnosis={component:report.faultLocation,mechanism:report.detailedCause??report.failureType,requirement:requirementIds.join(', '),frameId,testRunId,correct,evidenceSufficient:assessment.sufficient,report:structuredClone(report),assessment,requirementIds}
+    this.update({phase:'SUBMITTED',evidence:this.state.evidence.map(e=>({...e,selectedForReport:report.evidenceIds.includes(e.id)})),pinned:frameId,diagnosis,diagnosisHistory:[...this.state.diagnosisHistory,diagnosis]})
   }
   retryDiagnosis() {
-    if (!this.state.diagnosis || this.state.diagnosis.correct) return
+    if (!this.state.diagnosis || (this.state.diagnosis.correct&&this.state.diagnosis.evidenceSufficient)) return
     this.update({ phase:'CAPTURED', diagnosis:null, repairs:[] })
   }
   submit(component: string, mechanism: string, requirement: string) {

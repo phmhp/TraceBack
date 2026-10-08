@@ -138,11 +138,12 @@ test('notebook evidence is never included in the final report until the player s
  assert.equal(c.getSnapshot().evidence[1].selectedForReport,false)
 })
 
-test('investigation viewport clipping is locked to the live slot and stays below the header',()=>{
+test('investigation viewport clipping is locked between the header and playback timeline',()=>{
  const source=readFileSync(new URL('../src/ui/investigation/InvestigationWorkspace.tsx',import.meta.url),'utf8')
  assert.match(source,/const clipTop = Math\.max\(0, headerBottom - rect\.top\)/)
- assert.match(source,/inset\(\$\{clipTop\}px 0 0 0 round 16px\)/)
- assert.doesNotMatch(source,/clipRight|clipBottom|clipLeft/)
+ assert.match(source,/const clipBottom = Math\.max\(0, rect\.bottom - timelineTop\)/)
+ assert.match(source,/inset\(\$\{clipTop\}px 0 \$\{clipBottom\}px 0 round 16px\)/)
+ assert.doesNotMatch(source,/clipRight|clipLeft/)
 })
 
 test('mission hint strip is absent from every investigation page',()=>{
@@ -247,8 +248,17 @@ test('beige investigation shell keeps sidebar collapse, rounded surfaces and a u
  assert.doesNotMatch(verification,/workbenchTab|verification-workbench-tabs/)
  assert.match(css,/--investigation-radius:16px/)
  assert.match(css,/backdrop-filter:blur\(18px\)/)
- assert.match(css,/scrollbar-color:#b9aa91/)
+ assert.match(css,/scrollbar-color:#aa9b94/)
  assert.match(css,/pencil-circle/)
+})
+
+test('guided review is manual, scrolls each focused decision into view and has no cursor badge',()=>{
+ const workspace=readFileSync(new URL('../src/ui/investigation/InvestigationWorkspace.tsx',import.meta.url),'utf8')
+ assert.match(workspace,/focusSelector/)
+ assert.match(workspace,/scrollIntoView\(\{behavior:'smooth',block:'center',inline:'nearest'\}\)/)
+ assert.doesNotMatch(workspace,/showGuidedStep\(guidedReviewStep\+1\)/)
+ assert.doesNotMatch(workspace,/className="guided-cursor"/)
+ assert.match(workspace,/내용을 확인한 뒤 ‘다음’을 눌러 계속하세요/)
 })
 
 test('comment review keeps primary investigation content visible and removes redundant disclosures',()=>{

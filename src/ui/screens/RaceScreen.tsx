@@ -1,5 +1,5 @@
 import { IncidentDialogue } from '../components/IncidentDialogue'
-import { RaceTimerHUD, RaceDrivingHUD } from '../components/RaceHUD'
+import { RaceTimerHUD, RaceDrivingHUD, RecoveryMissionHUD } from '../components/RaceHUD'
 import { RacePauseOverlay } from '../components/RacePauseOverlay'
 import { useRaceActions } from '../state/RaceActionsContext'
 import { useWorldView } from '../state/WorldViewContext'
@@ -17,14 +17,15 @@ export function RaceScreen() {
   return <section className="race-screen">
     <h1 tabIndex={-1} className="sr-only">RACE</h1>
     <RaceTimerHUD />
+    <RecoveryMissionHUD />
     <Minimap map={map.definition} readVehicleState={readVehicleState} />
     <RacePauseOverlay onResume={resume} />
     <RaceFinishOverlay />
-    {phase === 'RACE_COUNTDOWN' && <div className="race-countdown" role="status" aria-live="assertive">
+    {(phase === 'PRE_RACE'||phase==='RECOVERY_COUNTDOWN') && <div className="race-countdown" role="status" aria-live="assertive">
       <span className="sr-only">3, 2, 1, 출발</span>
       <div aria-hidden="true"><strong>3</strong><strong>2</strong><strong>1</strong><strong>GO!</strong></div>
     </div>}
     <RaceDrivingHUD />
 
-    {state.phase === 'CAPTURED' && phase === 'RACE_NORMAL' && (<IncidentDialogue investigate={investigate} />)}  </section>
+    {state.phase === 'CAPTURED' && phase === 'FAULT_EVENT' && (<IncidentDialogue investigate={investigate} />)}  </section>
 }

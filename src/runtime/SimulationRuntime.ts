@@ -16,6 +16,7 @@ import { EMPTY_VEHICLE_SCENARIO, scenarioPhaseAt, scheduledStimulusValue, valida
 import type { VehicleScenarioDefinition, VehicleScenarioRun, VehicleScenarioSample, VehicleScenarioSnapshot } from './scenario/VehicleScenario.ts'
 import { FaultInjectionRuntime, summarizeInterfaceComparison } from './scenario/FaultInjection.ts'
 import type { FaultInjectionTelemetry, InterfaceEndpointTelemetry } from './scenario/FaultInjection.ts'
+import type { RecoveryChallenge, RecoverySnapshot } from './gameplay/RecoveryChallenge.ts'
 
 export interface SimulationPropulsionCalibration {
   keyboardPedalResponse: {
@@ -111,6 +112,8 @@ export class SimulationRuntime {
   private readonly faultInjection=new FaultInjectionRuntime()
   private currentFaultTelemetry:FaultInjectionTelemetry|undefined
   private currentInterfaceTelemetry:InterfaceEndpointTelemetry|undefined
+  private recoveryChallenge:RecoveryChallenge|null=null
+  private publishRecovery:(snapshot:RecoverySnapshot)=>void=()=>{}
 
   constructor(
     calibration: Readonly<SimulationPropulsionCalibration>,
@@ -128,6 +131,10 @@ export class SimulationRuntime {
   readonly readPreviousPose: VehiclePoseReader = () => this.previousPose
   readonly readInterpolationAlpha = () => !this.clock.running || this.clock.paused ? 1 : Math.min(1, this.accumulator / PHYSICS_TIMESTEP)
   configureFinish(point: { x: number; z: number }, heading: number) { this.finish = { x: point.x, z: point.z, heading } }
+  configureRecoveryChallenge(challenge:RecoveryChallenge,publish:(snapshot:RecoverySnapshot)=>void){this.recoveryChallenge=challenge;this.publishRecovery=publish;publish(challenge.getSnapshot())}
+  unlockRecoveryChallenge(){this.recoveryChallenge?.unlock();if(this.recoveryChallenge)this.publishRecovery(this.recoveryChallenge.getSnapshot())}
+  startRecoveryChallenge(){if(!this.recoveryChallenge)throw new Error('Recovery challenge is not configured');this.raceFinished=false;this.finishElapsed=0;this.recoveryChallenge.start();this.publishRecovery(this.recoveryChallenge.getSnapshot())}
+  retryRecoveryChallenge(){if(!this.recoveryChallenge)throw new Error('Recovery challenge is not configured');this.clock.pause();this.driverInput.reset();this.vehicleSw.reset();this.physics?.reset();if(this.physics)this.physics.readState(this.vehicle);this.copyPreviousPose();this.accumulator=0;this.skipResumeDelta=true;this.raceFinished=false;this.finishElapsed=0;this.error=null;this.recoveryChallenge.retry();this.clock.resume();this.publishRecovery(this.recoveryChallenge.getSnapshot());this.publishNow()}
   configureSession(config: SessionConfig) { this.sessionConfig = { ...config } }
   configureCase(incident: PropulsionCase) {
     if (!this.vehicleSw.setCaseVariant) throw new Error('Case requires a C case-capable backend')
@@ -294,6 +301,7 @@ export class SimulationRuntime {
     this.accumulator = 0
     this.ticksSincePublish = 0
     this.resetLogicalState()
+    this.recoveryChallenge?.lock();if(this.recoveryChallenge)this.publishRecovery(this.recoveryChallenge.getSnapshot())
     this.physics?.reset()
     if (this.physics) this.physics.readState(this.vehicle)
     else Object.assign(this.vehicle, createVehicleState())
@@ -374,7 +382,12 @@ export class SimulationRuntime {
       else this.recordVehicleScenarioSample(this.clock.currentTime)
       if (this.isInvestigationLocked()) { this.copyPreviousPose(); this.accumulator = 0; this.driverInput.resetMotion(); this.publishNow(); return }
       if (!this.raceFinished && this.outsideRoute()) { this.fail('주행 경로를 벗어났습니다. 레이스를 다시 시작해 주세요.'); return }
-      if (!this.raceFinished && this.finish) {
+      if(!this.raceFinished&&this.recoveryChallenge?.getSnapshot().status==='RUNNING'){
+        const result=this.recoveryChallenge.advance(PHYSICS_TIMESTEP,this.vehicle.position)
+        this.publishRecovery(this.recoveryChallenge.getSnapshot())
+        if(result.finished){this.raceFinished=true;this.finishElapsed=0;this.publishNow()}
+      }
+      if (!this.raceFinished && !this.recoveryChallenge && this.finish) {
         const dx = this.vehicle.position.x - this.finish.x; const dz = this.vehicle.position.z - this.finish.z
         const forward = dx * Math.sin(this.finish.heading) + dz * Math.cos(this.finish.heading)
         const lateral = Math.abs(dx * Math.cos(this.finish.heading) - dz * Math.sin(this.finish.heading))

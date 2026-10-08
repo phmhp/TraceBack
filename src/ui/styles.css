@@ -2136,7 +2136,7 @@ h1:focus {
   height: var(--case-video-height, 0px) !important;
   visibility: var(--case-video-visibility, visible) !important;
   z-index: 6 !important;
-  border: 2px solid #729783 !important;
+  border: 0 !important;
   border-radius: 10px !important;
   pointer-events: none !important;
   overflow: hidden !important;
@@ -3282,7 +3282,7 @@ h1:focus {
 
 .mode-xray * {
   scrollbar-width: thin;
-  scrollbar-color: #b9aa91 #f3ecdf !important
+  scrollbar-color: #aa9b94 #f7f4e9 !important
 }
 
 .mode-xray *::-webkit-scrollbar {
@@ -3291,13 +3291,13 @@ h1:focus {
 }
 
 .mode-xray *::-webkit-scrollbar-track {
-  background: #f3ecdf !important;
+  background: #f7f4e9 !important;
   border-radius: 999px
 }
 
 .mode-xray *::-webkit-scrollbar-thumb {
-  background: #b9aa91 !important;
-  border: 2px solid #f3ecdf;
+  background: #aa9b94 !important;
+  border: 2px solid #f7f4e9;
   border-radius: 999px
 }
 
@@ -4247,3 +4247,15 @@ h1:focus {
 .mode-main .build-label {
   display: none;
 }
+
+/* G1 recovery drive: compact game feedback, separate from engineering telemetry. */
+.recovery-mission-hud{position:fixed;top:82px;left:22px;z-index:42;display:flex;align-items:center;gap:12px;min-width:260px;padding:10px 14px;border:1px solid rgba(86,54,47,.16);border-radius:18px;background:rgba(255,254,247,.9);box-shadow:0 12px 30px rgba(86,54,47,.14);backdrop-filter:blur(12px);color:#56362f;pointer-events:none}
+.recovery-mission-hud>div:nth-child(2){display:grid;gap:2px}.recovery-mission-hud small{font-size:11px;color:#806a62}.recovery-mission-hud strong{font-size:15px}.recovery-mission-hud p{margin:0;font-size:12px}.recovery-mission-hud>i{position:absolute;right:12px;bottom:-24px;padding:5px 10px;border-radius:999px;background:#fff0b5;color:#6f5145;font-style:normal;font-size:11px;animation:checkpoint-pop .9s ease both}
+.cat-reaction-portrait{display:grid!important;place-items:center;width:52px;height:52px;border-radius:17px;background:#d8edb9;border:1px solid rgba(86,54,47,.12)}.cat-reaction-portrait span{font-size:27px;line-height:1}.cat-reaction-portrait small{font-size:8px!important}.cat-reaction-portrait[data-emotion="CELEBRATING"]{background:#f2b6c7;animation:cat-celebrate .6s ease-in-out infinite alternate}
+@keyframes checkpoint-pop{0%{opacity:0;transform:translateY(8px) scale(.8)}35%{opacity:1;transform:translateY(0) scale(1.08)}100%{opacity:0;transform:translateY(-5px) scale(1)}}
+@keyframes cat-celebrate{to{transform:translateY(-4px) rotate(3deg)}}
+.mission-result-hero{display:flex;align-items:center;gap:18px;padding:18px;border-radius:22px;background:linear-gradient(135deg,#d8edb9,#fffef7 54%,#f2b6c7);color:#56362f}.result-cat{font-size:52px}.mission-result-hero div{display:grid;gap:3px;flex:1}.mission-result-hero h2{margin:0}.mission-result-hero strong{font-size:34px}.driving-medal{display:grid;place-items:center;width:76px;height:76px;border-radius:50%;background:#fff0b5;border:5px double #aa9b94;font-size:12px}.driving-medal.gold{background:#ffe38b}.driving-medal.silver{background:#e7e7e4}.driving-medal.bronze{background:#e7b28c}.verification-report footer>div{display:flex;gap:8px;flex-wrap:wrap}
+.repair-decision{display:grid;gap:12px}.repair-verdict{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:16px}.repair-verdict.pass{background:#d8edb9;color:#49613d}.repair-verdict.fail{background:#f7d8d8;color:#8a3d38}.recovery-start-button{justify-self:end}
+@media(prefers-reduced-motion:reduce){.recovery-mission-hud>i,.cat-reaction-portrait[data-emotion="CELEBRATING"]{animation:none}}
+@media(max-width:720px){.recovery-mission-hud{top:68px;left:10px;min-width:220px;transform:scale(.9);transform-origin:top left}.mission-result-hero{align-items:flex-start}.driving-medal{width:58px;height:58px}}
+.incident-cat-reaction{display:grid;place-items:center;min-width:54px;height:54px;border-radius:17px;background:#f2b6c7;font-size:30px;animation:fault-attention .5s ease both}.incident-dialog{grid-template-columns:auto auto 1fr auto!important}.incident-dialog .incident-speaker{align-self:center}@keyframes fault-attention{0%{transform:scale(.6) rotate(-8deg)}70%{transform:scale(1.12) rotate(4deg)}100%{transform:scale(1)}}@media(prefers-reduced-motion:reduce){.incident-cat-reaction{animation:none}}

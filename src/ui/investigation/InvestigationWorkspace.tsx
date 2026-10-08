@@ -24,18 +24,23 @@ import '../case.css'
 import './investigation-layout.css'
 
 const guidedReview = [
-    { page: 1 as const, view: 'FLOW' as const, selection: {}, title: '관찰된 차량 반응', copy: '조사는 내부 원인이 아니라 실제로 관찰된 약한 차량 반응에서 시작합니다.' },
-    { page: 2 as const, view: 'FLOW' as const, selection: { componentId: 'VehiclePhysics', signalId: 'VehicleSpeed' }, title: '차량 반응의 인접 구조', copy: '차량 반응 바로 앞의 명령과 기능을 구조에서 거슬러 올라갑니다.' },
-    { page: 2 as const, view: 'SIGNALS' as const, selection: { componentId: 'eDrive', signalId: 'EDriveCommand' }, title: '처음 확인되는 내부 차이', copy: '상류 요청과 출력 명령을 같은 시간축에서 비교해 차이가 생기는 위치를 좁힙니다.' },
-    { page: 2 as const, view: 'STANDARDS' as const, selection: { componentId: 'eDrive', requirementId: 'SWR-EDR-001' }, title: 'Expected의 근거', copy: 'Expected는 정상 주행 기록이 아니라 선택 조건에 적용되는 요구사항과 오라클에서 나옵니다.' },
-    { page: 3 as const, view: 'STANDARDS' as const, selection: { componentId: 'eDrive', requirementId: 'SWR-EDR-001', testCaseId: 'TC-PROP-NORMAL-010A' }, title: '가설 검증', copy: '전제조건을 고정하고 서로 다른 입력에서 Expected와 Actual의 반복 패턴을 확인합니다.' },
-    { page: 4 as const, view: 'STANDARDS' as const, selection: {}, title: '근거에서 결론으로', copy: '발견한 경계 차이와 반복 시험 결과가 함께 원인 위치와 문제 유형을 지지합니다.' },
+    { page: 1 as const, view: 'FLOW' as const, selection: {}, focusSelector:'.observed-response-heading', title: '관찰된 차량 반응', copy: '조사는 내부 원인이 아니라 실제로 관찰된 약한 차량 반응에서 시작합니다.' },
+    { page: 2 as const, view: 'FLOW' as const, selection: { componentId: 'VehiclePhysics', signalId: 'VehicleSpeed' }, focusSelector:'.vehicle-architecture-node.selected', title: '차량 반응의 인접 구조', copy: '차량 반응 바로 앞의 명령과 기능을 구조에서 거슬러 올라갑니다.' },
+    { page: 2 as const, view: 'SIGNALS' as const, selection: { componentId: 'eDrive', signalId: 'EDriveCommand' }, focusSelector:'.signal-identity-card', title: '처음 확인되는 내부 차이', copy: '상류 요청과 출력 명령을 같은 시간축에서 비교해 차이가 생기는 위치를 좁힙니다.' },
+    { page: 2 as const, view: 'STANDARDS' as const, selection: { componentId: 'eDrive', requirementId: 'SWR-EDR-001' }, focusSelector:'.requirement-source-statement', title: 'Expected의 근거', copy: 'Expected는 정상 주행 기록이 아니라 선택 조건에 적용되는 요구사항과 오라클에서 나옵니다.' },
+    { page: 3 as const, view: 'STANDARDS' as const, selection: { componentId: 'eDrive', requirementId: 'SWR-EDR-001', testCaseId: 'TC-PROP-NORMAL-010A' }, focusSelector:'.verification-run-button', title: '가설 검증', copy: '전제조건을 고정하고 서로 다른 입력에서 Expected와 Actual의 반복 패턴을 확인합니다.' },
+    { page: 4 as const, view: 'STANDARDS' as const, selection: {}, focusSelector:'.submit-cta-btn', title: '근거에서 결론으로', copy: '발견한 경계 차이와 반복 시험 결과가 함께 원인 위치와 문제 유형을 지지합니다.' },
 ]
 
 export function InvestigationWorkspace() {
     const { controller, state } = useCase()
     const {runtime,scenario}=useSimulationRuntime()
     const completeInvestigation = useNavigation((s) => s.completeInvestigation)
+    const recordDiagnosis=useNavigation(s=>s.recordDiagnosis)
+    const beginRepairSelection=useNavigation(s=>s.beginRepairSelection)
+    const beginRepairVerification=useNavigation(s=>s.beginRepairVerification)
+    const repairVerificationFailed=useNavigation(s=>s.repairVerificationFailed)
+    const resumeInvestigation=useNavigation(s=>s.resumeInvestigation)
     const ui = useInvestigationUIState()
 
     const currentFrame = state.frames[state.selected]
@@ -51,14 +56,21 @@ export function InvestigationWorkspace() {
     const [catReaction,setCatReaction]=useState<CatReactionState>('CAT_FAULT')
     const processedActionId=useRef(0)
     const completedMissionIds=useRef(new Set<string>())
+    const guidedNavigationTimer=useRef<number|null>(null)
     const navigateRef=useRef(ui.navigate)
     navigateRef.current=ui.navigate
     const showGuidedStep = useCallback((index: number) => {
         const step = guidedReview[index]
         if (!step) return
         setGuidedReviewStep(index)
-        navigateRef.current({ page: step.page, view: step.view, selection: step.selection }, `guided-review:${index}`, false)
+        if(guidedNavigationTimer.current!==null)window.clearTimeout(guidedNavigationTimer.current)
+        guidedNavigationTimer.current=window.setTimeout(()=>{
+            navigateRef.current({ page: step.page, view: step.view, selection: step.selection }, `guided-review:${index}`, false)
+            guidedNavigationTimer.current=null
+            window.setTimeout(()=>document.querySelector(step.focusSelector)?.scrollIntoView({behavior:'smooth',block:'center',inline:'nearest'}),180)
+        },1200)
     },[])
+    useEffect(()=>()=>{if(guidedNavigationTimer.current!==null)window.clearTimeout(guidedNavigationTimer.current)},[])
 
     // Create presentation model
     const presentationModel = useMemo(() => {
@@ -101,12 +113,6 @@ export function InvestigationWorkspace() {
     useEffect(()=>{if(!clueFeedback)return;const timer=window.setTimeout(()=>setClueFeedback(null),3600);return()=>window.clearTimeout(timer)},[clueFeedback])
     useEffect(()=>{if(!notebookFeedback)return;const timer=window.setTimeout(()=>setNotebookFeedback(false),2600);return()=>window.clearTimeout(timer)},[notebookFeedback])
     useEffect(()=>{if(!missionFeedback)return;const timer=window.setTimeout(()=>setMissionFeedback(null),2800);return()=>window.clearTimeout(timer)},[missionFeedback])
-    useEffect(()=>{
-        if(guidedReviewStep===null||guidedReviewStep>=guidedReview.length-1)return
-        const timer=window.setTimeout(()=>showGuidedStep(guidedReviewStep+1),2600)
-        return()=>window.clearTimeout(timer)
-    },[guidedReviewStep,showGuidedStep]) // guided review intentionally advances through the known investigation path
-
     // InvestigationSession owns the player hypothesis; the case report receives an explicit synchronized copy.
     useEffect(() => {
         controller.setHypothesis(ui.hypothesis)
@@ -127,6 +133,7 @@ export function InvestigationWorkspace() {
         const resize = () => {
             const rect = projectionSlot.getBoundingClientRect()
             const headerBottom = document.querySelector('.investigation-top-header')?.getBoundingClientRect().bottom ?? 0
+            const timelineTop = document.querySelector('.investigation-timeline,.investigation-bottom-timeline,.case-timeline')?.getBoundingClientRect().top ?? window.innerHeight
             for (const [name, value] of Object.entries({
                 left: rect.left,
                 top: rect.top,
@@ -136,7 +143,8 @@ export function InvestigationWorkspace() {
                 document.documentElement.style.setProperty(`--case-video-${name}`, `${value}px`)
             }
             const clipTop = Math.max(0, headerBottom - rect.top)
-            document.documentElement.style.setProperty('--case-video-clip',`inset(${clipTop}px 0 0 0 round 16px)`)
+            const clipBottom = Math.max(0, rect.bottom - timelineTop)
+            document.documentElement.style.setProperty('--case-video-clip',`inset(${clipTop}px 0 ${clipBottom}px 0 round 16px)`)
         }
         resize()
         const observer = new ResizeObserver(resize)
@@ -299,10 +307,15 @@ export function InvestigationWorkspace() {
         ui.recordAction('CONCLUSION_SUBMITTED', report.faultLocation)
         const diagnosis=controller.getSnapshot().diagnosis
         if (diagnosis?.correct&&diagnosis.evidenceSufficient) ui.recordAction('CONCLUSION_CONFIRMED', report.faultLocation)
+        if(diagnosis)recordDiagnosis(diagnosis.correct?(diagnosis.evidenceSufficient?'CORRECT_SUPPORTED':'CORRECT_INCOMPLETE'):'INCORRECT')
+        beginRepairSelection()
     }
 
     const handleRunRepair = (variant: 0 | 2 | 3) => {
-        controller.runRepair(variant)
+        beginRepairVerification()
+        const run=controller.runRepair(variant)
+        if(run.rows.every(row=>row.pass))runtime.unlockRecoveryChallenge()
+        else repairVerificationFailed()
     }
 
     const handleSelectEvidenceForReport = (id: string, selected: boolean) => {
@@ -451,11 +464,11 @@ export function InvestigationWorkspace() {
                         onSelectEvidenceForReport={handleSelectEvidenceForReport}
                         onSubmitReport={handleSubmitReport}
                         onRunRepair={handleRunRepair}
-                        onNavigateToDebrief={() => completeInvestigation('debrief')}
+                        onStartRecovery={() => completeInvestigation('race')}
                         onStartGuidedReview={() => showGuidedStep(0)}
                         onRetryInvestigation={() => {
                             const needsMore=Boolean(controller.getSnapshot().diagnosis?.correct&&!controller.getSnapshot().diagnosis?.evidenceSufficient)
-                            controller.retryDiagnosis()
+                            controller.retryDiagnosis();resumeInvestigation()
                             ui.navigate({ page: needsMore?3:2, view: 'FLOW' }, needsMore?'근거 보강 시험으로 이동':'오답 후 다시 조사')
                         }}
                     />
@@ -482,18 +495,17 @@ export function InvestigationWorkspace() {
             />
 
             {guidedReviewStep !== null && <aside className="guided-review-controls" aria-live="polite">
-                <span className="guided-cursor" aria-hidden="true">☝</span>
                 <p className="investigation-section-label">조사 해설 {guidedReviewStep + 1} / {guidedReview.length}</p>
                 <h3>{guidedReview[guidedReviewStep]!.title}</h3>
                 <p>{guidedReview[guidedReviewStep]!.copy}</p>
+                <small className="guided-review-prompt">내용을 확인한 뒤 ‘다음’을 눌러 계속하세요.</small>
                 <div>
                     <button type="button" disabled={guidedReviewStep === 0} onClick={() => showGuidedStep(guidedReviewStep - 1)}>이전</button>
                     {guidedReviewStep < guidedReview.length - 1 && <button type="button" onClick={() => showGuidedStep(guidedReviewStep + 1)}>다음</button>}
                     <button type="button" onClick={() => {
-                        if(guidedReviewStep===guidedReview.length-1)controller.completeGuidedResolution()
+                        if(guidedReviewStep===guidedReview.length-1){controller.completeGuidedResolution();recordDiagnosis('ASSISTED');beginRepairSelection();ui.navigate({page:4},'assisted solution result',false)}
                         setGuidedReviewStep(null)
-                        completeInvestigation('race')
-                    }}>{guidedReviewStep===guidedReview.length-1?'해설을 마치고 주행으로 돌아가기':'해설 종료'}</button>
+                    }}>{guidedReviewStep===guidedReview.length-1?'해설 결과 확인':'해설 종료'}</button>
                 </div>
             </aside>}
         </div>
