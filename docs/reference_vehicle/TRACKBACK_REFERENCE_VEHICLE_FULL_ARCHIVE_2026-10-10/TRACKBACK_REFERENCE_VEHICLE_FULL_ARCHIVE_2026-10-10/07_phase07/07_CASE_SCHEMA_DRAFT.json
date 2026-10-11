@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "trackback.reference.case.draft.v0.1",
+  "title": "TRACKBACK Reference Case Draft",
+  "type": "object",
+  "required": [
+    "caseId",
+    "status",
+    "provenance",
+    "domain",
+    "architecturePath",
+    "fault",
+    "scenario",
+    "requirementTrace",
+    "verification",
+    "groundTruth",
+    "visibility",
+    "replay"
+  ],
+  "properties": {
+    "caseId": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "AI_DRAFT",
+        "HUMAN_REVIEW_REQUIRED",
+        "EXISTING_CANONICAL_GAME_CASE",
+        "APPROVED_BASE_CASE"
+      ]
+    },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "sourceClass": {
+          "enum": [
+            "TRACKBACK_MODEL",
+            "REAL_WORLD_SOURCE",
+            "STANDARD_REFERENCE",
+            "SIMULATION_EVIDENCE"
+          ]
+        },
+        "sourceRefs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rootCauseProvenance": {
+          "enum": [
+            "TRACKBACK_MODEL",
+            "REAL_WORLD_SOURCE",
+            "UNRESOLVED"
+          ]
+        }
+      },
+      "required": [
+        "sourceClass",
+        "rootCauseProvenance"
+      ]
+    },
+    "domain": {
+      "type": "string"
+    },
+    "architecturePath": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "fault": {
+      "type": "object",
+      "required": [
+        "faultFamilyId",
+        "stimulus",
+        "softwareDefect"
+      ],
+      "properties": {
+        "faultFamilyId": {
+          "type": "string"
+        },
+        "stimulus": {
+          "type": "object"
+        },
+        "softwareDefect": {
+          "type": "object"
+        },
+        "injectionPoint": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "activationWindow": {
+          "type": [
+            "object",
+            "null"
+          ]
+        }
+      }
+    },
+    "scenario": {
+      "type": "object",
+      "required": [
+        "preconditions",
+        "requiredTrackCapabilities",
+        "variationParameters"
+      ],
+      "properties": {
+        "preconditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "requiredTrackCapabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "variationParameters": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "requirementTrace": {
+      "type": "object",
+      "properties": {
+        "functionalRequirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "systemRequirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "softwareRequirements": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "safetyTraceStatus": {
+          "enum": [
+            "PENDING_HARA_NOT_APPROVED",
+            "ILLUSTRATIVE_HARA_CANDIDATE",
+            "APPROVED_TRACE"
+          ]
+        }
+      },
+      "required": [
+        "systemRequirements",
+        "safetyTraceStatus"
+      ]
+    },
+    "verification": {
+      "type": "object",
+      "required": [
+        "testCases",
+        "oracleCapability",
+        "verdictPolicy"
+      ],
+      "properties": {
+        "testCases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "observationPoints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "oracleCapability": {
+          "type": "string"
+        },
+        "verdictPolicy": {
+          "type": "string"
+        }
+      }
+    },
+    "groundTruth": {
+      "type": "object",
+      "required": [
+        "correctRootCause",
+        "correctiveAction"
+      ],
+      "properties": {
+        "correctRootCause": {
+          "type": "string"
+        },
+        "correctiveAction": {
+          "type": "string"
+        },
+        "repairCandidates": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "visibility": {
+      "type": "object",
+      "required": [
+        "playerVisible",
+        "hiddenUntilResolution"
+      ],
+      "properties": {
+        "playerVisible": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "hiddenUntilResolution": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "discoverableEvidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "replay": {
+      "type": "object",
+      "required": [
+        "preserveDriverInput",
+        "preserveScenario",
+        "preserveFaultStimulus",
+        "repairOnlyDefect"
+      ],
+      "properties": {
+        "preserveDriverInput": {
+          "const": true
+        },
+        "preserveScenario": {
+          "const": true
+        },
+        "preserveFaultStimulus": {
+          "const": true
+        },
+        "repairOnlyDefect": {
+          "const": true
+        },
+        "snapshotContract": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
