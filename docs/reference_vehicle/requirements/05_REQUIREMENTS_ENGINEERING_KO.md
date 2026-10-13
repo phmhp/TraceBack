@@ -1,17 +1,17 @@
 # TRACKBACK — Phase 05 Requirements Engineering (차량 전체 FR·SYSR·SWR·SIMR)
 
 > Document: 05_REQUIREMENTS_ENGINEERING_KO  
-> Version: 0.3  
+> Version: 0.3.1
 > Status: REVIEWED_DRAFT  
 > Canonical: YES  
-> Last Reviewed: 2026-10-10  
+> Last Reviewed: 2026-10-13
 > Runtime Baseline: current narrow propulsion slice; candidate requirements do not imply implementation  
 > Scope: FR/SYSR/SWR/SIMR reference requirements; no HARA/SG/FSR/TSR/ASIL approval
 
-> **버전:** v0.3 · **작성일:** 2026-10-10 · **상태:** `REVIEWED_DRAFT / NOT APPROVED`
+> **버전:** v0.3.1 · **작성일:** 2026-10-13 · **상태:** `REVIEWED_DRAFT / NOT APPROVED`
 > **중요:** 이 문서는 Phase 01~04 참조 아키텍처와 2026-10-07 Codex 정적 감사 결과를 바탕으로 작성한 **신규 요구사항 후보**다. 기존 `PropulsionGroundTruth.ts`의 21개 statement를 변경하지 않았고, 자동차 제조사·ISO 26262 인증/기능안전 승인·실차 제어 적합성을 주장하지 않는다. 최신 저장소 소스 재실행 및 코드 변경은 수행하지 않았다.
 
-## v0.3 요구사항 계약 교정
+## v0.3.1 요구사항 계약 교정
 
 요구사항 종류는 다음 의미로 사용한다.
 
@@ -24,9 +24,9 @@
 
 ### 교정된 authority requirements
 
-- Reference Motion Coordination은 typed motion requests와 `ConstraintSet`을 수집하고, vehicle-level longitudinal authority/selection reason, feasible target 및 drive-vs-brake allocation을 소유한다.
-- Propulsion과 Braking은 각 domain processing과 domain final command를 소유한다. `LF-BRK-CMD`가 유일한 logical final braking-domain command owner다.
-- `LF-BRK-COORD`는 할당된 braking objective를 total/allocated brake demand로 조정하고 `LF-BRK-BLEND`는 available regen/friction actuator 사이에서 배분한다. Energy는 availability/capability/constraint만 제공한다.
+- Reference Motion Coordination은 typed motion requests와 `ConstraintSet`을 수집하고, vehicle-level longitudinal/lateral authority/selection reason, feasible target 및 domain allocation을 소유한다.
+- Propulsion, Braking, Steering은 할당 이후의 domain processing과 domain final command를 소유한다. `LF-BRK-CMD`가 유일한 logical final braking-domain command owner다.
+- `LF-BRK-COORD`는 할당된 braking objective를 `AllocatedBrakeDemand`로 조정하고 `LF-BRK-BLEND`는 available regen/friction actuator 사이에서 배분한다. `LF-STR-COORD`는 할당된 lateral target을 steering-domain request로 조정한다. 두 domain coordinator 모두 vehicle-level authority를 재실행하지 않는다. Energy는 availability/capability/constraint만 제공한다.
 - Vehicle State는 initialization, operational state, `DomainAvailability`, drive permission, degraded state, recovery authorization를 별도 계약으로 관리한다. Host readiness/enable 값은 reference output의 구현 증거가 아니다.
 - ADAS feature output은 `controlOutputKind`를 선언하고 direct actuator ownership은 기본 승인하지 않는다.
 - ABS/TCS/ESC 상세 placement, brake blending algorithm, EPS authority, lateral reference quantity, ADAS priority, energy/regen, production diagnostics는 `EXTERNAL_VALIDATION_REQUIRED`다.
@@ -397,9 +397,9 @@ flowchart LR
 #### LF-BRK-COORD — CAND-SYSR-BRK-COORD
 
 - **상위 FR:** `CAND-FR-BRAKING-002` · **보고된 실제 역할:** `DESIGN_ONLY` · **기존 참조 FR:** `없음`
-- **SYSR 후보 / 차량 기능 경계:** 복수 제동 요구와 구동 요구가 충돌할 때 제어권을 정의된 정책에 따라 결정해야 한다.
-- **기대 관측·출력:** 선택된 제동 요구, 구동 억제 여부, 권한 결정 사유.
-- **SWR 후보 `CAND-SWR-BRK-COORD` / 내부 처리:** 향후 Coordination SW는 driver/AEB/ESC request의 validity/source를 평가한다; 현재 brake>0이면 driveForce=0은 host adapter 정책이다.
+- **SYSR 후보 / 차량 기능 경계:** Motion Coordination이 할당한 braking objective를 domain availability/constraint에 맞는 `AllocatedBrakeDemand`로 조정해야 한다.
+- **기대 관측·출력:** 할당된 braking-domain demand와 provenance. vehicle-level 제어권 결정은 `LF-MC-AUTH`에 남는다.
+- **SWR 후보 `CAND-SWR-BRK-COORD` / 내부 처리:** 향후 Brake Coordination SW는 MC allocation과 braking-domain constraint를 소비하되 driver/AEB/ESC vehicle-level authority를 재실행하지 않는다; 현재 brake>0이면 driveForce=0은 host adapter 정책이다.
 - **검증 설계:** 현 brake-over-drive만 observed; multi-source TC 불가.
 - **`OPEN` / 승인 차단:** policy owner 변경 승인, AEB/ESC 우선순위, 정상 동등성.
 - **코드 감사 근거 요약:** 실행 owner 없음
@@ -474,9 +474,9 @@ flowchart LR
 #### LF-STR-COORD — CAND-SYSR-STR-COORD
 
 - **상위 FR:** `CAND-FR-STEERING-002` · **보고된 실제 역할:** `DESIGN_ONLY` · **기존 참조 FR:** `없음`
-- **SYSR 후보 / 차량 기능 경계:** 복수 조향 요구가 존재하면 운전자와 보조 요구의 제어권을 명시적으로 결정해야 한다.
-- **기대 관측·출력:** 선택된 lateral request와 override reason.
-- **SWR 후보 `CAND-SWR-STR-COORD` / 내부 처리:** 조향 조정 SW는 request 출처·유효성·허용 상태에 따라 최종 조향 요구를 선택하도록 설계한다.
+- **SYSR 후보 / 차량 기능 경계:** Motion Coordination이 할당한 lateral-domain target을 quantity와 upstream authority reason을 보존해 Steering domain에 전달해야 한다.
+- **기대 관측·출력:** steering-domain selected request와 upstream authority provenance.
+- **SWR 후보 `CAND-SWR-STR-COORD` / 내부 처리:** 조향 조정 SW는 MC allocation과 steering availability를 소비해 domain request를 생성하며 vehicle-level authority를 재실행하지 않는다.
 - **검증 설계:** LKA 미구현이므로 비교 TC 보류.
 - **`OPEN` / 승인 차단:** Driver override guard, LKA priority 없음.
 - **코드 감사 근거 요약:** 실행 owner 없음
@@ -543,7 +543,7 @@ flowchart LR
 - **상위 FR:** `CAND-FR-STABILITY-002` · **보고된 실제 역할:** `DESIGN_ONLY` · **기존 참조 FR:** `없음`
 - **SYSR 후보 / 차량 기능 경계:** 여러 안정화 기능 요구가 겹칠 때 제어권·제약 우선순위를 명시해야 한다.
 - **기대 관측·출력:** ABS/TCS/ESC request 출처와 최종 constraint.
-- **SWR 후보 `CAND-SWR-STB-COORD` / 내부 처리:** Stability coordination은 각 개입 결과를 motion/brake/propulsion으로 전달하되 확정되지 않은 우선순위는 적용하지 않는다.
+- **SWR 후보 `CAND-SWR-STB-COORD` / 내부 처리:** Stability coordination은 각 개입 결과를 typed request/constraint로 집계해 `LF-MC-REQ`에 전달하며 downstream brake/propulsion/steering domain을 직접 우회하지 않는다.
 - **검증 설계:** 종합 authority 승인 전 시험 보류.
 - **`OPEN` / 승인 차단:** ABS vs AEB vs ESC 동시개입 정책, request units.
 - **코드 감사 근거 요약:** 실행 owner 없음
@@ -590,7 +590,7 @@ flowchart LR
 - **상위 FR:** `CAND-FR-ADAS-001` · **보고된 실제 역할:** `DESIGN_ONLY` · **기존 참조 FR:** `없음`
 - **SYSR 후보 / 차량 기능 경계:** 유효한 차선 상태와 기능 활성 조건이 충족되면 차로 유지 보조 요구를 생성해야 한다.
 - **기대 관측·출력:** lateral correction request와 validity.
-- **SWR 후보 `CAND-SWR-ADAS-LKA` / 내부 처리:** LKA SW는 lane offset/heading 정보의 validity를 확인하고 조향 coordination에 보조 요구를 전달하도록 설계한다.
+- **SWR 후보 `CAND-SWR-ADAS-LKA` / 내부 처리:** LKA SW는 lane offset/heading 정보의 validity를 확인하고 typed lateral `MOTION_REQUEST`를 `LF-MC-REQ`에 전달하도록 설계한다. 조향 coordination/actuator 직접 소유는 승인하지 않는다.
 - **검증 설계:** 현재 lane data 없음.
 - **`OPEN` / 승인 차단:** lane estimator, driver override, lateral limits.
 - **코드 감사 근거 요약:** lane offset/heading 없음
@@ -975,8 +975,8 @@ flowchart LR
 
 - **`INT-01` — Control Authority:** Driver brake active인 현재 host 동작과 미래 Multi-domain arbitration을 별개의 소유권으로 기록. 정책 이동 전 `brake>0→driveForce=0`의 기존 결과, FI, Replay 회귀 기준 확정.  
   연계: `ARC-003 / LF-MC-AUTH / LF-BRK-COORD / LF-ACT-DRIVE`
-- **`INT-02` — Propulsion generator vs coordination:** 실제 `Trackback_VMC`는 단일 토크 맵; RequestedDriveTorque/ArbitratedDriveTorque를 신규 연산하는 두 번째 엔진을 추가하지 않음.  
-  연계: `ARC-002 / LF-PROP-GEN / LF-MC-LON`
+- **`INT-02` — Propulsion generator vs coordination:** 실제 `Trackback_VMC`는 현재 Propulsion 경로의 단일 torque map/local attenuation이며 `LF-MC-REQ/AUTH/LON/LAT/ALLOC` 구현 증거가 아니다. Reference `RequestedDriveTorque` 경계는 DESIGN_ONLY이고 현재 runtime에 두 번째 엔진을 추가하지 않음.
+  연계: `ARC-002 / LF-PROP-GEN / LF-MC-REQ`
 - **`INT-03` — Gear vs propulsion:** GearRequest 입력과 적용 GearState를 구분하고, 전환 실패 시 적용되지 않은 요청을 추진 방향으로 사용하지 않음.  
   연계: `LF-GEAR-STATE / LF-PROP-ACQ`
 - **`INT-04` — Host readiness:** `VehicleReady=physics!=null`, `PropulsionEnable=true`는 host assumption. VMC/Vehicle State의 승인된 readiness로 재분류하지 않음.  

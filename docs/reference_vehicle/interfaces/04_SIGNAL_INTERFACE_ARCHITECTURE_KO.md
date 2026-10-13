@@ -1,10 +1,10 @@
-# TRACKBACK — Phase 04 신호 및 인터페이스 아키텍처 — Architecture Correction v0.3
+# TRACKBACK — Phase 04 신호 및 인터페이스 아키텍처 — Control-flow Normalization v0.3.1
 
 > Document: 04_SIGNAL_INTERFACE_ARCHITECTURE_KO  
-> Version: 0.3  
+> Version: 0.3.1
 > Status: REVIEWED_DRAFT  
 > Canonical: YES  
-> Last Reviewed: 2026-10-10  
+> Last Reviewed: 2026-10-13
 > Runtime Baseline: direct TypeScript calls, WASM ABI, and one same-tick instrumented endpoint pair  
 > Scope: candidate signal/interface semantics; no CAN or independent ECU endpoint claim
 
@@ -24,9 +24,9 @@
 
 ADAS 출력은 `controlOutputKind`를 갖는다. 기본 reference는 `MOTION_REQUEST`, AEB는 우선순위 미확정 `SAFETY_PRIORITY_REQUEST` 후보이며 `DIRECT_ACTUATOR_REQUEST`를 승인하지 않는다.
 
-## v0.3 interface relation separation
+## v0.3.1 interface relation separation
 
-49개 interface ID는 유지한다. 각 행은 `Logical Interface`, `Runtime Transfer`, `Transport Mapping`, `Observation Point`, `Comparison Capability`를 독립 필드로 기록한다. `IFC-DESIGN-005` eDrive→DriveAdapter만 현재 `INSTRUMENTED_SAME_TICK_ENDPOINT_PAIR`이며 CAN, 독립 ECU endpoint 또는 network timing 검증이 아니다. `IFC-DESIGN-033`은 vehicle-level domain allocation 전달이며 final actuator command를 뜻하지 않는다.
+기존 49개 interface ID는 유지하고, 누락됐던 Propulsion request → Motion Coordination 논리 경계를 `IFC-DESIGN-050`으로 추가해 총 50개로 관리한다. 각 행은 `Logical Interface`, `Runtime Transfer`, `Transport Mapping`, `Observation Point`, `Comparison Capability`를 독립 필드로 기록한다. `IFC-DESIGN-005` eDrive→DriveAdapter만 현재 `INSTRUMENTED_SAME_TICK_ENDPOINT_PAIR`이며 CAN, 독립 ECU endpoint 또는 network timing 검증이 아니다. `IFC-DESIGN-033`은 vehicle-level domain allocation을 Propulsion/Braking/Steering domain coordinator에 전달하며 final actuator command를 뜻하지 않는다.
 
 ## [v0.2 코드 감사 반영 — Signal/Interface Source of Truth]
 
@@ -178,7 +178,7 @@ approval: AI_DRAFT # not approved until review
 | `DriverDriveDemand` | 정규화 운전자 구동 의도 | `ratio` | `LF-PROP-INTERP` | `LF-PROP-GEN` | `SRC_DRAFT` |
 | `DriveMode` | 운전 모드 상태 | `enum` | `LF-VS-MODE` | `LF-PROP-GEN` | `SRC_DRAFT` |
 | `RequestedDriveTorque` | Motion Arbitration 이전 토크 요구 | `Nm` | `LF-PROP-GEN` | `LF-MC-REQ` | `SRC_DRAFT` |
-| `ArbitratedDriveTorque` | Motion arbitration 결과 토크 | `Nm` | `LF-MC-LON` | `LF-PROP-LIM` | `SRC_DRAFT` |
+| `ArbitratedDriveTorque` | Propulsion domain에 할당된 torque 후보(legacy name) | `Nm` | `LF-MC-ALLOC` | `LF-PROP-LIM` | `SRC_DRAFT` |
 | `MaxAllowedDriveTorque` | 토크 허용 상한 기준 | `Nm` | `OPEN` | `LF-PROP-LIM` | `SRC_DRAFT` |
 | `LimitedDriveTorque` | 토크 제한 후 요구 | `Nm` | `LF-PROP-LIM` | `LF-PROP-OUT,LF-PROP-MON` | `SRC_DRAFT` |
 | `PropulsionRequestValid` | 최종 Propulsion output 생성 전제 | `boolean` | `OPEN` | `LF-PROP-OUT` | `SRC_DRAFT` |
@@ -192,10 +192,10 @@ approval: AI_DRAFT # not approved until review
 | `DriverInputQuality` | 운전자 조작 입력의 타입·범위·유효성 메타데이터 | `quality` | `LF-DRV-VALID` | `LF-PROP-ACQ,LF-BRK-ACQ,LF-STR-ACQ` | `PROPOSED` |
 | `VehicleModeRequest` | 운용 모드 선택 요구 | `enum` | `LF-VS-MODE` | `LF-PROP-GEN` | `PROPOSED` |
 | `DomainAvailability` | 기능별 사용 가능 상태/사유 | `enum` | `LF-VS-FAULT` | `LF-MC-REQ,LF-PROP-STA,LF-BRK-STATE` | `PROPOSED` |
-| `CoordinatedLongitudinalRequest` | 종방향 조정 결과 | `typed request` | `LF-MC-LON` | `LF-MC-ALLOC,LF-PROP-LIM` | `PROPOSED` |
-| `AllocatedActuatorCommand` | 차량 구동/제동/조향으로 나눈 명령 | `typed bundle` | `LF-MC-ALLOC` | `LF-PROP-OUT,LF-BRK-CMD,LF-STR-ACT` | `PROPOSED` |
+| `CoordinatedLongitudinalRequest` | 종방향 feasible target | `typed request` | `LF-MC-LON` | `LF-MC-ALLOC` | `PROPOSED` |
+| `AllocatedActuatorCommand` | 차량 구동/제동/조향 domain 할당 bundle | `typed bundle` | `LF-MC-ALLOC` | `LF-PROP-OUT,LF-BRK-COORD,LF-STR-COORD` | `PROPOSED` |
 | `DrivePowerAvailable` | 전기 구동 전력 가용성 | `boolean or enum` | `LF-EN-READY` | `LF-EN-LIMIT,LF-PROP-LIM` | `PROPOSED` |
-| `EnergyDriveTorqueLimit` | 에너지/구동계 허용 토크 | `Nm` | `LF-EN-LIMIT` | `LF-MC-ALLOC,LF-PROP-LIM` | `PROPOSED` |
+| `EnergyDriveTorqueLimit` | 에너지/구동계 허용 토크 제약 | `Nm` | `LF-EN-LIMIT` | `LF-MC-LON` | `PROPOSED` |
 | `FaultRecoveryEligibility` | 복귀 승인 조건 | `enum/boolean` | `LF-FM-REC` | `LF-VS-FAULT,LF-PROP-REC` | `PROPOSED` |
 
 ### 4.1 Braking (17 관계 항목)
@@ -203,19 +203,19 @@ approval: AI_DRAFT # not approved until review
 |---|---|---|---|---|---|
 | `DriverInputQuality` | 운전자 조작 입력의 타입·범위·유효성 메타데이터 | `quality` | `LF-DRV-VALID` | `LF-PROP-ACQ,LF-BRK-ACQ,LF-STR-ACQ` | `PROPOSED` |
 | `DomainAvailability` | 기능별 사용 가능 상태/사유 | `enum` | `LF-VS-FAULT` | `LF-MC-REQ,LF-PROP-STA,LF-BRK-STATE` | `PROPOSED` |
-| `RequestedDeceleration` | 목표 감속 요구 | `m/s²` | `LF-BRK-DEMAND` | `LF-BRK-COORD,LF-MC-LON` | `PROPOSED` |
+| `RequestedDeceleration` | 목표 감속 요구 | `m/s²` | `LF-BRK-DEMAND` | `LF-MC-REQ` | `PROPOSED` |
 | `BrakeDemandValidity` | 제동 입력 품질/유효성 | `quality` | `LF-BRK-ACQ` | `LF-BRK-STATE,LF-BRK-DEMAND` | `PROPOSED` |
 | `BrakeAvailability` | 제동 기능의 가용성 | `enum` | `LF-BRK-STATE` | `LF-BRK-DEMAND,LF-MC-LON` | `PROPOSED` |
-| `SelectedBrakingRequest` | 출처 중재된 제동 요구 | `typed request` | `LF-BRK-COORD` | `LF-MC-LON,LF-BRK-BLEND` | `PROPOSED` |
-| `RegenTorqueRequested` | 회생제동 토크 요구 | `Nm` | `LF-BRK-BLEND` | `LF-MC-ALLOC` | `PROPOSED` |
+| `SelectedBrakingRequest` | 할당 이후 braking-domain demand | `typed request` | `LF-BRK-COORD` | `LF-BRK-BLEND` | `PROPOSED` |
+| `RegenTorqueRequested` | 회생제동 토크 요구 | `Nm` | `LF-BRK-BLEND` | `OPEN` | `PROPOSED` |
 | `FrictionBrakeTorqueRequest` | 마찰제동 토크 요구 | `Nm` | `LF-BRK-BLEND` | `LF-BRK-CMD` | `PROPOSED` |
 | `BrakeCommand` | 제동 제어기 출력 명령 | `OPEN` | `LF-BRK-CMD` | `LF-ACT-BRAKE` | `PROPOSED` |
 | `BrakeActuationFeedback` | 제동 실제 피드백 | `OPEN` | `OPEN` | `LF-BRK-FDBK` | `PROPOSED` |
 | `BrakeFaultObservation` | 제동 반응 이상 후보 | `event` | `LF-BRK-FDBK` | `LF-FM-OBS` | `PROPOSED` |
-| `AbsBrakeIntervention` | 잠김방지 제동 개입 제약 | `typed request` | `LF-STB-ABS` | `LF-STB-COORD,LF-BRK-CMD` | `PROPOSED` |
-| `StabilityConstraintRequest` | 합의된 안정화 제약 | `typed request` | `LF-STB-COORD` | `LF-MC-REQ,LF-BRK-COORD` | `PROPOSED` |
-| `AebBrakeRequest` | 자동 긴급 제동 요구 | `typed brake/decel` | `LF-ADAS-AEB` | `LF-MC-REQ,LF-BRK-ACQ` | `PROPOSED` |
-| `AllocatedActuatorCommand` | 차량 구동/제동/조향으로 나눈 명령 | `typed bundle` | `LF-MC-ALLOC` | `LF-PROP-OUT,LF-BRK-CMD,LF-STR-ACT` | `PROPOSED` |
+| `AbsBrakeIntervention` | 잠김방지 제동 개입 제약 | `typed request` | `LF-STB-ABS` | `LF-STB-COORD` | `PROPOSED` |
+| `StabilityConstraintRequest` | 합의된 안정화 제약 | `typed request` | `LF-STB-COORD` | `LF-MC-REQ` | `PROPOSED` |
+| `AebBrakeRequest` | 자동 긴급 제동 요구 | `typed brake/decel` | `LF-ADAS-AEB` | `LF-MC-REQ` | `PROPOSED` |
+| `AllocatedActuatorCommand` | 차량 구동/제동/조향 domain 할당 bundle | `typed bundle` | `LF-MC-ALLOC` | `LF-PROP-OUT,LF-BRK-COORD,LF-STR-COORD` | `PROPOSED` |
 | `RegenAvailable` | 회생제동 가용성 | `boolean or enum` | `LF-EN-READY` | `LF-BRK-BLEND` | `PROPOSED` |
 | `RegenTorqueLimit` | 회생 제동 허용 토크 | `Nm` | `LF-EN-LIMIT` | `LF-BRK-BLEND` | `PROPOSED` |
 
@@ -225,12 +225,12 @@ approval: AI_DRAFT # not approved until review
 | `DriverInputQuality` | 운전자 조작 입력의 타입·범위·유효성 메타데이터 | `quality` | `LF-DRV-VALID` | `LF-PROP-ACQ,LF-BRK-ACQ,LF-STR-ACQ` | `PROPOSED` |
 | `SteeringDemandNormalized` | 운전자 조향 요구 | `ratio` | `LF-STR-ACQ` | `LF-STR-DEMAND` | `PROPOSED` |
 | `SteeringAvailability` | 조향 기능 가용성 | `enum` | `LF-STR-STATE` | `LF-STR-COORD` | `PROPOSED` |
-| `RequestedSteeringAction` | 요구 조향 동작 | `OPEN` | `LF-STR-DEMAND` | `LF-STR-COORD` | `PROPOSED` |
-| `SelectedSteeringRequest` | 운전자/LKA 조정 요청 | `typed request` | `LF-STR-COORD` | `LF-MC-LAT` | `PROPOSED` |
+| `RequestedSteeringAction` | 요구 조향 동작 | `OPEN` | `LF-STR-DEMAND` | `LF-MC-REQ` | `PROPOSED` |
+| `SelectedSteeringRequest` | 할당된 lateral-domain target | `typed request` | `LF-MC-ALLOC` | `LF-STR-COORD` | `PROPOSED` |
 | `EPSCommand` | EPS 동작 명령 | `OPEN` | `LF-STR-ACT` | `LF-ACT-STEER` | `PROPOSED` |
 | `SteeringActuationFeedback` | 조향 실제 응답 | `OPEN` | `OPEN` | `LF-STR-MON` | `PROPOSED` |
-| `LkaAssistRequest` | 차로 유지 조향 보조 요구 | `OPEN` | `LF-ADAS-LKA` | `LF-MC-REQ,LF-STR-COORD` | `PROPOSED` |
-| `AllocatedActuatorCommand` | 차량 구동/제동/조향으로 나눈 명령 | `typed bundle` | `LF-MC-ALLOC` | `LF-PROP-OUT,LF-BRK-CMD,LF-STR-ACT` | `PROPOSED` |
+| `LkaAssistRequest` | 차로 유지 조향 보조 요구 | `OPEN` | `LF-ADAS-LKA` | `LF-MC-REQ` | `PROPOSED` |
+| `AllocatedActuatorCommand` | 차량 구동/제동/조향 domain 할당 bundle | `typed bundle` | `LF-MC-ALLOC` | `LF-PROP-OUT,LF-BRK-COORD,LF-STR-COORD` | `PROPOSED` |
 
 ### 4.1 Stability (8 관계 항목)
 | 신호명 | 의미 | 단위 | 생산자 후보 | 소비자 | 근거 |
@@ -238,10 +238,10 @@ approval: AI_DRAFT # not approved until review
 | `WheelAngularVelocity` | 차륜 회전속도 관측 | `rad/s` | `OPEN` | `LF-STB-ABS,LF-STB-TCS` | `PROPOSED` |
 | `WheelSlipRatio` | 휠 slip 추정/판정 | `ratio` | `OPEN` | `LF-STB-ABS,LF-STB-TCS` | `PROPOSED` |
 | `YawRateEstimate` | 차량 yaw 운동량 추정 | `rad/s` | `OPEN` | `LF-STB-ESC` | `PROPOSED` |
-| `AbsBrakeIntervention` | 잠김방지 제동 개입 제약 | `typed request` | `LF-STB-ABS` | `LF-STB-COORD,LF-BRK-CMD` | `PROPOSED` |
-| `TractionTorqueConstraint` | 구동 미끄럼 제한 제약 | `Nm or typed limit` | `LF-STB-TCS` | `LF-STB-COORD,LF-MC-LON` | `PROPOSED` |
-| `EscMotionCorrection` | 차량 자세 안정화 개입 후보 | `typed request` | `LF-STB-ESC` | `LF-STB-COORD,LF-MC-REQ` | `PROPOSED` |
-| `StabilityConstraintRequest` | 합의된 안정화 제약 | `typed request` | `LF-STB-COORD` | `LF-MC-REQ,LF-BRK-COORD` | `PROPOSED` |
+| `AbsBrakeIntervention` | 잠김방지 제동 개입 제약 | `typed request` | `LF-STB-ABS` | `LF-STB-COORD` | `PROPOSED` |
+| `TractionTorqueConstraint` | 구동 미끄럼 제한 제약 | `Nm or typed limit` | `LF-STB-TCS` | `LF-STB-COORD` | `PROPOSED` |
+| `EscMotionCorrection` | 차량 자세 안정화 개입 후보 | `typed request` | `LF-STB-ESC` | `LF-STB-COORD` | `PROPOSED` |
+| `StabilityConstraintRequest` | 합의된 안정화 제약 | `typed request` | `LF-STB-COORD` | `LF-MC-REQ` | `PROPOSED` |
 | `VehicleRoadContactState` | 타이어/노면 접촉 상태 | `struct` | `LF-PLANT-MOTION` | `LF-STB-ABS,LF-STB-TCS` | `PROPOSED` |
 
 ### 4.1 ADAS (11 관계 항목)
@@ -251,9 +251,9 @@ approval: AI_DRAFT # not approved until review
 | `ObjectRelativeVelocity` | 대상 상대 속도 | `m/s` | `LF-ENV-STATE` | `LF-ADAS-AEB,LF-ADAS-ACC` | `PROPOSED` |
 | `ObjectInPath` | 대상이 진행 경로에 있는지 | `boolean` | `LF-ENV-STATE` | `LF-ADAS-AEB` | `PROPOSED` |
 | `LaneOffset` | 차로 중심 기준 상대 위치 | `m` | `LF-ENV-STATE` | `LF-ADAS-LKA` | `PROPOSED` |
-| `AebBrakeRequest` | 자동 긴급 제동 요구 | `typed brake/decel` | `LF-ADAS-AEB` | `LF-MC-REQ,LF-BRK-ACQ` | `PROPOSED` |
+| `AebBrakeRequest` | 자동 긴급 제동 요구 | `typed brake/decel` | `LF-ADAS-AEB` | `LF-MC-REQ` | `PROPOSED` |
 | `AccLongitudinalRequest` | 순항 속도/차간거리 기반 종방향 요구 | `m/s² or typed` | `LF-ADAS-ACC` | `LF-MC-REQ` | `PROPOSED` |
-| `LkaAssistRequest` | 차로 유지 조향 보조 요구 | `OPEN` | `LF-ADAS-LKA` | `LF-MC-REQ,LF-STR-COORD` | `PROPOSED` |
+| `LkaAssistRequest` | 차로 유지 조향 보조 요구 | `OPEN` | `LF-ADAS-LKA` | `LF-MC-REQ` | `PROPOSED` |
 | `AebAvailability` | AEB 기능 가용성 | `enum` | `LF-ADAS-COMMON` | `LF-ADAS-AEB` | `PROPOSED` |
 | `AccAvailability` | ACC 기능 가용성 | `enum` | `LF-ADAS-COMMON` | `LF-ADAS-ACC` | `PROPOSED` |
 | `LkaAvailability` | LKA 기능 가용성 | `enum` | `LF-ADAS-COMMON` | `LF-ADAS-LKA` | `PROPOSED` |
@@ -263,28 +263,28 @@ approval: AI_DRAFT # not approved until review
 | 신호명 | 의미 | 단위 | 생산자 후보 | 소비자 | 근거 |
 |---|---|---|---|---|---|
 | `RequestedDriveTorque` | Motion Arbitration 이전 토크 요구 | `Nm` | `LF-PROP-GEN` | `LF-MC-REQ` | `SRC_DRAFT` |
-| `ArbitratedDriveTorque` | Motion arbitration 결과 토크 | `Nm` | `LF-MC-LON` | `LF-PROP-LIM` | `SRC_DRAFT` |
+| `ArbitratedDriveTorque` | Propulsion domain에 할당된 torque 후보(legacy name) | `Nm` | `LF-MC-ALLOC` | `LF-PROP-LIM` | `SRC_DRAFT` |
 | `DomainAvailability` | 기능별 사용 가능 상태/사유 | `enum` | `LF-VS-FAULT` | `LF-MC-REQ,LF-PROP-STA,LF-BRK-STATE` | `PROPOSED` |
-| `RequestedDeceleration` | 목표 감속 요구 | `m/s²` | `LF-BRK-DEMAND` | `LF-BRK-COORD,LF-MC-LON` | `PROPOSED` |
+| `RequestedDeceleration` | 목표 감속 요구 | `m/s²` | `LF-BRK-DEMAND` | `LF-MC-REQ` | `PROPOSED` |
 | `BrakeAvailability` | 제동 기능의 가용성 | `enum` | `LF-BRK-STATE` | `LF-BRK-DEMAND,LF-MC-LON` | `PROPOSED` |
-| `SelectedBrakingRequest` | 출처 중재된 제동 요구 | `typed request` | `LF-BRK-COORD` | `LF-MC-LON,LF-BRK-BLEND` | `PROPOSED` |
-| `RegenTorqueRequested` | 회생제동 토크 요구 | `Nm` | `LF-BRK-BLEND` | `LF-MC-ALLOC` | `PROPOSED` |
-| `SelectedSteeringRequest` | 운전자/LKA 조정 요청 | `typed request` | `LF-STR-COORD` | `LF-MC-LAT` | `PROPOSED` |
-| `TractionTorqueConstraint` | 구동 미끄럼 제한 제약 | `Nm or typed limit` | `LF-STB-TCS` | `LF-STB-COORD,LF-MC-LON` | `PROPOSED` |
-| `EscMotionCorrection` | 차량 자세 안정화 개입 후보 | `typed request` | `LF-STB-ESC` | `LF-STB-COORD,LF-MC-REQ` | `PROPOSED` |
-| `StabilityConstraintRequest` | 합의된 안정화 제약 | `typed request` | `LF-STB-COORD` | `LF-MC-REQ,LF-BRK-COORD` | `PROPOSED` |
-| `AebBrakeRequest` | 자동 긴급 제동 요구 | `typed brake/decel` | `LF-ADAS-AEB` | `LF-MC-REQ,LF-BRK-ACQ` | `PROPOSED` |
+| `SelectedBrakingRequest` | 할당 이후 braking-domain demand | `typed request` | `LF-BRK-COORD` | `LF-BRK-BLEND` | `PROPOSED` |
+| `RegenTorqueRequested` | 회생제동 토크 요구 | `Nm` | `LF-BRK-BLEND` | `OPEN` | `PROPOSED` |
+| `SelectedSteeringRequest` | 할당된 lateral-domain target | `typed request` | `LF-MC-ALLOC` | `LF-STR-COORD` | `PROPOSED` |
+| `TractionTorqueConstraint` | 구동 미끄럼 제한 제약 | `Nm or typed limit` | `LF-STB-TCS` | `LF-STB-COORD` | `PROPOSED` |
+| `EscMotionCorrection` | 차량 자세 안정화 개입 후보 | `typed request` | `LF-STB-ESC` | `LF-STB-COORD` | `PROPOSED` |
+| `StabilityConstraintRequest` | 합의된 안정화 제약 | `typed request` | `LF-STB-COORD` | `LF-MC-REQ` | `PROPOSED` |
+| `AebBrakeRequest` | 자동 긴급 제동 요구 | `typed brake/decel` | `LF-ADAS-AEB` | `LF-MC-REQ` | `PROPOSED` |
 | `AccLongitudinalRequest` | 순항 속도/차간거리 기반 종방향 요구 | `m/s² or typed` | `LF-ADAS-ACC` | `LF-MC-REQ` | `PROPOSED` |
-| `LkaAssistRequest` | 차로 유지 조향 보조 요구 | `OPEN` | `LF-ADAS-LKA` | `LF-MC-REQ,LF-STR-COORD` | `PROPOSED` |
+| `LkaAssistRequest` | 차로 유지 조향 보조 요구 | `OPEN` | `LF-ADAS-LKA` | `LF-MC-REQ` | `PROPOSED` |
 | `MotionRequestEnvelope` | 출처/유형 보존 통합 요구 envelope | `typed request` | `LF-MC-REQ` | `LF-MC-AUTH` | `PROPOSED` |
 | `ControlAuthority` | 현재 출처별 제어권 결과 | `enum/struct` | `LF-MC-AUTH` | `LF-MC-LON,LF-MC-LAT` | `PROPOSED` |
-| `CoordinatedLongitudinalRequest` | 종방향 조정 결과 | `typed request` | `LF-MC-LON` | `LF-MC-ALLOC,LF-PROP-LIM` | `PROPOSED` |
+| `CoordinatedLongitudinalRequest` | 종방향 feasible target | `typed request` | `LF-MC-LON` | `LF-MC-ALLOC` | `PROPOSED` |
 | `CoordinatedLateralRequest` | 횡방향 조정 결과 | `typed request` | `LF-MC-LAT` | `LF-MC-ALLOC` | `PROPOSED` |
-| `AllocatedActuatorCommand` | 차량 구동/제동/조향으로 나눈 명령 | `typed bundle` | `LF-MC-ALLOC` | `LF-PROP-OUT,LF-BRK-CMD,LF-STR-ACT` | `PROPOSED` |
+| `AllocatedActuatorCommand` | 차량 구동/제동/조향 domain 할당 bundle | `typed bundle` | `LF-MC-ALLOC` | `LF-PROP-OUT,LF-BRK-COORD,LF-STR-COORD` | `PROPOSED` |
 | `MotionCoordinationObservation` | 요구/결정/출력 일관성 확인 | `event` | `LF-MC-MON` | `LF-FM-OBS` | `PROPOSED` |
 | `VehicleMotionObservation` | vehicle plant 관측 + provenance | `typed snapshot` | `LF-SEN-MOTION` | `LF-MC-LON,LF-ADAS-AEB,LF-ADAS-ACC` | `PROPOSED` |
 | `SignalQuality` | 타입·freshness·validity 품질 | `enum/quality` | `LF-SEN-QUALITY` | `LF-FM-OBS,LF-MC-REQ` | `PROPOSED` |
-| `EnergyDriveTorqueLimit` | 에너지/구동계 허용 토크 | `Nm` | `LF-EN-LIMIT` | `LF-MC-ALLOC,LF-PROP-LIM` | `PROPOSED` |
+| `EnergyDriveTorqueLimit` | 에너지/구동계 허용 토크 제약 | `Nm` | `LF-EN-LIMIT` | `LF-MC-LON` | `PROPOSED` |
 | `FaultReactionConstraint` | domain별 고장 대응 제약 | `typed request` | `LF-FM-REACT` | `LF-VS-FAULT,LF-MC-REQ` | `PROPOSED` |
 
 ### 4.1 Sensing (10 관계 항목)
@@ -310,7 +310,7 @@ approval: AI_DRAFT # not approved until review
 | `LaneOffset` | 차로 중심 기준 상대 위치 | `m` | `LF-ENV-STATE` | `LF-ADAS-LKA` | `PROPOSED` |
 | `DrivePowerAvailable` | 전기 구동 전력 가용성 | `boolean or enum` | `LF-EN-READY` | `LF-EN-LIMIT,LF-PROP-LIM` | `PROPOSED` |
 | `RegenAvailable` | 회생제동 가용성 | `boolean or enum` | `LF-EN-READY` | `LF-BRK-BLEND` | `PROPOSED` |
-| `EnergyDriveTorqueLimit` | 에너지/구동계 허용 토크 | `Nm` | `LF-EN-LIMIT` | `LF-MC-ALLOC,LF-PROP-LIM` | `PROPOSED` |
+| `EnergyDriveTorqueLimit` | 에너지/구동계 허용 토크 제약 | `Nm` | `LF-EN-LIMIT` | `LF-MC-LON` | `PROPOSED` |
 | `RegenTorqueLimit` | 회생 제동 허용 토크 | `Nm` | `LF-EN-LIMIT` | `LF-BRK-BLEND` | `PROPOSED` |
 | `EnergyLimitObservation` | 에너지 제한 초과 등 후보 | `event` | `LF-EN-MON` | `LF-FM-OBS` | `PROPOSED` |
 | `ScenarioRoadState` | 도로 기하·마찰 및 Scenario 조건 | `struct` | `LF-PLANT-ENV` | `LF-ENV-STATE,LF-PLANT-MOTION` | `PROPOSED` |
@@ -398,24 +398,24 @@ approval: AI_DRAFT # not approved until review
 | `LF-PROP-ACQ` | `DriverInputRuntime.accelerator`(C, 보고), `AcceleratorPedalPosition`(P, 문서), `AcceleratorPedalValid`(C, 문서), `DriverDriveRequestValid`(P, 문서) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-PROP-INTERP` | `AcceleratorPedalPosition`(C, 문서), `DriverDriveRequestValid`(C, 문서), `DriverDriveDemand`(P, 문서) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-PROP-GEN` | `PropulsionRequest`(C, 보고), `VehicleSpeed`(C, 보고), `DriveTorqueRequest`(P, 보고), `Direction`(C, 보고) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
-| `LF-PROP-LIM` | `ArbitratedDriveTorque`(C, 문서), `MaxAllowedDriveTorque`(C, 문서), `LimitedDriveTorque`(P, 문서), `CoordinatedLongitudinalRequest`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
+| `LF-PROP-LIM` | `ArbitratedDriveTorque`(C, 문서·legacy name), `MaxAllowedDriveTorque`(C, 문서), `LimitedDriveTorque`(P, 문서) | **MC allocation 이후 domain limit이며 실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-PROP-OUT` | `LimitedDriveTorque`(C, 문서), `PropulsionRequestValid`(C, 문서), `DriveTorqueCommand`(P, 문서), `DriveTorqueCommandValid`(P, 문서) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-PROP-MON` | `LimitedDriveTorque`(C, 문서), `DriveTorqueCommand`(C, 문서), `CommandTorqueTolerance`(C, 문서), `CommandTorqueDeviation`(P, 문서) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-PROP-REACT` | `PropulsionOperatingState`(C, 문서), `PropulsionFaultStatus`(C, 문서), `DegradedTorqueLimit`(C, 문서) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-PROP-REC` | `PropulsionFaultStatus`(C, 문서), `RecoveryConditionsSatisfied`(C, 문서), `FaultRecoveryEligibility`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-PROP-EDRV` | `DriveTorqueRequest`(C, 보고), `EDriveCommand`(P, 보고), `Direction`(C, 보고), `Validity`(C, 보고) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
-| `LF-BRK-ACQ` | `DriverInputQuality`(C, 제안), `BrakeDemandValidity`(P, 제안), `AebBrakeRequest`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
+| `LF-BRK-ACQ` | `DriverInputQuality`(C, 제안), `BrakeDemandValidity`(P, 제안) | **AEB는 LF-MC-REQ로 직접 들어가며 실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-BRK-STATE` | `DomainAvailability`(C, 제안), `BrakeDemandValidity`(C, 제안), `BrakeAvailability`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-BRK-DEMAND` | `RequestedDeceleration`(P, 제안), `BrakeDemandValidity`(C, 제안), `BrakeAvailability`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
-| `LF-BRK-COORD` | `RequestedDeceleration`(C, 제안), `SelectedBrakingRequest`(P, 제안), `StabilityConstraintRequest`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
+| `LF-BRK-COORD` | `AllocatedActuatorCommand`(C, 제안), `SelectedBrakingRequest`(P, 제안) | **MC 할당 이후 domain coordination이며 실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-BRK-BLEND` | `SelectedBrakingRequest`(C, 제안), `RegenTorqueRequested`(P, 제안), `FrictionBrakeTorqueRequest`(P, 제안), `RegenAvailable`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
-| `LF-BRK-CMD` | `FrictionBrakeTorqueRequest`(C, 제안), `BrakeCommand`(P, 제안), `AbsBrakeIntervention`(C, 제안), `AllocatedActuatorCommand`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
+| `LF-BRK-CMD` | `FrictionBrakeTorqueRequest`(C, 제안), `BrakeCommand`(P, 제안) | **ABS exact placement는 외부 검증 대상이며 실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-BRK-FDBK` | `BrakeActuationFeedback`(C, 제안), `BrakeFaultObservation`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-STR-ACQ` | `DriverInputQuality`(C, 제안), `SteeringDemandNormalized`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-STR-STATE` | `SteeringAvailability`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-STR-DEMAND` | `SteeringDemandNormalized`(C, 제안), `RequestedSteeringAction`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
-| `LF-STR-COORD` | `SteeringAvailability`(C, 제안), `RequestedSteeringAction`(C, 제안), `SelectedSteeringRequest`(P, 제안), `LkaAssistRequest`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
-| `LF-STR-ACT` | `EPSCommand`(P, 제안), `AllocatedActuatorCommand`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
+| `LF-STR-COORD` | `SteeringAvailability`(C, 제안), `SelectedSteeringRequest`(C, 제안) | **MC 할당 이후 domain coordination이며 실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
+| `LF-STR-ACT` | `EPSCommand`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-STR-MON` | `SteeringActuationFeedback`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-STB-ABS` | `WheelAngularVelocity`(C, 제안), `WheelSlipRatio`(C, 제안), `AbsBrakeIntervention`(P, 제안), `VehicleRoadContactState`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-STB-TCS` | `WheelAngularVelocity`(C, 제안), `WheelSlipRatio`(C, 제안), `TractionTorqueConstraint`(P, 제안), `VehicleRoadContactState`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
@@ -425,11 +425,11 @@ approval: AI_DRAFT # not approved until review
 | `LF-ADAS-ACC` | `ObjectRelativeDistance`(C, 제안), `ObjectRelativeVelocity`(C, 제안), `AccLongitudinalRequest`(P, 제안), `AccAvailability`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-ADAS-LKA` | `LaneOffset`(C, 제안), `LkaAssistRequest`(P, 제안), `LkaAvailability`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-ADAS-COMMON` | `AebAvailability`(P, 제안), `AccAvailability`(P, 제안), `LkaAvailability`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
-| `LF-MC-REQ` | `RequestedDriveTorque`(C, 문서), `DomainAvailability`(C, 제안), `EscMotionCorrection`(C, 제안), `StabilityConstraintRequest`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
+| `LF-MC-REQ` | `RequestedDriveTorque`, `RequestedDeceleration`, `RequestedSteeringAction`, `AebBrakeRequest`, `LkaAssistRequest`, `StabilityConstraintRequest`, `FaultReactionConstraint`, `DomainAvailability`(모두 C, 제안) | **request와 constraint를 구분하며 실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-MC-AUTH` | `MotionRequestEnvelope`(C, 제안), `ControlAuthority`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
-| `LF-MC-LON` | `ArbitratedDriveTorque`(P, 문서), `RequestedDeceleration`(C, 제안), `BrakeAvailability`(C, 제안), `SelectedBrakingRequest`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
-| `LF-MC-LAT` | `SelectedSteeringRequest`(C, 제안), `ControlAuthority`(C, 제안), `CoordinatedLateralRequest`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
-| `LF-MC-ALLOC` | `RegenTorqueRequested`(C, 제안), `CoordinatedLongitudinalRequest`(C, 제안), `CoordinatedLateralRequest`(C, 제안), `AllocatedActuatorCommand`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
+| `LF-MC-LON` | `EnergyDriveTorqueLimit`, `BrakeAvailability`(C, 제안), `CoordinatedLongitudinalRequest`(P, 제안) | **constraint provenance를 보존하며 실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
+| `LF-MC-LAT` | `ControlAuthority`(C, 제안), `CoordinatedLateralRequest`(P, 제안) | **lateral quantity는 외부 검증 대상이며 실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
+| `LF-MC-ALLOC` | `CoordinatedLongitudinalRequest`, `CoordinatedLateralRequest`(C, 제안), `AllocatedActuatorCommand`, `ArbitratedDriveTorque`, `SelectedSteeringRequest`(P, 제안) | **domain allocation이며 실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-MC-MON` | `MotionCoordinationObservation`(P, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-SEN-MOTION` | `VehicleSpeed`(C, 보고), `VehicleLongitudinalVelocity`(C, 제안), `VehicleLongitudinalAcceleration`(C, 제안), `VehiclePositionXZ`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
 | `LF-SEN-ACT` | `ActualDriveTorque`(C, 문서), `ActuatorEndpointObservation`(P, 제안), `PortSourceSample`(C, 제안), `PortDestinationSample`(C, 제안) | **실제 포트·상세 제어 로직은 코드 검증 전 미승인** |
@@ -477,13 +477,13 @@ approval: AI_DRAFT # not approved until review
 | `IFC-DESIGN-013` | `LF-FM-REC` | `LF-PROP-REC` | `RecoveryConditionsSatisfied` | LOGICAL_REF | `SRC_DRAFT` |
 | `IFC-DESIGN-014` | `LF-GEAR-ACQ` | `LF-GEAR-INTERLOCK` | `GearRequest` | PROPOSED_LOGICAL | `PROPOSED` |
 | `IFC-DESIGN-015` | `LF-BRK-ACQ` | `LF-BRK-DEMAND` | `BrakeDemandValidity` | PROPOSED_LOGICAL | `PROPOSED` |
-| `IFC-DESIGN-016` | `LF-BRK-DEMAND` | `LF-BRK-COORD` | `RequestedDeceleration` | PROPOSED_LOGICAL | `PROPOSED` |
+| `IFC-DESIGN-016` | `LF-BRK-DEMAND` | `LF-MC-REQ` | `RequestedDeceleration` | REFERENCE_REQUEST_PATH | `PROPOSED` |
 | `IFC-DESIGN-017` | `LF-BRK-COORD` | `LF-BRK-BLEND` | `SelectedBrakingRequest` | PROPOSED_LOGICAL | `PROPOSED` |
 | `IFC-DESIGN-018` | `LF-BRK-BLEND` | `LF-BRK-CMD` | `FrictionBrakeTorqueRequest` | PROPOSED_LOGICAL | `PROPOSED` |
 | `IFC-DESIGN-019` | `LF-BRK-CMD` | `LF-ACT-BRAKE` | `BrakeCommand` | PROPOSED_SOFTWARE | `PROPOSED` |
 | `IFC-DESIGN-020` | `LF-STR-ACQ` | `LF-STR-DEMAND` | `SteeringDemandNormalized` | PROPOSED_LOGICAL | `PROPOSED` |
-| `IFC-DESIGN-021` | `LF-STR-DEMAND` | `LF-STR-COORD` | `RequestedSteeringAction` | PROPOSED_LOGICAL | `PROPOSED` |
-| `IFC-DESIGN-022` | `LF-STR-COORD` | `LF-MC-LAT` | `SelectedSteeringRequest` | PROPOSED_LOGICAL | `PROPOSED` |
+| `IFC-DESIGN-021` | `LF-STR-DEMAND` | `LF-MC-REQ` | `RequestedSteeringAction` | REFERENCE_REQUEST_PATH | `PROPOSED` |
+| `IFC-DESIGN-022` | `LF-MC-ALLOC` | `LF-STR-COORD` | `SelectedSteeringRequest` | REFERENCE_ALLOCATION_PATH | `PROPOSED` |
 | `IFC-DESIGN-023` | `LF-STR-ACT` | `LF-ACT-STEER` | `EPSCommand` | PROPOSED_SOFTWARE | `PROPOSED` |
 | `IFC-DESIGN-024` | `LF-STB-COORD` | `LF-MC-REQ` | `StabilityConstraintRequest` | PROPOSED_LOGICAL | `PROPOSED` |
 | `IFC-DESIGN-025` | `LF-ADAS-AEB` | `LF-MC-REQ` | `AebBrakeRequest` | PROPOSED_LOGICAL | `PROPOSED` |
@@ -494,8 +494,8 @@ approval: AI_DRAFT # not approved until review
 | `IFC-DESIGN-030` | `LF-MC-AUTH` | `LF-MC-LAT` | `ControlAuthority` | PROPOSED_LOGICAL | `PROPOSED` |
 | `IFC-DESIGN-031` | `LF-MC-LON` | `LF-MC-ALLOC` | `CoordinatedLongitudinalRequest` | PROPOSED_LOGICAL | `PROPOSED` |
 | `IFC-DESIGN-032` | `LF-MC-LAT` | `LF-MC-ALLOC` | `CoordinatedLateralRequest` | PROPOSED_LOGICAL | `PROPOSED` |
-| `IFC-DESIGN-033` | `LF-MC-ALLOC` | `LF-PROP-OUT` | `AllocatedActuatorCommand` | PROPOSED_LOGICAL | `PROPOSED` |
-| `IFC-DESIGN-034` | `LF-EN-LIMIT` | `LF-PROP-LIM` | `EnergyDriveTorqueLimit` | PROPOSED_LOGICAL | `PROPOSED` |
+| `IFC-DESIGN-033` | `LF-MC-ALLOC` | `LF-PROP-OUT;LF-BRK-COORD;LF-STR-COORD` | `AllocatedActuatorCommand` | REFERENCE_ALLOCATION_PATH | `PROPOSED` |
+| `IFC-DESIGN-034` | `LF-EN-LIMIT` | `LF-MC-LON` | `EnergyDriveTorqueLimit` | REFERENCE_CONSTRAINT_PATH | `PROPOSED` |
 | `IFC-DESIGN-035` | `LF-EN-LIMIT` | `LF-BRK-BLEND` | `RegenTorqueLimit` | PROPOSED_LOGICAL | `PROPOSED` |
 | `IFC-DESIGN-036` | `LF-ENV-STATE` | `LF-ADAS-AEB` | `ObjectRelativeDistance` | PROPOSED_LOGICAL | `PROPOSED` |
 | `IFC-DESIGN-037` | `LF-ENV-STATE` | `LF-ADAS-ACC` | `ObjectRelativeVelocity` | PROPOSED_LOGICAL | `PROPOSED` |
@@ -503,7 +503,7 @@ approval: AI_DRAFT # not approved until review
 | `IFC-DESIGN-039` | `OPEN` | `LF-STB-ABS` | `WheelSlipRatio` | PROPOSED_SENSING | `PROPOSED` |
 | `IFC-DESIGN-040` | `OPEN` | `LF-STB-ESC` | `YawRateEstimate` | PROPOSED_SENSING | `PROPOSED` |
 | `IFC-DESIGN-041` | `LF-FM-DETECT` | `LF-FM-REACT` | `FaultDetectionStatus` | PROPOSED_LOGICAL | `PROPOSED` |
-| `IFC-DESIGN-042` | `LF-FM-REACT` | `LF-VS-FAULT` | `FaultReactionConstraint` | PROPOSED_LOGICAL | `PROPOSED` |
+| `IFC-DESIGN-042` | `LF-FM-REACT` | `LF-VS-FAULT;LF-MC-REQ` | `FaultReactionConstraint` | REFERENCE_STATE_AND_CONSTRAINT_PATH | `PROPOSED` |
 | `IFC-DESIGN-043` | `LF-COM-PORT` | `LF-SEN-ACT` | `PortSourceSample` | INTERNAL_PORT_TELEMETRY | `PROPOSED` |
 | `IFC-DESIGN-044` | `LF-COM-NET` | `LF-COM-SUP` | `VirtualCanFrameEvent` | VIRTUAL_NETWORK | `PROPOSED` |
 | `IFC-DESIGN-045` | `LF-EXE-SCHED` | `LF-EXE-SUP` | `RunnableExecutionEvent` | LOGICAL_CLOCK | `PROPOSED` |
@@ -511,6 +511,7 @@ approval: AI_DRAFT # not approved until review
 | `IFC-DESIGN-047` | `LF-PLANT-MOTION` | `LF-EXE-RECORD` | `VehicleSpeed` | RECORDED_EVENT | `PROPOSED` |
 | `IFC-DESIGN-048` | `LF-OCC-IMPACT` | `LF-OCC-DECIDE` | `CrashRelatedObservation` | PROPOSED_SAFETY | `PROPOSED` |
 | `IFC-DESIGN-049` | `LF-OCC-DECIDE` | `LF-OCC-DEPLOY` | `ProtectionDecision` | PROPOSED_SAFETY | `PROPOSED` |
+| `IFC-DESIGN-050` | `LF-PROP-GEN` | `LF-MC-REQ` | `RequestedDriveTorque` | REFERENCE_REQUEST_PATH | `PROPOSED` |
 
 ### 6.1 비교 가능한 경계와 단위가 변하는 경계
 - `DriveTorqueRequest`의 **VMC Source Output ↔ eDrive Consumer Input**은 같은 단위의 값 전달 후보이나, 현재 보고는 독립 endpoint 샘플을 증명하지 않는다. 동일 tick의 `sourceProducedAt`과 `destConsumedAt`과 전달 정책을 실제로 확인해야 한다.

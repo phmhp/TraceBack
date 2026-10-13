@@ -1,20 +1,20 @@
-# TRACKBACK Phase 03 — 차량 전체 내부 로직 및 상태 머신 통합 설계 — Architecture Correction v0.3
+# TRACKBACK Phase 03 — 차량 전체 내부 로직 및 상태 머신 통합 설계 — Control-flow Normalization v0.3.1
 
 > Document: 03_INTERNAL_LOGIC_STATE_MACHINE_KO  
-> Version: 0.3  
+> Version: 0.3.1
 > Status: REVIEWED_DRAFT  
 > Canonical: YES  
-> Last Reviewed: 2026-10-10  
+> Last Reviewed: 2026-10-13
 > Runtime Baseline: current C/WASM + TypeScript host + Rapier simulation  
 > Scope: merged Phase 03 logic/state reference; design-only behavior remains explicitly non-runtime
 
-## Canonical runtime semantic overlay (2026-10-10)
+## Canonical runtime semantic overlay (2026-10-13)
 
-- C symbol `Trackback_VMC`의 canonical semantic role은 **Propulsion Torque Generation**이다. 다중 요청 arbitration, authority, coordination, allocation을 포함하는 전체 Vehicle Motion Coordination은 `DESIGN_ONLY`다.
+- C symbol `Trackback_VMC`의 canonical semantic role은 현재 Propulsion 경로의 **Propulsion Torque Generation / local propulsion attenuation**이다. 다중 요청 arbitration, authority, longitudinal/lateral coordination, allocation을 포함하는 `LF-MC-REQ/AUTH/LON/LAT/ALLOC`은 모두 `DESIGN_ONLY`다.
 - brake가 active일 때 drive를 억제하는 현 정책은 `HOST_DRIVE_BRAKE_ARBITRATION_POLICY`다. `LF-MC-AUTH`, `LF-MC-ALLOC`, `LF-BRK-COORD` 구현 증거가 아니다.
 - 호환 필드 `VehicleReady`와 `PropulsionEnable`의 현재 의미는 각각 `HOST_SIMULATION_READY`, `HOST_PROPULSION_ENABLE_ASSUMPTION`이다. Vehicle State Manager 출력이 아니다.
 
-## v0.3 corrected state and authority model
+## v0.3.1 normalized state and authority model
 
 ### Vehicle State contracts
 
@@ -31,7 +31,9 @@
 
 `LF-MC-REQ`는 `MOTION_REQUEST`와 `CONSTRAINT`를 구별해 수집한다. `LF-MC-AUTH`는 selected source, rejected sources, priority class, decision reason, validity, time basis를 보존한다. `LF-MC-LON`은 constraint provenance를 잃지 않는 `EffectiveControlEnvelope`를 만든다. `LF-MC-ALLOC`은 feasible target을 Propulsion/Braking domain allocation으로 분해한다. 정확한 target quantity와 numeric policy는 `OPEN`이다.
 
-Braking 내부 논리 순서는 `Brake Request Acquisition → Brake Demand Interpretation → Total/Allocated Brake Demand → Brake Coordination → Regen/Friction Allocation → Stability Modulation Interface → Final Brake Command → Feedback/Availability`다. ABS는 정상 high-level brake demand source가 아니며 wheel modulation/constraint/command modification 중 정확한 placement는 `EXTERNAL_VALIDATION_REQUIRED`다.
+Braking reference 흐름은 `Driver/AEB source → LF-BRK-ACQ/LF-BRK-DEMAND 또는 LF-MC-REQ → LF-MC-AUTH → LF-MC-LON → LF-MC-ALLOC → LF-BRK-COORD → LF-BRK-BLEND → LF-BRK-CMD → LF-ACT-BRAKE → Plant`다. `BrakeDemand`, `AllocatedBrakeDemand`, `FinalBrakeCommand`, `BrakeForce`는 서로 다른 semantic quantity이며 alias가 아니다. ABS는 정상 high-level brake demand source가 아니며 wheel modulation/constraint/command modification 중 정확한 placement는 `EXTERNAL_VALIDATION_REQUIRED`다.
+
+Lateral reference 흐름은 `Driver steering/LKA/typed ESC input → acquisition/interpretation → LF-MC-REQ → LF-MC-AUTH → LF-MC-LAT → LF-MC-ALLOC → LF-STR-COORD → LF-STR-ACT → LF-ACT-STEER → Plant`다. `LF-STR-COORD`는 vehicle-level authority를 재실행하지 않는다. 최종 lateral 물리량은 `OPEN_EXTERNAL_VALIDATION_REQUIRED`다.
 
 ### Fault/diagnostic lifecycle
 
@@ -389,14 +391,14 @@ VehicleState를 `OFF/READY/ACTIVE/FAULT`라는 단일 거대 enum으로 강제�
 | `LF-BRK-ACQ` | 운전자·AEB·Stability 제동 요구 취득 → 출처/유효성 구분 | 현재 브레이크 물리 입력만 알려짐 |
 | `LF-BRK-STATE` | 기능 가용성/모드/고장상태 점검 → 제동 가능 상태 제공 | `DriveEnable`/Gear D를 무조건 제동 guard로 사용 금지 |
 | `LF-BRK-DEMAND` | 유효 제동 요구 → 감속/제동 대상량 생성 | normalized brake와 물리 감속의 식 OPEN |
-| `LF-BRK-COORD` | 다수 제동 요구·구동 제약 → 우선순위·허용 한계 조정 | VMC/MotionCoord와 권한 중복 금지. 우선순위 OPEN |
+| `LF-BRK-COORD` | MC가 할당한 braking objective와 domain availability/constraint → allocated brake demand | vehicle-level authority 재실행 금지. domain allocation 상세 OPEN |
 | `LF-BRK-BLEND` | 회생제동 가능 여부 → 회생/마찰 제동 배분 | regen plant, energy limit이 없으면 REFERENCE_ONLY |
 | `LF-BRK-CMD` | 승인 제동 요구 → 명령 형식 변환 → 적용 경계 전송 | Brake Controller SW 존재 증거 없음 |
 | `LF-BRK-FDBK` | 명령 vs 독립된 실제 반응 → 불일치·Recovery 평가 | BrakeForce가 실제 압력센서라는 뜻 아님 |
 | `LF-STR-ACQ` | 운전자 steering/LKA 요구 취득 → 유효성·권한 출처 구분 | normalized -1..1 ≠ wheel angle |
 | `LF-STR-STATE` | steering availability/assist mode 분류 | EPS assist와 SbW 모델은 서로 다름 |
 | `LF-STR-DEMAND` | 입력→목표 조향량 변환 → 허용 범위 제한 | 실제 조향각/각속도/target yaw 선택 OPEN |
-| `LF-STR-COORD` | driver/LKA 요구 권한 비교 → 최종 대상 요청 | driver override priority OPEN |
+| `LF-STR-COORD` | MC가 할당한 lateral target + steering availability → steering-domain selected request | vehicle-level authority 재실행 금지; EPS/override 상세 OPEN |
 | `LF-STR-ACT` | 조향 요구 → actuator/physics command | EPS SW와 직접 physics input 혼동 금지 |
 | `LF-STR-MON` | 명령·실제 각도/yaw 관측 → 응답 오차 판정 | 독립 steering feedback 실제 존재 미확인 |
 
@@ -407,7 +409,7 @@ VehicleState를 `OFF/READY/ACTIVE/FAULT`라는 단일 거대 enum으로 강제�
 | `LF-STB-ABS` | 휠 상태/차량 속도 추정 → 잠김 경향 → 제동 조절 | 휠 slip sensor/모델 및 고속 제어 루프 없으면 실행 불가 |
 | `LF-STB-TCS` | 구동 휠 미끄럼 추정 → 토크 제한/제동 개입 | 회전 휠속도 없으면 slip 판정 불가 |
 | `LF-STB-ESC` | 목표 yaw와 관측 yaw 등 비교 → 안정화 개입 후보 | 실제 제동 편차 제어·yaw estimator 없으면 reference-only |
-| `LF-STB-COORD` | 안정화 개입 요구를 Motion Coord 등으로 전달 | CAN 실제 메시지 주장 금지 |
+| `LF-STB-COORD` | ABS/TCS/ESC 결과를 typed request/constraint로 집계해 Motion Coordination에 전달 | downstream domain 직접 우회 금지; 상세 placement OPEN |
 | `LF-ADAS-AEB` | 선행 장애물 유효성 → 위협 판단 → 제동 요청/해제 | TTC/거리 threshold는 OPEN |
 | `LF-ADAS-ACC` | 모드/목표 선택 → 속도/거리 제어 → 종방향 요청 | radar 구현·우선권 미확정 |
 | `LF-ADAS-LKA` | 차로 관측 → 편차 판단 → 조향 보조 요구 | road wheel angle vs yaw vs lane offset 구분 |
@@ -726,9 +728,9 @@ Braking은 **요청 해석 → 요구 조정 → Brake Controller/Adapter → �
 - **조건**: 차량 속도, 노면, 동력계, brake map, 정지 유지, 후진 부호 등이 영향을 줄 수 있지만 실제 Calibration 없음.
 - **반례**: brake=0.5에서 목표 감속이 항상 절반이라고 가정하면 비선형 페달/힘 제한 문제를 은폐함.
 
-### `LF-BRK-COORD` — 요구 조정
-- **하위 처리**: `BRK-ARB-REQUEST` 출처·목적을 식별하고 충돌 검사 → `BRK-PROP-INTERLOCK` 구동/제동 공존 정책 검토 → `BRK-LIMIT` 가용 제약 → `BRK-PRIORITY` 최종 결정.
-- **입력→출력**: 운전자·AEB·ESC의 서로 다른 의미/단위 요구 → 승인된 제동 목적·제어권 상태. VMC의 전체 Arbitration과 이 기능의 최종 책임을 중복 할당하지 않음.
+### `LF-BRK-COORD` — 할당 이후 제동 domain 조정
+- **하위 처리**: `LF-MC-ALLOC`의 braking allocation 수신 → braking availability/constraint 확인 → `AllocatedBrakeDemand` 정규화 → `LF-BRK-BLEND` 전달.
+- **입력→출력**: 할당된 braking objective와 domain constraint → braking-domain demand. 운전자·AEB·ESC vehicle-level authority는 `LF-MC-AUTH`에서 완료되며 여기서 재실행하지 않음.
 - **조건**: Emergency request가 있다고 항상 어떤 우선순위로 특정 Brake 출력이 생성되는지는 정책 **OPEN**.
 - **반례**: accelerator+brake 동시 입력이 무조건 brake priority라는 무조건 규칙은 근거 부족; 물리 제동은 무효화하지 말고 실제 정책/차량 타입에 맞춰 결정해야 함.
 
@@ -788,9 +790,9 @@ Steering은 **운전자의 조향 의도**, **조향 보조**, **바퀴각**, **
 - **입력→출력**: raw steering + speed → 실제 모델이 채택한 목표(road wheel angle, assist torque, yaw-rate request 등 한 가지 타입을 명확히 택함). 데이터에 실제 mapping 없음.
 - **반례**: 핸들 각도와 전륜 조향각을 일대일로 계산하면 steering ratio를 놓침. 속도 따른 동작 변화를 가정한 Expected를 만들어선 안 됨.
 
-### `LF-STR-COORD` — 운전자와 보조 요구 조정
-- **하위 처리**: `STR-REQUEST-TYPES` 요구 형태 일치 확인 → `STR-DRIVER-OVERRIDE` 운전자 개입 검출 기준(미정) → `STR-PRIORITY` 권한 결정 → `STR-FINAL-DEMAND`.
-- **입력→출력**: Driver steering, LKA 요청과 availability → 최종 명령과 출처. 운전자 override가 존재한다는 개념은 제안이지만 감지 임계값 없음.
+### `LF-STR-COORD` — 할당 이후 조향 domain 조정
+- **하위 처리**: `LF-MC-ALLOC`의 lateral allocation 수신 → quantity kind/steering availability 확인 → steering-domain selected request 생성 → `LF-STR-ACT` 전달.
+- **입력→출력**: 할당된 lateral target과 availability → steering-domain request. Driver/LKA/ESC authority는 `LF-MC-AUTH/LAT`에서 완료되며 여기서 재실행하지 않음. EPS/driver override 상세는 외부 검증 전 OPEN.
 - **반례**: LKA와 운전자 요구를 단순 더하면 actuator saturation 및 중복 조향 문제가 발생할 수 있음.
 
 ### `LF-STR-ACT` — 조향 출력
@@ -899,9 +901,9 @@ flowchart LR
 - **출력 후보**: selective wheel brake, drive torque reduction, optional stability constraint. 마찰계수와 actuator capability를 만족할 수 없으면 안정화 성공을 주장하지 않음.
 - **반례**: 정상 driver steering에도 미끄러운 노면의 Plant yaw가 어긋날 수 있어 내부 로직 불량을 자동 추정 금지.
 
-### `LF-STB-COORD` — 안정화 개입 전달
-- **목적**: ABS/TCS/ESC에서 생성된 개입 요구를 대상 제어 영역에 **출처·유효성·우선권**과 함께 전달.
-- **하위 처리**: 요청별 목적 및 단위 표준화 계약 확인 → 동일 wheel/actuator 충돌 식별 → Domain owner 또는 Motion Coordination에 전달 → source/destination observation.
+### `LF-STB-COORD` — 안정화 개입 집계
+- **목적**: ABS/TCS/ESC에서 생성된 개입 결과를 **출처·유효성·controlOutputKind**가 있는 typed request/constraint로 집계해 Motion Coordination에 전달.
+- **하위 처리**: 요청별 목적 및 단위 표준화 계약 확인 → 동일 wheel/actuator 충돌 식별 → `LF-MC-REQ`에 단일 typed path로 전달 → source/destination observation. downstream domain 직접 우회는 금지하고 exact wheel-level placement는 OPEN으로 둔다.
 - **입력→출력**: `ABS wheel brake limit`, `TCS torque bound`, `ESC selective brake` → typed constraint/intervention request (예시 타입으로만 제안).
 - **조건**: 어떤 요청이 Brake controller에 직접 전달되고 어떤 요청이 MC를 거치는지 Deployment allocation **OPEN**. 임의의 CAN 프레임 생성 금지.
 - **반례**: ABS가 brake pressure를 낮추는 요청과 AEB가 차량 감속을 높이라는 요청은 단순 MAX/MIN으로 해석되지 않음. 권한과 액추에이터 공간이 다르다.

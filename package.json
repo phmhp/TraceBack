@@ -5,6 +5,8 @@
     "type": "module",
     "scripts": {
         "build:c": "node scripts/build-c-runtime.mjs",
+        "build:registry": "node scripts/build-reference-vehicle-registry.mjs",
+        "check:registry": "node scripts/build-reference-vehicle-registry.mjs --check",
         "dev": "vite",
         "build": "tsc -b && vite build",
         "typecheck": "tsc -b",

@@ -1,14 +1,14 @@
-# TRACKBACK — Phase 01 차량 참조 아키텍처 — Architecture Correction v0.3
+# TRACKBACK — Phase 01 차량 참조 아키텍처 — Control-flow Normalization v0.3.1
 
 > Document: 01_REFERENCE_ARCHITECTURE_KO  
-> Version: 0.3  
+> Version: 0.3.1
 > Status: REVIEWED_DRAFT  
 > Canonical: YES  
-> Last Reviewed: 2026-10-10  
+> Last Reviewed: 2026-10-13
 > Runtime Baseline: current repository, 60 Hz narrow propulsion slice  
 > Scope: 16-area logical reference architecture; not production-approved vehicle architecture
 
-## v0.3 canonical correction contract
+## v0.3.1 canonical control-flow contract
 
 본 문서의 16개 기존 영역 ID는 호환성을 위해 유지한다. 영역은 동일 hierarchy type이 아니며 다음 `areaKind`를 사용한다.
 
@@ -21,7 +21,7 @@
 | Braking | `APPLICATION_CONTROL` | braking-domain 처리와 유일한 최종 braking command 소유 |
 | Steering | `APPLICATION_CONTROL` | arcade steering과 EPS/SbW 참조 설계를 분리 |
 | Stability | `APPLICATION_CONTROL` | ABS/TCS/ESC 상세 배치는 외부 검증 대상 |
-| Motion Coordination | `STATE_COORDINATION` | vehicle-level authority/selection/allocation 소유 |
+| Motion Coordination | `CONTROL_COORDINATION` | vehicle-level request normalization, authority/selection, feasible target와 domain allocation 소유 |
 | ADAS | `OPTIONAL_ADVANCED_FUNCTION` | typed motion/safety-priority request만 기본 허용 |
 | Sensing / Estimation | `SENSING_SERVICE` | truth/measurement/estimate/quality 분리 |
 | Power / Energy | `RESOURCE_CONSTRAINT_SERVICE` | state/availability/capability/constraint만 소유 |
@@ -35,12 +35,13 @@
 
 ```text
 Request Sources
-→ Typed Motion Requests
+→ Domain Acquisition / Interpretation
+→ Typed Motion Requests (LF-MC-REQ)
 → Authority / Selection (LF-MC-AUTH)
 → ConstraintSet / EffectiveControlEnvelope (LF-MC-LON)
 → Feasible Longitudinal Target
 → Drive / Brake Allocation (LF-MC-ALLOC)
-→ Propulsion Domain | Braking Domain
+→ Propulsion Domain | Braking Domain | Steering Domain
 → Domain-specific Final Command
 → Actuation Boundary
 → Plant
@@ -48,7 +49,7 @@ Request Sources
 
 Motion Coordination은 요구와 제약을 수집하고 선택 사유, feasible target, drive-vs-brake 또는 필요한 lateral domain allocation, provenance를 낸다. 페달 해석, motor torque map, brake blending 내부, ABS wheel modulation, EPS algorithm, energy estimation, ADAS perception, plant physics는 소유하지 않는다. `ConstraintSet`은 source/type/value/shape/validity/direction/activation/time-basis/reason을 보존하며, 모든 제약을 단순 `min()`으로 결합하는 규칙을 승인하지 않는다.
 
-현재 `HOST_DRIVE_BRAKE_ARBITRATION_POLICY`는 `CURRENT_RUNTIME_POLICY`이고 위 reference flow의 구현 증거가 아니다. `Trackback_VMC`는 계속 **Propulsion Torque Generation**이며 full Vehicle Motion Coordination이 아니다.
+현재 `HOST_DRIVE_BRAKE_ARBITRATION_POLICY`는 `CURRENT_RUNTIME_POLICY`이고 위 reference flow의 구현 증거가 아니다. `Trackback_VMC`는 현재 Propulsion 경로의 **Propulsion Torque Generation / local propulsion attenuation**만 담당하며 `LF-MC-REQ/AUTH/LON/LAT/ALLOC` 어느 것도 구현하지 않는다.
 
 ### 횡방향 및 외부 검증 gate
 
@@ -78,7 +79,7 @@ flowchart TD
 ```
 
 - 실제 `GearLogic → Propulsion → VMC → eDrive`는 매 **1/60초** 동일 C step에서 실행. 별도 10/20ms Runnable / CAN / Task Scheduler 없음.
-- `Trackback_VMC`는 `LF-PROP-GEN`과 `LF-MC-LON`의 **제한된 계산 일부**에만 해당. 전체 `MOTION_COORDINATION`, multi-request arbitration, Brake/EPS 기능과 동일시하지 않음.
+- `Trackback_VMC`는 현재 Propulsion 경로의 `LF-PROP-GEN` 및 local propulsion attenuation에만 해당. `LF-MC-REQ/AUTH/LON/LAT/ALLOC`, multi-request arbitration, Brake/EPS 기능과 동일시하지 않음.
 - **아직 기능 소유권이 분리되지 않은 제어 정책:** brake ratio > 0이면 `DriveAdapter`가 `driveForce=0`으로 설정. 현 게임 동작을 보존해야 하나, 논리적으로 Host brake-over-drive policy로 외부화하는 후속 변경은 승인·회귀 시험 필수.
 - 현재 `VehicleReady`는 `physics != null`이며 `PropulsionEnable`은 C 입력에서 `true`로 공급. 이는 **host simulation assumption**이지 차량 준비/허용 ECU state machine이 아님. Publish 측 enable 해석도 C 입력과 달라 동의어 아님.
 - 실제 C Propulsion 상태는 `PROP_ENABLED`/`PROP_DISABLED` 두 가지; OFF/READY/ACTIVE/DEGRADED는 독립적인 *reference-only* 상태 초안.

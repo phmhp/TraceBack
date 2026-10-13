@@ -1,10 +1,10 @@
 # TRACKBACK Reference Vehicle Manifest
 
 > Canonical Root: `docs/reference_vehicle/`  
-> Version: 0.3  
+> Version: 0.3.1
 > Status: REVIEWED_DRAFT  
 > Canonical: YES  
-> Last Reviewed: 2026-10-10
+> Last Reviewed: 2026-10-13
 
 ## Truth priority
 
@@ -14,13 +14,14 @@
 4. Historical/audit material
 5. Drafts
 
-## v0.3 correction baseline
+## v0.3.1 control-flow normalization baseline
 
-- Counts preserved: 16 areas, 74 LF, 111 signals, 49 interfaces, 180 requirements, 74 reference LF test cases, 34 cases.
+- Counts: 16 areas, 74 LF, 111 signals, 50 interfaces, 180 requirements, 74 reference LF test cases, 34 cases. `IFC-DESIGN-050`은 기존 catalog에 빠져 있던 Propulsion request → Motion Coordination 논리 경계를 명시하기 위해 추가했다.
 - Common architecture decision: Reference Motion Coordination owns vehicle-level longitudinal authority/selection/feasible-target/drive-vs-brake allocation; domain functions retain final domain command ownership.
 - Runtime compatibility: current host brake-over-drive behavior remains `CURRENT_RUNTIME_POLICY`; no runtime file or calibration was changed.
 - Open by design: detailed ABS/TCS/ESC placement, brake blending, EPS authority, lateral reference quantity, ADAS authority, energy/regen coordination, production diagnostics, multi-rate execution, plant fidelity, safety lifecycle, occupant protection.
 - Correction evidence: `audit/2026-10-10_ARCHITECTURE_CORRECTION_REPORT.md` and `audit/2026-10-10_ARCHITECTURE_CORRECTION_REVALIDATION.md`.
+- Normalization evidence: `audit/2026-10-13_CONTROL_FLOW_NORMALIZATION_REPORT.md` and `audit/2026-10-13_CONTROL_FLOW_NORMALIZATION_REVALIDATION.md`.
 
 `audit/`는 evidence와 historical snapshot을 보존하며 현재 canonical vehicle definition을 정의하지 않는다. `DESIGN_ONLY`는 invalid가 아니라 current runtime baseline에 미구현이라는 뜻이다. Canonical engineering documents are Korean; identifiers and technical terms remain English where useful.
 
@@ -35,7 +36,7 @@
 | `architecture/03_INTERNAL_LOGIC_STATE_MACHINE_KO.md` | merged Phase 03 logic/state design and runtime semantic overlay |
 | `interfaces/04_SIGNAL_INTERFACE_ARCHITECTURE_KO.md` | signal/interface semantics and limitations |
 | `interfaces/04_SIGNAL_CATALOG.csv` | normalized 111-signal catalog |
-| `interfaces/04_INTERFACE_CATALOG.csv` | normalized 49-interface catalog and observability axes |
+| `interfaces/04_INTERFACE_CATALOG.csv` | normalized 50-interface catalog and observability axes |
 | `requirements/05_REQUIREMENTS_ENGINEERING_KO.md` | FR/SYSR/SWR/SIMR method and candidates |
 | `requirements/05_REQUIREMENT_CATALOG.csv` | 180 requirement candidates |
 | `requirements/05_TRACEABILITY.csv` | 222 draft requirement trace links |

@@ -955,16 +955,6 @@ h1:focus {
    RaceScreen에서도 표시되는 IncidentDialogue 스타일은
    여기에 직접 정의한다. */
 
-.incident-speaker {
-  position: absolute;
-  top: -23px;
-  left: 20px;
-  background: #b7e5dc;
-  border: 3px solid #effff5;
-  border-radius: 24px;
-  padding: 5px 22px;
-}
-
 .fault-focus-pulse {
   z-index: 5;
   position: absolute;
@@ -1027,12 +1017,6 @@ h1:focus {
   font-size: 13px;
   color: #5a7465;
   margin-top: 3px;
-}
-
-.incident-dialog .incident-speaker {
-  background: #d6e8dc;
-  border: 2px solid #fffdf0;
-  border-radius: 14px;
 }
 
 .incident-dialog button {
@@ -4258,4 +4242,3 @@ h1:focus {
 .repair-decision{display:grid;gap:12px}.repair-verdict{display:flex;justify-content:space-between;gap:12px;padding:12px 14px;border-radius:16px}.repair-verdict.pass{background:#d8edb9;color:#49613d}.repair-verdict.fail{background:#f7d8d8;color:#8a3d38}.recovery-start-button{justify-self:end}
 @media(prefers-reduced-motion:reduce){.recovery-mission-hud>i,.cat-reaction-portrait[data-emotion="CELEBRATING"]{animation:none}}
 @media(max-width:720px){.recovery-mission-hud{top:68px;left:10px;min-width:220px;transform:scale(.9);transform-origin:top left}.mission-result-hero{align-items:flex-start}.driving-medal{width:58px;height:58px}}
-.incident-cat-reaction{display:grid;place-items:center;min-width:54px;height:54px;border-radius:17px;background:#f2b6c7;font-size:30px;animation:fault-attention .5s ease both}.incident-dialog{grid-template-columns:auto auto 1fr auto!important}.incident-dialog .incident-speaker{align-self:center}@keyframes fault-attention{0%{transform:scale(.6) rotate(-8deg)}70%{transform:scale(1.12) rotate(4deg)}100%{transform:scale(1)}}@media(prefers-reduced-motion:reduce){.incident-cat-reaction{animation:none}}

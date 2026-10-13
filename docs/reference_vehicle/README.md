@@ -1,10 +1,10 @@
 # TRACKBACK Reference Vehicle
 
 > Document: README  
-> Version: 0.3  
+> Version: 0.3.1
 > Status: REVIEWED_DRAFT  
 > Canonical: YES  
-> Last Reviewed: 2026-10-10  
+> Last Reviewed: 2026-10-13
 > Runtime Baseline: current repository, 60 Hz narrow propulsion slice  
 > Scope: canonical navigation and contribution policy
 
@@ -12,7 +12,7 @@
 
 Reference Vehicle은 TRACKBACK에서 차량 기능, 신호, 인터페이스, 요구사항, 시험, fault case를 일관된 용어와 추적 구조로 설명하기 위한 논리 공학 모델이다. 16개 영역과 74개 Logical Function(LF)을 포함한다.
 
-v0.3은 Independent Engineering Review의 공통 blocker를 교정한 `REVIEWED_DRAFT`다. 차량 수준 종방향 요구의 최종 authority/selection 및 drive-vs-brake allocation은 `LF-MC-AUTH`와 `LF-MC-ALLOC`을 포함하는 Reference Motion Coordination이 소유한다. Propulsion과 Braking은 각 도메인 처리 및 최종 도메인 명령을 소유한다. 이 계약은 참조 설계이며 현재 runtime 구현을 주장하지 않는다.
+v0.3.1은 Independent Engineering Review의 공통 blocker 교정에 더해 request/constraint/authority/allocation/domain-command 흐름을 정규화한 `REVIEWED_DRAFT`다. 차량 수준 종·횡방향 요구의 최종 authority/selection 및 domain allocation은 `LF-MC-AUTH`와 `LF-MC-ALLOC`을 포함하는 Reference Motion Coordination이 소유한다. Propulsion, Braking, Steering은 할당 이후의 도메인 처리 및 최종 도메인 명령을 소유한다. 이 계약은 참조 설계이며 현재 runtime 구현을 주장하지 않는다.
 
 `HOST_DRIVE_BRAKE_ARBITRATION_POLICY`, `HOST_SIMULATION_READY`, `HOST_PROPULSION_ENABLE_ASSUMPTION`은 `CURRENT_RUNTIME_POLICY` 또는 host assumption이다. Reference Motion Coordination/Vehicle State 구현 증거로 승격하지 않는다.
 
@@ -33,7 +33,7 @@ v0.3은 Independent Engineering Review의 공통 blocker를 교정한 `REVIEWED_
 
 현재 실행 경로는 DriverInput → Gear C/WASM → Propulsion C/WASM → `Trackback_VMC` → eDrive C/WASM → host adapters → Rapier plant의 60 Hz fixed loop다.
 
-- `Trackback_VMC`의 semantic role은 **Propulsion Torque Generation**이다. 전체 Vehicle Motion Coordination은 DESIGN_ONLY다.
+- `Trackback_VMC`의 semantic role은 현재 Propulsion 경로의 **Propulsion Torque Generation / local propulsion attenuation**뿐이다. `LF-MC-REQ`, `LF-MC-AUTH`, `LF-MC-LON`, `LF-MC-LAT`, `LF-MC-ALLOC`의 구현 증거가 아니다.
 - brake 우선 정책은 `HOST_DRIVE_BRAKE_ARBITRATION_POLICY`다.
 - 현재 `VehicleReady`와 `PropulsionEnable`은 각각 `HOST_SIMULATION_READY`, `HOST_PROPULSION_ENABLE_ASSUMPTION` 의미의 host assumption이다.
 - `EDriveCommand`는 command이며 actual physical torque가 아니다.
@@ -69,4 +69,4 @@ v0.3은 Independent Engineering Review의 공통 blocker를 교정한 `REVIEWED_
 6. Case는 approval/visibility/provenance를 기록한다. AI 후보는 독립 승인 전까지 `AI_DRAFT`다.
 7. 모든 변경은 ID uniqueness, dangling reference, status, visibility, oracle gate를 검증한다.
 
-Phase 08은 이 문서를 바탕으로 typed JSON entity registry, typed relation registry, TypeScript validation을 도입한다. 이 pass에는 runtime registry를 구현하지 않는다.
+Phase 08은 이 문서를 바탕으로 typed JSON entity registry, typed relation registry, TypeScript validation을 도입한다. v0.3.1은 Phase 08을 시작하지 않으며 runtime registry나 runtime behavior를 변경하지 않는다.

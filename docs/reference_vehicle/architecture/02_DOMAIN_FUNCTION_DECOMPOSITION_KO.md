@@ -1,14 +1,14 @@
-# TRACKBACK — Phase 02 도메인·기능·하위 기능 분해 — Architecture Correction v0.3
+# TRACKBACK — Phase 02 도메인·기능·하위 기능 분해 — Control-flow Normalization v0.3.1
 
 > Document: 02_DOMAIN_FUNCTION_DECOMPOSITION_KO  
-> Version: 0.3  
+> Version: 0.3.1
 > Status: REVIEWED_DRAFT  
 > Canonical: YES  
-> Last Reviewed: 2026-10-10  
+> Last Reviewed: 2026-10-13
 > Runtime Baseline: 74 LF = VERIFIED 5 / PARTIAL 27 / DESIGN_ONLY 42  
 > Scope: logical decomposition and capability status; not a runtime inventory
 
-## v0.3 functionKind registry
+## v0.3.1 functionKind registry
 
 74개 LF ID를 추가·삭제·변경하지 않는다. 다음 목록은 canonical `functionKind`이며, slash로 묶인 ID도 각각 한 개 LF다.
 
@@ -32,10 +32,11 @@
 - `LF-MC-AUTH`: vehicle-level longitudinal authority와 선택 사유의 단일 reference owner.
 - `LF-MC-LON`: typed request와 cross-domain `ConstraintSet`에서 `EffectiveControlEnvelope` 및 feasible longitudinal target을 도출하는 logical coordinator. 정확한 물리량은 `OPEN`.
 - `LF-MC-ALLOC`: vehicle-level drive-vs-brake 및 필요한 lateral actuator-domain allocation owner. low-level command owner가 아님.
-- `LF-BRK-COORD`: 할당된 braking objective와 driver/ADAS/stability 입력을 braking-domain에서 조정하고 total/allocated brake demand를 명시하는 owner.
+- `LF-BRK-COORD`: `LF-MC-ALLOC`이 할당한 braking objective와 braking-domain availability/constraint를 조정하고 `AllocatedBrakeDemand`를 명시하는 owner. vehicle-level request authority를 다시 수행하지 않는다.
 - `LF-BRK-CMD`: 유일한 logical final braking-domain command owner. aggregate 또는 향후 actuator-specific command의 구현 형태는 `DESIGN_ONLY`.
 - `LF-BRK-BLEND`: 필요한 braking objective와 가용한 regen/friction actuator 사이의 배분. `LF-EN-LIMIT`은 constraint만 제공.
 - `LF-STB-ABS/TCS/ESC`: identity는 보존하되 상세 placement와 algorithm은 `EXTERNAL_VALIDATION_REQUIRED`; authority layer 우회 금지.
+- `LF-STR-COORD`: `LF-MC-ALLOC`이 할당한 lateral-domain target과 steering availability를 steering-domain request로 조정한다. Driver/LKA/ESC vehicle-level authority는 `LF-MC-AUTH/LAT` 소유이며 이 기능에서 재중재하지 않는다.
 - `LF-STR-*`: normalized driver input, typed lateral request, steering-domain command, actuator application, feedback/availability를 구분. 현재 arcade 경로는 EPS architecture가 아님.
 - `LF-VS-*`: initialization/reset ownership, operational state, `DomainAvailability`, `DriveEnable` permission, degraded state, recovery authorization를 서로 다른 계약으로 유지.
 - `LF-FM-*`: `INJECTED → OBSERVED → DETECTION_PENDING → CONFIRMED → REACTION_REQUESTED → REACTION_ACTIVE → CLEAR_PENDING → CLEARED → RECOVERY_AUTHORIZED`를 한 상태로 축약하지 않음.
@@ -48,7 +49,7 @@
 - `VERIFIED 5`: `LF-PROP-INTERP`, `LF-PROP-EDRV`, `LF-EXE-CLOCK`, `LF-ACT-DRIVE`, `LF-PLANT-MOTION`.
 - `PARTIAL 27`: 좁은 호출 역할/temporary adapter/plant truth만 실존하는 기능. **전체 논리 Function 구현 완료가 아니다**.
 - `DESIGN_ONLY 42`: 문서에 정의된 기능이지만 현재 runtime owner가 없다. **설계 삭제 대상이 아니고** 사용자 UI에서는 실행 가능한 것처럼 표현해서도 안 됨.
-- `Trackback_VMC`라는 코드 symbol을 `MOTION_COORDINATION` 모든 기능의 코드 owner로 할당하지 않는다. 이는 좁은 `LF-PROP-GEN` + `LF-MC-LON` 일부만 수행한다. 동일 C 함수 하나가 전체 2개 Function의 구현을 증명하는 것이 아님.
+- `Trackback_VMC`라는 코드 symbol을 `MOTION_COORDINATION` 기능의 코드 owner로 할당하지 않는다. 이는 현재 Propulsion 경로의 좁은 `LF-PROP-GEN` 및 local propulsion attenuation만 수행하며 `LF-MC-REQ/AUTH/LON/LAT/ALLOC` 구현 증거가 아니다.
 - `LF-BRK-COORD`, `LF-MC-AUTH`, `LF-MC-ALLOC`는 실행되지 않는다. 현재 `brake>0 → driveForce=0`은 **DriveAdapter host policy**이며, Brake/MC 완료 기능으로 승격시키지 않음.
 - `LF-VS-INIT`, `LF-VS-PERM` 일부로 보이는 `vehicleReady/propulsionEnable`은 Host assumption. `LF-SEN-MOTION`의 속도는 Rapier plant truth이며 별도 sensor/estimator output이 아님.
 - `LF-FM-*`의 detection·reaction·recovery는 구현 없음. Injector status, Case State, Evidence Verdict는 ECU Fault Manager state와 다름.
@@ -236,7 +237,7 @@
 
 #### `LF-PROP-LIM` — 토크 제한
 
-- **역할:** ArbitratedDriveTorque와 MaxAllowedDriveTorque 사이의 제한 규칙을 적용한다.
+- **역할:** MC allocation 이후 Propulsion domain에 배정된 torque 후보(legacy name `ArbitratedDriveTorque`)와 domain-local MaxAllowedDriveTorque 사이의 제한 규칙을 적용한다.
 - **원문 하위 기능 식별자:** `LIM-SELECT`, `LIM-COMPARE`, `LIM-SATURATE`, `LIM-STATUS`
 - **주의·미정:** 300Nm 한계는 참고 예시. 음수/Reverse/Invalid 처리 미정.
 - **분류:** `SRC_DRAFT` 표기는 원문 기능 수준만 확인을 뜻함. 기존 설계만 있는 경우 `PROPOSED / REFERENCE_ONLY`; 실제 실행 여부는 코드·TC로 별도 확인.
