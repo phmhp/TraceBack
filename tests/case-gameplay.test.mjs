@@ -61,7 +61,7 @@ test('player can test a normal upstream component without treating PASS as fault
   c.submit('eDrive','scaling','SWR-EDR-001')
   assert.equal(c.getSnapshot().diagnosis.correct,true);assert.equal(c.getSnapshot().diagnosis.evidenceSufficient,false)
 })
-for (const mapId of [PROVING_GROUND_MAP_ID, PANGYO2_MAP_ID]) test(`${mapId}: real C + Rapier captures and locks driving, preserves pose, then restores repaired drive`, async () => {
+for (const mapId of [PROVING_GROUND_MAP_ID, PANGYO2_MAP_ID]) test(`${mapId}: real C + Rapier captures and stops, preserves evidence, then restores repaired drive`, async () => {
   await RAPIER.init()
   const map=createLoadedMap(loadMapDefinition(mapId))
   const world=new RAPIER.World({x:0,y:-9.81,z:0})

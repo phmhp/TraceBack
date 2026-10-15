@@ -2,6 +2,7 @@ import type { InvestigationTargetType, StructuredInvestigationContext } from './
 
 export type InvestigationPage = 1 | 2 | 3 | 4
 export type InvestigationView = 'FLOW' | 'SIGNALS' | 'INTERFACES' | 'STANDARDS'
+export type GameplayClueId = 'PHENOMENON' | 'FAULT_BOUNDARY' | 'PROOF'
 
 export interface InvestigationSelection {
   componentId?: string
@@ -61,6 +62,8 @@ export type InvestigationActionType =
   | 'CONCLUSION_SUBMITTED'
   | 'CONCLUSION_CONFIRMED'
   | 'EXPECTED_BASIS_IDENTIFIED'
+  | 'BOUNDARY_EVIDENCE_MARKED'
+  | 'HINT_USED'
 
 export interface InvestigationActionRecord {
   id: number
@@ -94,6 +97,8 @@ export interface InvestigationSessionState {
   collectedEvidenceIds: string[]
   actions: InvestigationActionRecord[]
   nextId: number
+  boundarySelection:{lastNormalEvidenceId?:string;firstAbnormalEvidenceId?:string}
+  hintLevels:Record<GameplayClueId,0|1|2|3>
 }
 
 export const initialInvestigationSession = (): InvestigationSessionState => ({
@@ -110,6 +115,8 @@ export const initialInvestigationSession = (): InvestigationSessionState => ({
   collectedEvidenceIds: [],
   actions: [],
   nextId: 1,
+  boundarySelection:{},
+  hintLevels:{PHENOMENON:0,FAULT_BOUNDARY:0,PROOF:0},
 })
 
 export type InvestigationSessionAction =
@@ -119,6 +126,8 @@ export type InvestigationSessionAction =
   | { type: 'SET_HYPOTHESIS'; hypothesis: PlayerHypothesis | null }
   | { type: 'DISCOVER'; finding: DiscoveredFinding }
   | { type: 'COLLECT_EVIDENCE'; evidenceId: string }
+  | { type: 'MARK_BOUNDARY'; kind:'LAST_NORMAL'|'FIRST_ABNORMAL'; evidenceId:string }
+  | { type: 'USE_HINT'; clueId:GameplayClueId }
 
 const sameContext = (a: InvestigationContext, b: InvestigationContext) =>
   a.page === b.page && a.view === b.view && JSON.stringify(a.selection) === JSON.stringify(b.selection)
@@ -130,6 +139,14 @@ const appendAction = (state: InvestigationSessionState, type: InvestigationActio
 })
 
 export function investigationSessionReducer(state: InvestigationSessionState, action: InvestigationSessionAction): InvestigationSessionState {
+  if(action.type==='MARK_BOUNDARY'){
+    const boundarySelection={...state.boundarySelection,...(action.kind==='LAST_NORMAL'?{lastNormalEvidenceId:action.evidenceId}:{firstAbnormalEvidenceId:action.evidenceId})}
+    return appendAction({...state,boundarySelection},'BOUNDARY_EVIDENCE_MARKED',action.evidenceId)
+  }
+  if(action.type==='USE_HINT'){
+    const level=Math.min(3,state.hintLevels[action.clueId]+1) as 0|1|2|3
+    return appendAction({...state,hintLevels:{...state.hintLevels,[action.clueId]:level}},'HINT_USED',`${action.clueId}:${level}`)
+  }
   if (action.type === 'BACK') {
     const previous = state.history.at(-1)
     if (!previous) return state

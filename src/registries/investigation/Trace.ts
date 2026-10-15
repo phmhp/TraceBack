@@ -2,6 +2,7 @@ import { propulsionRequirements, propulsionTests } from '../../data/ground-truth
 import { getArchitectureNode, getInterface, getSignalDefinition } from './Architecture.ts'
 import type { CaseDefinition } from '../../runtime/investigation/CaseDefinition.ts'
 import type { InvestigationSelection } from '../../runtime/investigation/InvestigationSession.ts'
+import { getEntity as getReferenceEntity, getInterfacesForFunction as getReferenceInterfacesForFunction, getRelations as getReferenceRelations, getRequirementsForEntity as getReferenceRequirementsForEntity, getSignalsForFunction as getReferenceSignalsForFunction, getTestsForRequirement as getReferenceTestsForRequirement } from '../../referenceVehicle/index.ts'
 
 export type TestExecution =
   | { status:'EXECUTABLE'; runner:'COMPONENT_C_WASM'; target:'VMC'|'eDrive'; direction?:'FORWARD'|'REVERSE' }
@@ -100,6 +101,37 @@ const allocatedTo = (componentId:string|undefined, requirementId:string|undefine
 export function reconcileInvestigationSelection(current:InvestigationSelection, patch:Partial<InvestigationSelection>):InvestigationSelection {
   const next={...current,...patch}
   const has=(key:keyof InvestigationSelection)=>Object.prototype.hasOwnProperty.call(patch,key)
+  const referenceFunctionId=getReferenceEntity(next.componentId??'')?.entityKind==='LOGICAL_FUNCTION'?next.componentId:undefined
+
+  // Canonical Reference Vehicle selections share the existing Page 2 state, while the
+  // legacy compatibility policy below remains authoritative for executable CASE views.
+  if(referenceFunctionId){
+    const signalIds=new Set(getReferenceSignalsForFunction(referenceFunctionId).map(entity=>entity.id))
+    const interfaceIds=new Set(getReferenceInterfacesForFunction(referenceFunctionId).map(entity=>entity.id))
+    const requirementIds=new Set(getReferenceRequirementsForEntity(referenceFunctionId).map(entity=>entity.id))
+    if(has('componentId')){
+      if(next.signalId&&!signalIds.has(next.signalId))next.signalId=undefined
+      if(next.interfaceId&&!interfaceIds.has(next.interfaceId))next.interfaceId=undefined
+      if(next.requirementId&&!requirementIds.has(next.requirementId))next.requirementId=undefined
+      if(next.testCaseId&&!next.requirementId)next.testCaseId=undefined
+    }else if(has('signalId')&&next.signalId&&!signalIds.has(next.signalId))next.signalId=undefined
+    else if(has('interfaceId')&&next.interfaceId&&!interfaceIds.has(next.interfaceId))next.interfaceId=undefined
+    else if(has('requirementId')&&next.requirementId){
+      if(!requirementIds.has(next.requirementId))next.requirementId=undefined
+      else if(next.testCaseId&&!getReferenceTestsForRequirement(next.requirementId).some(test=>test.id===next.testCaseId))next.testCaseId=undefined
+    }
+    return next
+  }
+
+  const referenceAnchorId=patch.signalId??patch.interfaceId??patch.requirementId??patch.testCaseId
+  const referenceAnchor=referenceAnchorId?getReferenceEntity(referenceAnchorId):undefined
+  if(referenceAnchor&&!next.componentId){
+    const relatedFunction=getReferenceRelations(referenceAnchor.id)
+      .map(relation=>getReferenceEntity(relation.sourceId===referenceAnchor.id?relation.targetId:relation.sourceId))
+      .find(entity=>entity?.entityKind==='LOGICAL_FUNCTION')
+    if(relatedFunction)next.componentId=relatedFunction.id
+    return next
+  }
 
   if(has('componentId') && patch.componentId){
     const componentId=patch.componentId

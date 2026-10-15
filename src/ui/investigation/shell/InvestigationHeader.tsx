@@ -1,8 +1,13 @@
 import type { InvestigationPage } from '../presentation/InvestigationPresentationModel'
+import type { Difficulty } from '../../../domain/session/SessionConfig.ts'
+import { formatInvestigationTime, investigationDifficultyLabel } from '../../../runtime/investigation/InvestigationChallenge.ts'
 
 interface HeaderProps {
   currentPage: InvestigationPage
   onSelectPage: (page: InvestigationPage) => void
+  difficulty: Difficulty
+  remainingSeconds: number
+  timeExpired: boolean
 }
 
 const steps = [
@@ -12,7 +17,7 @@ const steps = [
   { page: 4 as InvestigationPage, label: '4. 결론 제출', icon: '📋' }
 ]
 
-export function InvestigationHeader({ currentPage, onSelectPage }: HeaderProps) {
+export function InvestigationHeader({ currentPage, onSelectPage, difficulty, remainingSeconds, timeExpired }: HeaderProps) {
   return (
     <header className="investigation-top-header">
       <div className="brand-section">
@@ -21,6 +26,11 @@ export function InvestigationHeader({ currentPage, onSelectPage }: HeaderProps) 
           <b className="brand-title">TRACKBACK</b>
           <small className="brand-subtitle">고장 원인 조사실</small>
         </div>
+      </div>
+
+      <div className={`investigation-challenge-clock ${timeExpired ? 'expired' : ''}`} role="timer" aria-label="고장 원인 조사 남은 시간">
+        <span>{investigationDifficultyLabel[difficulty]} 조사</span>
+        <strong>{timeExpired ? 'TIME OUT' : formatInvestigationTime(remainingSeconds)}</strong>
       </div>
 
       <nav className="stepper-nav" aria-label="조사 사고 단계">

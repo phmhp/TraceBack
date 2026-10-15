@@ -1,5 +1,6 @@
 import { resolveInvestigationSelection } from '../../../../registries/investigation/Trace'
 import type { InvestigationSelection } from '../../../../runtime/investigation/InvestigationSession'
+import { getReferenceEntity } from '../../referenceVehicle/ReferenceVehicleUIAdapter.ts'
 
 interface Page2ContextBarProps {
   selection: InvestigationSelection
@@ -10,14 +11,16 @@ const pathLabel = (id:string) => id==='VehiclePhysics'?'Vehicle Response':id
 
 export function Page2ContextBar({ selection, currentPath }: Page2ContextBarProps) {
   const resolved=resolveInvestigationSelection(selection)
+  const referenceComponent=selection.componentId?getReferenceEntity(selection.componentId):undefined
+  const referenceSignal=selection.signalId?getReferenceEntity(selection.signalId):undefined
   return <section className="p2-compact-context" aria-label="현재 조사 컨텍스트">
     <div className="p2-context-column">
       <small>현재 조사 기능</small>
-      {resolved.component?<code>{resolved.component.label}</code>:<span>기능을 선택하세요</span>}
+      {resolved.component?<code>{resolved.component.label}</code>:referenceComponent?.entityKind==='LOGICAL_FUNCTION'?<code>{referenceComponent.name??referenceComponent.id}</code>:<span>기능을 선택하세요</span>}
     </div>
     <div className="p2-context-column">
       <small>선택 신호</small>
-      {resolved.signal?<code>{resolved.signal.label}</code>:<span>선택된 신호 없음</span>}
+      {resolved.signal?<code>{resolved.signal.label}</code>:referenceSignal?.entityKind==='SIGNAL'?<code>{referenceSignal.id}</code>:<span>선택된 신호 없음</span>}
     </div>
     <div className="p2-context-column p2-context-path">
       <small>현재 조사 경로</small>

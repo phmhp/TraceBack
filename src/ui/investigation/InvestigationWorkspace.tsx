@@ -20,6 +20,12 @@ import type { VerificationRunMetadata } from '../../runtime/investigation/Verifi
 import { architectureNode, getInputSignals, getOutputSignals, getIncomingInterfaces, getOutgoingInterfaces } from '../../registries/investigation/Architecture'
 import { useSimulationRuntime } from '../state/SimulationRuntimeContext.ts'
 import type { VehicleScenarioDefinition } from '../../runtime/scenario/VehicleScenario.ts'
+import { investigationTimeLimitSeconds } from '../../runtime/investigation/InvestigationChallenge.ts'
+import { deriveGameplayInvestigation } from '../../runtime/investigation/GameplayInvestigation.ts'
+import { ClueUnlockToast, InvestigationClueRail } from './shell/InvestigationClueRail.tsx'
+import type { GameplayClueProgress } from '../../runtime/investigation/GameplayInvestigation.ts'
+import { useIncidentRace } from '../state/incidentRace.ts'
+import { getRuntimeComponentForReferenceFunction } from './referenceVehicle/ReferenceVehicleUIAdapter.ts'
 import '../case.css'
 import './investigation-layout.css'
 
@@ -36,15 +42,20 @@ export function InvestigationWorkspace() {
     const { controller, state } = useCase()
     const {runtime,scenario}=useSimulationRuntime()
     const completeInvestigation = useNavigation((s) => s.completeInvestigation)
+    const difficulty = useNavigation((s) => s.sessionConfig?.difficulty ?? s.draftConfig.difficulty)
     const recordDiagnosis=useNavigation(s=>s.recordDiagnosis)
     const beginRepairSelection=useNavigation(s=>s.beginRepairSelection)
     const beginRepairVerification=useNavigation(s=>s.beginRepairVerification)
     const repairVerificationFailed=useNavigation(s=>s.repairVerificationFailed)
     const resumeInvestigation=useNavigation(s=>s.resumeInvestigation)
     const ui = useInvestigationUIState()
+    const incidentTimeLossSeconds=useIncidentRace(state=>state.incidentTimeLossSeconds)
+    const stopIncidentLoss=useIncidentRace(state=>state.stop)
+    const recordIncidentHint=useIncidentRace(state=>state.recordHint)
 
     const currentFrame = state.frames[state.selected]
     const definition = controller.definition
+    const gameplayInvestigation=useMemo(()=>deriveGameplayInvestigation(ui.session,state.evidence,definition,state.frames,state.experiments),[definition,state.evidence,state.experiments,state.frames,ui.session])
 
     const [videoSlot, setVideoSlot] = useState<HTMLDivElement | null>(null)
     const [scenarioVideoSlot,setScenarioVideoSlot]=useState<HTMLDivElement|null>(null)
@@ -54,6 +65,10 @@ export function InvestigationWorkspace() {
     const [missionFeedback,setMissionFeedback]=useState<(typeof ui.missions)[number]|null>(null)
     const [dialogueQueue,setDialogueQueue]=useState<DialogueBeat[]>([{id:'fault-intro',speaker:'고양이 운전자',line:'어...? 페달은 밟았는데 차가 잘 안 나가. 무슨 일이었는지 같이 봐줄래?'}])
     const [catReaction,setCatReaction]=useState<CatReactionState>('CAT_FAULT')
+    const [unlockedClue,setUnlockedClue]=useState<GameplayClueProgress|null>(null)
+    const unlockedClueIds=useRef(new Set<string>())
+    const [remainingInvestigationSeconds,setRemainingInvestigationSeconds]=useState(()=>investigationTimeLimitSeconds[difficulty])
+    const investigationClockRef=useRef({difficulty,remaining:investigationTimeLimitSeconds[difficulty],last:performance.now()})
     const processedActionId=useRef(0)
     const completedMissionIds=useRef(new Set<string>())
     const guidedNavigationTimer=useRef<number|null>(null)
@@ -71,6 +86,21 @@ export function InvestigationWorkspace() {
         },1200)
     },[])
     useEffect(()=>()=>{if(guidedNavigationTimer.current!==null)window.clearTimeout(guidedNavigationTimer.current)},[])
+    useEffect(()=>{
+        const limit=investigationTimeLimitSeconds[difficulty]
+        investigationClockRef.current={difficulty,remaining:limit,last:performance.now()}
+        setRemainingInvestigationSeconds(limit)
+        const timer=window.setInterval(()=>{
+            const clock=investigationClockRef.current
+            const now=performance.now()
+            if(document.visibilityState==='visible'&&clock.remaining>0){
+                clock.remaining=Math.max(0,clock.remaining-(now-clock.last)/1000)
+                setRemainingInvestigationSeconds(clock.remaining)
+            }
+            clock.last=now
+        },250)
+        return()=>window.clearInterval(timer)
+    },[difficulty])
 
     // Create presentation model
     const presentationModel = useMemo(() => {
@@ -113,6 +143,12 @@ export function InvestigationWorkspace() {
     useEffect(()=>{if(!clueFeedback)return;const timer=window.setTimeout(()=>setClueFeedback(null),3600);return()=>window.clearTimeout(timer)},[clueFeedback])
     useEffect(()=>{if(!notebookFeedback)return;const timer=window.setTimeout(()=>setNotebookFeedback(false),2600);return()=>window.clearTimeout(timer)},[notebookFeedback])
     useEffect(()=>{if(!missionFeedback)return;const timer=window.setTimeout(()=>setMissionFeedback(null),2800);return()=>window.clearTimeout(timer)},[missionFeedback])
+    useEffect(()=>{
+        const newlyUnlocked=gameplayInvestigation.clues.find(clue=>clue.unlocked&&!unlockedClueIds.current.has(clue.id))
+        for(const clue of gameplayInvestigation.clues)if(clue.unlocked)unlockedClueIds.current.add(clue.id)
+        if(newlyUnlocked)setUnlockedClue(newlyUnlocked)
+    },[gameplayInvestigation.clues])
+    useEffect(()=>{if(!unlockedClue)return;const timer=window.setTimeout(()=>setUnlockedClue(null),2600);return()=>window.clearTimeout(timer)},[unlockedClue])
     // InvestigationSession owns the player hypothesis; the case report receives an explicit synchronized copy.
     useEffect(() => {
         controller.setHypothesis(ui.hypothesis)
@@ -126,39 +162,24 @@ export function InvestigationWorkspace() {
         if (ui.selectedFrameIndex !== state.selected) ui.setSelectedFrameIndex(state.selected)
     }, [state.selected, ui])
 
-    // 3D viewport projection: 원본 desk-video getBoundingClientRect 방식 복원 (commit 79ec3b baseline)
+    // Keep the live canvas inside its visible panel. This makes the panel's
+    // stacking context authoritative, so the WebGL surface cannot cover
+    // investigation controls, dialogs, or guided-review overlays.
     useLayoutEffect(() => {
         const projectionSlot=ui.page===3?scenarioVideoSlot:videoSlot
         if (!projectionSlot) return
-        const resize = () => {
-            const rect = projectionSlot.getBoundingClientRect()
-            const headerBottom = document.querySelector('.investigation-top-header')?.getBoundingClientRect().bottom ?? 0
-            const timelineTop = document.querySelector('.investigation-timeline,.investigation-bottom-timeline,.case-timeline')?.getBoundingClientRect().top ?? window.innerHeight
-            for (const [name, value] of Object.entries({
-                left: rect.left,
-                top: rect.top,
-                width: rect.width,
-                height: rect.height
-            })) {
-                document.documentElement.style.setProperty(`--case-video-${name}`, `${value}px`)
-            }
-            const clipTop = Math.max(0, headerBottom - rect.top)
-            const clipBottom = Math.max(0, rect.bottom - timelineTop)
-            document.documentElement.style.setProperty('--case-video-clip',`inset(${clipTop}px 0 ${clipBottom}px 0 round 16px)`)
-        }
-        resize()
-        const observer = new ResizeObserver(resize)
-        observer.observe(projectionSlot)
-        window.addEventListener('resize', resize)
-        window.addEventListener('scroll', resize, true)
+        const viewport=document.querySelector<HTMLElement>('.game-viewport')
+        if(!viewport)return
+        const originalParent=viewport.parentNode
+        const originalNextSibling=viewport.nextSibling
+        projectionSlot.classList.add('viewport-projection-host')
+        projectionSlot.appendChild(viewport)
         return () => {
-            observer.disconnect()
-            window.removeEventListener('resize', resize)
-            window.removeEventListener('scroll', resize, true)
-            for (const name of ['left', 'top', 'width', 'height']) {
-                document.documentElement.style.removeProperty(`--case-video-${name}`)
+            projectionSlot.classList.remove('viewport-projection-host')
+            if(originalParent){
+                if(originalNextSibling&&originalNextSibling.parentNode===originalParent)originalParent.insertBefore(viewport,originalNextSibling)
+                else originalParent.appendChild(viewport)
             }
-            document.documentElement.style.removeProperty('--case-video-clip')
         }
     }, [videoSlot,scenarioVideoSlot,ui.page])
 
@@ -208,9 +229,10 @@ export function InvestigationWorkspace() {
 
     const handleCompareSignal=(subjectId:string)=>{
         if(!currentFrame||!ui.selectedComponent)return
+        const selectedComponent=getRuntimeComponentForReferenceFunction(ui.selectedComponent)??ui.selectedComponent
         const previous=state.frames[state.selected-1]
-        const comparison=compareSignalAtFrame(subjectId,ui.selectedComponent,currentFrame,previous);if(!comparison)return
-        const id=`finding:signal:${ui.selectedComponent}:${subjectId}:${currentFrame.id}`
+        const comparison=compareSignalAtFrame(subjectId,selectedComponent,currentFrame,previous);if(!comparison)return
+        const id=`finding:signal:${selectedComponent}:${subjectId}:${currentFrame.id}`
         if(ui.session.discoveredFindings.some(item=>item.id===id))return
         ui.recordAction('COMPARE_SIGNAL',subjectId)
         const claim=comparison.status==='MISMATCH'
@@ -237,7 +259,8 @@ export function InvestigationWorkspace() {
             return
         }
         handleCompareSignal(subjectId)
-        const saved = controller.saveSignalEvidence(ui.selectedComponent, subjectId)
+        const selectedComponent=getRuntimeComponentForReferenceFunction(ui.selectedComponent)??ui.selectedComponent
+        const saved = controller.saveSignalEvidence(selectedComponent, subjectId)
         if (!saved) return
         ui.collectEvidence(saved.id)
     }
@@ -307,14 +330,14 @@ export function InvestigationWorkspace() {
         ui.recordAction('CONCLUSION_SUBMITTED', report.faultLocation)
         const diagnosis=controller.getSnapshot().diagnosis
         if (diagnosis?.correct&&diagnosis.evidenceSufficient) ui.recordAction('CONCLUSION_CONFIRMED', report.faultLocation)
-        if(diagnosis)recordDiagnosis(diagnosis.correct?(diagnosis.evidenceSufficient?'CORRECT_SUPPORTED':'CORRECT_INCOMPLETE'):'INCORRECT')
+        if(diagnosis){recordDiagnosis(diagnosis.correct?(diagnosis.evidenceSufficient?'CORRECT_SUPPORTED':'CORRECT_INCOMPLETE'):'INCORRECT');if(diagnosis.correct&&diagnosis.evidenceSufficient)stopIncidentLoss()}
         beginRepairSelection()
     }
 
     const handleRunRepair = (variant: 0 | 2 | 3) => {
         beginRepairVerification()
         const run=controller.runRepair(variant)
-        if(run.rows.every(row=>row.pass))runtime.unlockRecoveryChallenge()
+        if(run.rows.every(row=>row.pass)){runtime.unlockRecoveryChallenge();window.setTimeout(()=>completeInvestigation('race'),850)}
         else repairVerificationFailed()
     }
 
@@ -323,11 +346,14 @@ export function InvestigationWorkspace() {
     }
 
     return (
-        <div className={`investigation-new-container ${guidedReviewStep === null ? '' : `guided-review-active guided-review-step-${guidedReviewStep}`}`}>
+        <div className={`investigation-new-container focus-${gameplayInvestigation.active.toLowerCase().replace('_','-')} ${guidedReviewStep === null ? '' : `guided-review-active guided-review-step-${guidedReviewStep}`}`}>
             {/* 1. 상단 Stepper 헤더 */}
             <InvestigationHeader
                 currentPage={ui.page}
                 onSelectPage={ui.setPage}
+                difficulty={difficulty}
+                remainingSeconds={remainingInvestigationSeconds}
+                timeExpired={remainingInvestigationSeconds<=0}
             />
 
             {/* 2. 본문 영역: 사이드바 + 메인 페이지 */}
@@ -336,6 +362,22 @@ export function InvestigationWorkspace() {
                     model={presentationModel}
                     hypothesis={ui.hypothesis}
                     evidenceList={state.evidence}
+                    clueProgress={gameplayInvestigation.clues}
+                    clueRail={<InvestigationClueRail
+                        clues={gameplayInvestigation.clues}
+                        evidenceList={state.evidence}
+                        active={gameplayInvestigation.active}
+                        suspects={gameplayInvestigation.suspects}
+                        incidentTimeLossSeconds={incidentTimeLossSeconds}
+                        hintLevel={ui.session.hintLevels[gameplayInvestigation.active]}
+                        normalCandidates={gameplayInvestigation.normalCandidates}
+                        abnormalCandidates={gameplayInvestigation.abnormalCandidates}
+                        lastNormalEvidenceId={ui.session.boundarySelection.lastNormalEvidenceId}
+                        firstAbnormalEvidenceId={ui.session.boundarySelection.firstAbnormalEvidenceId}
+                        onUseHint={()=>{ui.useHint(gameplayInvestigation.active);const next=Math.min(3,ui.session.hintLevels[gameplayInvestigation.active]+1) as 1|2|3;recordIncidentHint(next)}}
+                        onNavigate={()=>gameplayInvestigation.active==='PHENOMENON'?ui.navigate({page:1},'현상 단서 찾기'):gameplayInvestigation.active==='FAULT_BOUNDARY'?ui.navigate({page:2,view:'SIGNALS'},'경계 단서 찾기'):ui.navigate({page:3},'증명 단서 찾기')}
+                        onMarkBoundary={ui.markBoundary}
+                    />}
                     videoSlotRef={setVideoSlot}
                     onSelectEvidence={(ev) => {
                         const frameIndex=state.frames.findIndex(frame=>frame.id===ev.reference.frameId)
@@ -388,6 +430,7 @@ export function InvestigationWorkspace() {
                         selectedRequirement={ui.selectedRequirement}
                         onSelectRequirement={ui.setSelectedRequirement}
                         selectedTestCase={ui.selectedTestCase}
+                        onSelectTestCase={ui.setSelectedTestCase}
                         currentFrame={currentFrame}
                         frames={state.frames}
                         onSelectFrameIndex={handleSeek}
@@ -396,6 +439,7 @@ export function InvestigationWorkspace() {
                         onIdentifyExpectedBasis={handleIdentifyExpectedBasis}
                         onInspectInterfaceCapability={handleInspectInterfaceCapability}
                         onSetHypothesisTarget={(target) => {
+                            target=getRuntimeComponentForReferenceFunction(target)??target
                             const requirements=getRequirementsForComponent(target)
                             const requested=getRequirement(ui.selectedRequirement)
                             const requirement=requested?.allocatedComponent===target?requested:requirements.find(item=>item.level==='SOFTWARE')??requirements[0]
@@ -466,6 +510,11 @@ export function InvestigationWorkspace() {
                         onRunRepair={handleRunRepair}
                         onStartRecovery={() => completeInvestigation('race')}
                         onStartGuidedReview={() => showGuidedStep(0)}
+                        guidedReviewAvailable={remainingInvestigationSeconds<=0}
+                        remainingInvestigationSeconds={remainingInvestigationSeconds}
+                        rootCauseUnlocked={gameplayInvestigation.rootCauseUnlocked}
+                        reportEvidenceIds={ui.session.collectedEvidenceIds}
+                        onNavigateToActiveClue={()=>gameplayInvestigation.active==='PHENOMENON'?ui.navigate({page:1},'현상 단서 찾기'):gameplayInvestigation.active==='FAULT_BOUNDARY'?ui.navigate({page:2,view:'SIGNALS'},'경계 단서 찾기'):ui.navigate({page:3},'증명 단서 찾기')}
                         onRetryInvestigation={() => {
                             const needsMore=Boolean(controller.getSnapshot().diagnosis?.correct&&!controller.getSnapshot().diagnosis?.evidenceSufficient)
                             controller.retryDiagnosis();resumeInvestigation()
@@ -479,6 +528,7 @@ export function InvestigationWorkspace() {
             <ClueToast finding={clueFeedback}/>
             <NotebookToast visible={notebookFeedback}/>
             <MissionCompleteToast mission={missionFeedback}/>
+            <ClueUnlockToast clue={unlockedClue}/>
             <DriverDialogue beat={dialogueQueue[0]??null} reaction={catReaction} remaining={dialogueQueue.length} onNext={()=>setDialogueQueue(queue=>queue.slice(1))} onSkip={()=>setDialogueQueue([])}/>
 
             {/* 3. 하단 공통 타임라인 바 */}
@@ -503,7 +553,7 @@ export function InvestigationWorkspace() {
                     <button type="button" disabled={guidedReviewStep === 0} onClick={() => showGuidedStep(guidedReviewStep - 1)}>이전</button>
                     {guidedReviewStep < guidedReview.length - 1 && <button type="button" onClick={() => showGuidedStep(guidedReviewStep + 1)}>다음</button>}
                     <button type="button" onClick={() => {
-                        if(guidedReviewStep===guidedReview.length-1){controller.completeGuidedResolution();recordDiagnosis('ASSISTED');beginRepairSelection();ui.navigate({page:4},'assisted solution result',false)}
+                        if(guidedReviewStep===guidedReview.length-1){controller.completeGuidedResolution();recordDiagnosis('ASSISTED');recordIncidentHint(3);stopIncidentLoss();beginRepairSelection();ui.navigate({page:4},'assisted solution result',false)}
                         setGuidedReviewStep(null)
                     }}>{guidedReviewStep===guidedReview.length-1?'해설 결과 확인':'해설 종료'}</button>
                 </div>

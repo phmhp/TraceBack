@@ -1,6 +1,7 @@
 import type { InvestigationPresentationModel, HypothesisModel } from '../presentation/InvestigationPresentationModel'
 import type { Evidence } from '../../../runtime/investigation/Evidence'
-import { useState, type Ref } from 'react'
+import type { GameplayClueProgress } from '../../../runtime/investigation/GameplayInvestigation.ts'
+import { useState, type ReactNode, type Ref } from 'react'
 
 interface SidebarProps {
   model: InvestigationPresentationModel
@@ -10,6 +11,8 @@ interface SidebarProps {
   onOpenAddEvidenceModal?: () => void
   onSelectEvidence?: (ev: Evidence) => void
   onNavigateToTracking?: () => void
+  clueProgress?: readonly GameplayClueProgress[]
+  clueRail?:ReactNode
 }
 
 export function InvestigationSidebar({
@@ -19,9 +22,14 @@ export function InvestigationSidebar({
   videoSlotRef,
   onOpenAddEvidenceModal,
   onSelectEvidence,
-  onNavigateToTracking
+  onNavigateToTracking,
+  clueProgress,
+  clueRail
 }: SidebarProps) {
   const { progress } = model
+  const phenomenonConfirmed=clueProgress?.find(item=>item.id==='PHENOMENON')?.unlocked??progress.phenomenonConfirmed
+  const boundaryTracked=clueProgress?.find(item=>item.id==='FAULT_BOUNDARY')?.unlocked??progress.boundaryTracked
+  const hypothesisVerified=clueProgress?.find(item=>item.id==='PROOF')?.unlocked??progress.hypothesisVerified
   const [collapsed,setCollapsed]=useState(false)
   const [notesOpen,setNotesOpen]=useState(true)
   const investigationNotes=evidenceList.filter(item=>item.type!=='TEST_RESULT')
@@ -37,6 +45,7 @@ export function InvestigationSidebar({
         <span aria-hidden="true">{collapsed?'›':'‹'}</span><b>{collapsed?'패널 열기':'패널 접기'}</b>
       </button>
       {!collapsed&&<>
+      {clueRail}
       {/* 1. 사건 정보 카드 */}
       <section className="sidebar-card sidebar-case-card">
         <div className="sidebar-case-line">
@@ -69,27 +78,27 @@ export function InvestigationSidebar({
         </div>
 
         <div className="progress-list">
-          <div className={`progress-item ${progress.phenomenonConfirmed ? 'completed' : 'current'}`}>
-            <span className="progress-dot">{progress.phenomenonConfirmed ? '✓' : '1'}</span>
-            <span className="progress-copy">현상 확인{progress.phenomenonConfirmed && <small>보고서 검토 완료</small>}</span>
+          <div className={`progress-item ${phenomenonConfirmed ? 'completed' : 'current'}`}>
+            <span className="progress-dot">{phenomenonConfirmed ? '✓' : '1'}</span>
+            <span className="progress-copy">현상 근거 확보{phenomenonConfirmed && <small>실제 사건 관찰 저장</small>}</span>
           </div>
 
-          <div className={`progress-item ${progress.boundaryTracked ? 'completed' : progress.phenomenonConfirmed ? 'current' : ''}`}>
-            <span className="progress-dot">{progress.boundaryTracked ? '✓' : '2'}</span>
-            <span className="progress-copy">이상 발생 범위 추적{progress.boundaryTracked && <small>경계 비교 완료</small>}</span>
+          <div className={`progress-item ${boundaryTracked ? 'completed' : phenomenonConfirmed ? 'current' : ''}`}>
+            <span className="progress-dot">{boundaryTracked ? '✓' : '2'}</span>
+            <span className="progress-copy">정상·이상 경계 확인{boundaryTracked && <small>두 경계 근거 지정</small>}</span>
           </div>
 
-          <div className={`progress-item ${progress.hypothesisFormulated ? 'completed' : progress.boundaryTracked ? 'current' : ''}`}>
+          <div className={`progress-item ${progress.hypothesisFormulated ? 'completed' : boundaryTracked ? 'current' : ''}`}>
             <span className="progress-dot">{progress.hypothesisFormulated ? '✓' : '3'}</span>
             <span className="progress-copy">가설 설정{progress.hypothesisFormulated && <small>가설 기록 완료</small>}</span>
           </div>
 
-          <div className={`progress-item ${progress.hypothesisVerified ? 'completed' : progress.hypothesisFormulated ? 'current' : ''}`}>
-            <span className="progress-dot">{progress.hypothesisVerified ? '✓' : '4'}</span>
-            <span className="progress-copy">가설 검증{progress.hypothesisVerified && <small>검증 기록 완료</small>}</span>
+          <div className={`progress-item ${hypothesisVerified ? 'completed' : progress.hypothesisFormulated ? 'current' : ''}`}>
+            <span className="progress-dot">{hypothesisVerified ? '✓' : '4'}</span>
+            <span className="progress-copy">가설 증명{hypothesisVerified && <small>정식 검증 근거 충분</small>}</span>
           </div>
 
-          <div className={`progress-item ${progress.conclusionSubmitted ? 'completed' : progress.hypothesisVerified ? 'current' : ''}`}>
+          <div className={`progress-item ${progress.conclusionSubmitted ? 'completed' : hypothesisVerified ? 'current' : ''}`}>
             <span className="progress-dot">{progress.conclusionSubmitted ? '✓' : '5'}</span>
             <span className="progress-copy">결론 제출{progress.conclusionSubmitted && <small>보고서 제출 완료</small>}</span>
           </div>

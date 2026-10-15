@@ -46,6 +46,8 @@ export function useInvestigationUIState() {
     recordAction: (actionType: InvestigationActionType, subjectId?: string) => dispatch({ type: 'RECORD', actionType, subjectId }),
     discover: (finding: DiscoveredFinding) => dispatch({ type: 'DISCOVER', finding }),
     collectEvidence: (evidenceId: string) => dispatch({ type: 'COLLECT_EVIDENCE', evidenceId }),
+    markBoundary: (kind:'LAST_NORMAL'|'FIRST_ABNORMAL',evidenceId:string) => dispatch({type:'MARK_BOUNDARY',kind,evidenceId}),
+    useHint: (clueId:'PHENOMENON'|'FAULT_BOUNDARY'|'PROOF') => dispatch({type:'USE_HINT',clueId}),
     isPlaying, setIsPlaying,
   }
 }

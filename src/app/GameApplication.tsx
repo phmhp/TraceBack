@@ -17,6 +17,7 @@ import buildInfo from '../runtime/c/generated/build.json'
 import { SimulationRuntimeContext } from '../ui/state/SimulationRuntimeContext'
 import { RecoveryChallenge, createLocalBestTimeStore, createRecoveryTrack } from '../runtime/gameplay/RecoveryChallenge'
 import { publishRecoveryHud } from '../ui/state/recoveryHud'
+import { useIncidentRace } from '../ui/state/incidentRace.ts'
 
 /** Composition root: wires browser input, runtime, engine adapter and UI without reverse imports. */
 export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssembly.Module }) {
@@ -49,6 +50,14 @@ export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssem
   const enterDebugXRay = useNavigation((s) => s.enterDebugXRay)
   const openDebrief = useNavigation((s) => s.openDebrief)
   const quitToMain = useNavigation((s) => s.reset)
+  useEffect(()=>{
+    if(phase==='PRE_RACE')useIncidentRace.getState().reset()
+    if(phase==='FAULT_EVENT')useIncidentRace.getState().start(incident.getSnapshot().elapsed,performance.now())
+    const timed=['FAULT_EVENT','INVESTIGATION','DIAGNOSIS_RESULT','REPAIR_SELECTION','REPAIR_VERIFICATION','RETRY_REPAIR','ASSISTED_SOLUTION'].includes(phase)
+    if(!timed)return
+    const timer=window.setInterval(()=>{if(document.visibilityState==='visible')useIncidentRace.getState().tick(performance.now())},100)
+    return()=>window.clearInterval(timer)
+  },[incident,phase])
   const clearInput = useRef(() => {})
   const actions = useMemo(() => ({
     pause: () => { clearInput.current(); runtime.pause(); pauseRace() },
@@ -72,7 +81,7 @@ export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssem
     if (phase === 'NORMAL_DRIVE' || phase === 'RECOVERY_DRIVE') {
       if (!runtime.clock.running) runtime.start()
       else if (runtime.clock.paused) runtime.resume()
-    } else if (phase === 'PAUSE_MENU' || phase === 'INVESTIGATION' || phase === 'FAULT_EVENT') runtime.pause()
+    } else if (phase === 'PAUSE_MENU' || phase === 'FAULT_EVENT' || phase === 'INVESTIGATION') runtime.pause()
     else if (phase === 'MISSION_RESULT') runtime.pause()
     else if (phase === 'MAIN' || phase === 'SESSION_SETUP') runtime.reset()
   }, [completeCountdown,completeRecoveryCountdown, phase, runtime, sessionConfig])

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { HypothesisModel } from '../presentation/InvestigationPresentationModel.ts'
 import type { IncidentFrame, ExperimentRun } from '../../../runtime/case/PropulsionCase.ts'
 import { architectureNode } from '../../../registries/investigation/Architecture.ts'
@@ -26,10 +27,13 @@ export function Page3Verification(props:Props){
   const [componentId,setComponentId]=useState<'VMC'|'eDrive'>(contextTarget.id==='VMC'?'VMC':'eDrive')
   const target:InvestigationTarget={type:'FUNCTION',id:componentId,domainScope:'Propulsion'}
   const capability=getVerificationCapability(target)!
-  const [technique,setTechnique]=useState<TestDesignTechnique>('ERROR_GUESSING')
+  const [technique,setTechnique]=useState<TestDesignTechnique>('REQUIREMENTS_ANALYSIS')
   const [input,setInput]=useState(target?.id==='VMC'?.5:90),[speed,setSpeed]=useState(0)
   const [direction,setDirection]=useState<'FORWARD'|'REVERSE'>('FORWARD'),[validity,setValidity]=useState<'VALID'|'INVALID'>('VALID')
-  const [useRequirement,setUseRequirement]=useState(true),[useExistingTc,setUseExistingTc]=useState(Boolean(selectedTc?.execution.status==='EXECUTABLE'))
+  const [useExistingTc,setUseExistingTc]=useState(Boolean(selectedTc?.execution.status==='EXECUTABLE'))
+  const [scenarioSetupHost,setScenarioSetupHost]=useState<Element|null>(null)
+  const [scenarioResultHost,setScenarioResultHost]=useState<Element|null>(null)
+  const [componentResultHost,setComponentResultHost]=useState<Element|null>(null)
   const relatedTests=target?.type==='FUNCTION'?testsForComponent(target.id):[]
   const executableTc=(selectedTc?.execution.status==='EXECUTABLE'&&selectedTc.execution.target===target?.id?selectedTc:undefined)??relatedTests.find(item=>item.execution.status==='EXECUTABLE')
   const requirement=useMemo(()=>{if(hypothesis?.requirementId)return getRequirement(hypothesis.requirementId);const reqs=executableTc?traceRequirements(executableTc.id):[];return reqs.find(item=>item.level==='SOFTWARE')??reqs[0]},[executableTc,hypothesis?.requirementId])
@@ -43,28 +47,32 @@ export function Page3Verification(props:Props){
   const loadIncident=()=>{onJumpToEvent();if(target?.id==='VMC')setInput(eventFrame?.sw.output.propulsionRequest.magnitude??.5);if(target?.id==='eDrive')setInput(eventFrame?.sw.output.driveTorqueRequest.magnitudeNm??90);setSpeed(eventFrame?.sw.input.vehicleSpeed??0)}
   const run=()=>{
     if(!capability||!target||!(target.id==='VMC'||target.id==='eDrive'))return
-    const basis=useRequirement?requirement:undefined,origin=useExistingTc&&executableTc?'EXISTING_TEST_CASE':'PLAYER_DESIGNED_EXPERIMENT'
+    const basis=requirement,origin=useExistingTc&&executableTc?'EXISTING_TEST_CASE':'PLAYER_DESIGNED_EXPERIMENT'
     onRunExperiment(input,speed,direction,validity,target.id,{method:'COMPONENT_OUTPUT_COMPARISON',executionMode:'COMPONENT_MODEL_TEST',designTechnique:technique,designOrigin:origin,target,hypothesisId:hypothesis?.id,requirementId:basis?.id,existingTestCaseId:origin==='EXISTING_TEST_CASE'?executableTc?.id:undefined,stimulus:{kind:'CONSTANT',value:input},monitoredOutputIds:[outputSignal],expectedCriterion:basis?.statement??'독립 컴포넌트 오라클 Expected',preconditions:[`Direction=${direction}`,`Validity=${validity}`,...(target.id==='VMC'?[`VehicleSpeed=${speed} m/s`]:[])],variationGroupId:`${target.type}:${target.id}:${direction}:${validity}`})
   }
 
   return <div className="investigation-main-content verification-page verification-redesign generalized-workbench">
     <section className="investigation-page-heading"><p className="investigation-page-title">3 · 가설 검증</p><h2>원인이 맞는지 확인해보세요.</h2></section>
-    <section className="verification-context-grid generalized" aria-label="현재 조사 컨텍스트">
-      <article><small>1 · 현재 조사 범위</small><strong>실행 가능한 SW 기능</strong><div className="verification-target-choice"><button type="button" aria-pressed={componentId==='VMC'} onClick={()=>setComponentId('VMC')}>VMC</button><button type="button" aria-pressed={componentId==='eDrive'} onClick={()=>setComponentId('eDrive')}>eDrive</button></div><button type="button" onClick={onNavigateToTracking}>조사 지도로 돌아가기</button></article>
-      <article><small>2 · 현재 가설</small>{hypothesis?<><strong>{architectureNode(hypothesis.target)?.label??hypothesis.target}</strong><p><b>관찰 이유</b> · {hypothesis.observedReason}</p><p><b>예측</b> · {hypothesis.prediction}</p></>:<><strong>아직 등록된 가설이 없습니다.</strong><p>조사 지도에서 차이가 생기는 기능을 골라 가설을 만드세요.</p></>}</article>
-    </section>
-    <section className="verification-unified-heading"><p className="investigation-section-label">3 · 통합 검증 워크벤치</p><h3>컴포넌트 계산과 차량 반응을 한 흐름에서 확인합니다.</h3><p>같은 가설과 조건을 사용해 계산 결과를 확인한 뒤 실제 차량 반응으로 이어서 검증합니다.</p></section>
-    <div className="verification-unified-workbench"><ComponentWorkbench/><VehicleScenarioWorkbench scenario={vehicleScenario} investigationTarget={{type:'ACTUATION_PLANT',id:'VehiclePhysics',domainScope:'Vehicle Motion'}} requirement={requirement} hypothesisId={hypothesis?.id} onRun={onRunVehicleScenario} onReplay={onReplayVehicleScenario} onAbort={onAbortVehicleScenario} onCollect={onCollectVehicleScenario} onOpenRequirement={onOpenRequirement} viewportSlotRef={scenarioViewportRef}/></div>
+    <div className="verification-action-bar" aria-label="현재 검증 대상">
+      <span><small>가설 대상</small><strong>{hypothesis?(architectureNode(hypothesis.target)?.label??hypothesis.target):'차량 전체 반응 탐색'}</strong></span>
+      <div className="verification-target-choice" aria-label="실행 가능한 독립 계산기"><button type="button" aria-pressed={componentId==='VMC'} onClick={()=>setComponentId('VMC')}><b>VMC 독립 계산</b></button><button type="button" aria-pressed={componentId==='eDrive'} onClick={()=>setComponentId('eDrive')}><b>eDrive 독립 계산</b></button></div>
+      <details className="verification-capability-help"><summary>다른 기능은?</summary><p>가설 대상은 전체 기능에서 고를 수 있습니다. 현재 정식 Expected와 독립 실행 코드가 함께 연결된 계산기는 VMC와 eDrive입니다.</p></details>
+      <button type="button" className="report-text-button" onClick={onNavigateToTracking}>{hypothesis?'가설 수정':'조사 지도에서 가설 선택'}</button>
+    </div>
+    <div className="verification-unified-workbench">
+      <div className="verification-setup-column"><p className="verification-column-title"><b>조건 설정</b><span>요구사항을 기준으로 정상·비정상 TC를 구성합니다.</span></p><ComponentWorkbench/><div ref={setScenarioSetupHost}/></div>
+      <div className="verification-result-column"><p className="verification-column-title"><b>관찰 결과</b><span>차량 반응을 먼저 보고, 계산 차이를 근거로 확인합니다.</span></p><div ref={setScenarioResultHost}/><div ref={setComponentResultHost}/></div>
+      <VehicleScenarioWorkbench scenario={vehicleScenario} investigationTarget={contextTarget} requirement={requirement} hypothesisId={hypothesis?.id} technique={technique} onRun={onRunVehicleScenario} onReplay={onReplayVehicleScenario} onAbort={onAbortVehicleScenario} onCollect={onCollectVehicleScenario} onOpenRequirement={onOpenRequirement} viewportSlotRef={scenarioViewportRef} setupHost={scenarioSetupHost} resultHost={scenarioResultHost}/>
+    </div>
   </div>
 
   function ComponentWorkbench(){
-    return <>
-      <section className="verification-method-picker"><header><div><p className="investigation-section-label">4 · VERIFICATION METHOD</p><h3>컴포넌트 출력 비교</h3></div><span>COMPONENT / MODEL TEST · C/WASM</span></header><p>독립 컴포넌트 계산 결과를 적용 가능한 Expected와 비교합니다.</p></section>
-      <section className="verification-method-picker technique-section"><header><div><p className="investigation-section-label">5 · TEST DESIGN TECHNIQUE</p><h3>시험 조건을 만드는 방법</h3></div></header><div>{(Object.keys(testDesignTechniqueLabels) as TestDesignTechnique[]).map(item=>{const copy=testDesignTechniqueLabels[item],disabled=item==='REQUIREMENTS_ANALYSIS'&&!requirement;return <button type="button" key={item} disabled={disabled} aria-pressed={technique===item} onClick={()=>{setTechnique(item);if(item==='REQUIREMENTS_ANALYSIS')setUseRequirement(true)}}><strong>{copy.label}</strong><span>{copy.description}</span><small>{disabled?'관련 요구사항 없음':copy.produces}</small></button>})}</div></section>
-      <div className={`verification-workbench ${latestMatching&&latest?'has-result':'setup-only'}`}><section className="verification-setup-card"><header><div><p className="investigation-section-label">6–9 · PRECONDITIONS / STIMULUS / MONITOR / ORACLE</p><h3>{testDesignTechniqueLabels[technique].label}</h3></div><button type="button" className="report-text-button" onClick={loadIncident}>사건 조건 불러오기</button></header>
-        <div className="verification-source-choice"><label><input type="checkbox" checked={useRequirement&&Boolean(requirement)} disabled={!requirement} onChange={event=>setUseRequirement(event.target.checked)}/><span><b>요구사항 조건 가져오기</b><small>{requirement?`${requirement.id} · 이 요구사항에서 가져온 조건`:'관련 요구사항 없음'}</small></span></label>{executableTc&&<label><input type="checkbox" checked={useExistingTc} onChange={event=>setUseExistingTc(event.target.checked)}/><span><b>기존 시험 케이스 사용</b><small>{executableTc.id} · 해제하면 플레이어 설계 실험</small></span></label>}</div>
-        {useRequirement&&requirement&&<aside className="imported-requirement-basis"><span>이 요구사항에서 가져온 조건</span><code>{requirement.id}</code><p>{requirement.statement}</p><button type="button" onClick={()=>onOpenRequirement(requirement.id)}>원문 보기</button></aside>}
-        <dl className="test-purpose-grid experiment-design-grid"><div><dt>실행 대상</dt><dd>{architectureNode(target.id)?.label??target.id}</dd></div><div><dt>실행 모드</dt><dd>독립 컴포넌트 / 모델 시험</dd></div><div><dt>Stimulus</dt><dd>CONSTANT</dd></div><div><dt>바꿀 입력</dt><dd><code>{inputSignal}</code></dd></div><div><dt>관찰 출력</dt><dd><code>{outputSignal}</code></dd></div></dl>
+    return <div className="component-verification-workbench">
+      <section className="verification-method-picker technique-section"><header><div><p className="investigation-section-label">TEST BASIS · REQUIREMENT</p><h3>{requirement?`${requirement.id}를 기준으로 TC 설계`:'연결된 요구사항을 기준으로 TC 설계'}</h3></div></header><p className="technique-basis-copy">요구사항은 Expected와 판정 기준입니다. 아래에서는 그 요구사항을 확인할 정상·비정상 입력을 만드는 방법을 고릅니다.</p><h4 className="technique-choice-title">테스트케이스 설계 방법</h4><div>{(Object.keys(testDesignTechniqueLabels) as TestDesignTechnique[]).map(item=>{const copy=testDesignTechniqueLabels[item];return <button type="button" key={item} aria-pressed={technique===item} onClick={()=>setTechnique(item)}><strong>{copy.label}</strong><span>{item==='REQUIREMENTS_ANALYSIS'?'요구사항의 대표 정상 조건':item==='BOUNDARY_VALUE_ANALYSIS'?'경계 안·밖의 정상/비정상 조건':item==='EQUIVALENCE_CLASS_ANALYSIS'?'같은 처리 구간의 대표 조건':'의심되는 비정상 조건 직접 확인'}</span></button>})}</div><p className="selected-technique-feedback" role="status"><b>선택됨 · {testDesignTechniqueLabels[technique].label}</b><span>{testDesignTechniqueLabels[technique].description}</span></p></section>
+      <section className="verification-setup-card"><header><div><p className="investigation-section-label">6–9 · PRECONDITIONS / STIMULUS / MONITOR / ORACLE</p><h3>{testDesignTechniqueLabels[technique].label}</h3></div><button type="button" className="report-text-button" onClick={loadIncident}>사건 조건 불러오기</button></header>
+        <div className="verification-source-choice">{executableTc&&<label><input type="checkbox" checked={useExistingTc} onChange={event=>setUseExistingTc(event.target.checked)}/><span><b>등록된 TC 조건 사용</b><small>{executableTc.id} · 해제하면 같은 요구사항으로 새 TC 구성</small></span></label>}</div>
+        {requirement&&<aside className="imported-requirement-basis"><span>판정 기준이 되는 요구사항</span><code>{requirement.id}</code><p>{requirement.statement}</p><button type="button" onClick={()=>onOpenRequirement(requirement.id)}>요구사항 원문 보기</button></aside>}
+        <dl className="test-purpose-grid experiment-design-grid"><div><dt>계산할 기능</dt><dd>{architectureNode(target.id)?.label??target.id}</dd></div><div><dt>검증 방식</dt><dd>독립 C/WASM 계산</dd></div><div><dt>입력 형태</dt><dd>일정한 값(CONSTANT)</dd></div><div><dt>변화시킬 입력</dt><dd><code>{inputSignal}</code></dd></div><div><dt>확인할 출력</dt><dd><code>{outputSignal}</code></dd></div></dl>
         <div className="verification-control-panel"><p className="investigation-section-label">고정 조건과 입력</p>
           <div className="control-row"><div><span>Validity</span><small>지원되는 상태 조건</small></div><div className="finite-choice" role="radiogroup">{(['VALID','INVALID'] as const).map(value=><button type="button" aria-pressed={validity===value} key={value} onClick={()=>setValidity(value)}>{value}</button>)}</div></div>
           <div className="control-row"><div><span>Direction</span><small>지원되는 방향 조건</small></div><div className="finite-choice" role="radiogroup">{(['FORWARD','REVERSE'] as const).map(value=><button type="button" aria-pressed={direction===value} key={value} onClick={()=>setDirection(value)}>{value}</button>)}</div></div>
@@ -74,9 +82,9 @@ export function Page3Verification(props:Props){
           <label className="numeric-control primary"><span><code>{inputSignal}</code><small>{capability.variableInput.min}–{capability.variableInput.max}</small></span><input type="number" min={capability.variableInput.min} max={capability.variableInput.max} step={capability.variableInput.step} value={input} onChange={event=>setInput(event.target.valueAsNumber)}/></label>
           <button type="button" className="verification-run-button" onClick={run}>10 · 컴포넌트 시험 실행 →</button>
         </div>
-      </section>{latestMatching&&latest&&<section className="verification-execution-card"><header><div><p className="investigation-section-label">11–13 · OBSERVE / INTERPRET / REPEAT</p><h3>{architectureNode(target.id)?.label??target.id} 출력 비교</h3></div><span className="verification-run-count">유효한 다른 입력 {qualifyingInputs.length}/2</span></header><div className="verification-signal-flow"><code>{inputSignal}</code><i>→</i><strong>{target.id}</strong><i>→</i><code>{outputSignal}</code></div>
+      </section>{latestMatching&&latest&&componentResultHost&&createPortal(<section className="verification-execution-card component-result"><header><div><p className="investigation-section-label">계산 결과</p><h3>{architectureNode(target.id)?.label??target.id} 출력 비교</h3></div><span className="verification-run-count">유효한 다른 입력 {qualifyingInputs.length}/2</span></header><div className="verification-signal-flow"><code>{inputSignal}</code><i>→</i><strong>{target.id}</strong><i>→</i><code>{outputSignal}</code></div>
         <><div className="verification-run-provenance"><span>{latestMatching.verification?.designOrigin==='EXISTING_TEST_CASE'?'EXISTING TEST CASE':'PLAYER-DESIGNED EXPERIMENT'}</span><code>{latestMatching.verification?.method??'COMPONENT_OUTPUT_COMPARISON'}</code></div><div className="verification-metric-grid"><article><small>EXPECTED</small><strong>{String(latest.expected)} <em>Nm</em></strong></article><article><small>ACTUAL</small><strong>{String(latest.actual)} <em>Nm</em></strong></article><article className={latest.pass?'pass':'fail'}><small>시험 판정</small><strong>{latest.pass?'PASS':'FAIL'}</strong></article></div><p className="verification-concise-result">{latest.pass?'이 조건에서는 기준을 만족했습니다.':needsAnother?'현재 가설과 일치하지만 다른 정상 입력 한 번이 더 필요합니다.':'서로 다른 입력에서 반복되는 차이가 확인됐습니다.'}</p><section className="verification-interpretation"><strong>{interpretation}</strong><small>PASS/FAIL은 이 컴포넌트 실행의 판정이며 근본 원인이나 전체 차량 판정이 아닙니다.</small></section><details className="verification-result-summary"><summary>Verification Evidence 상세</summary><dl><div><dt>Method</dt><dd>{latestMatching.verification?.method}</dd></div><div><dt>Technique</dt><dd>{latestMatching.verification?.designTechnique}</dd></div><div><dt>Monitor</dt><dd>{outputSignal}</dd></div></dl></details><div className="verification-result-actions"><button type="button" onClick={()=>onInterpretTestResult(latestMatching.id)}>시험 결과 해석</button><button type="button" className="save-comparison-button" onClick={()=>onCollectTestAsEvidence(latestMatching.id)}>검증 근거로 저장</button>{hypothesis&&<button type="button" onClick={()=>onUpdateHypothesis({...hypothesis,status:latest.pass?'REJECTED':'MAINTAINED'})}>{latest.pass?'가설 재검토':'가설 유지'}</button>}</div></>
-      </section>}</div>
-    </>
+      </section>,componentResultHost)}
+    </div>
   }
 }

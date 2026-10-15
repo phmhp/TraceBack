@@ -8,6 +8,9 @@ import { ViewDStandards } from './page2/ViewDStandards'
 import { Page2ContextBar } from './page2/Page2ContextBar'
 import { FunctionInspector } from './page2/FunctionInspector'
 import type { DiscoveredFinding } from '../../../runtime/investigation/InvestigationSession'
+import { ReferenceVehicleInspector } from '../referenceVehicle/ReferenceVehiclePanels.tsx'
+import { getReferenceEntity, getRuntimeComponentForReferenceFunction } from '../referenceVehicle/ReferenceVehicleUIAdapter.ts'
+import { getOutputSignals } from '../../../registries/investigation/Architecture.ts'
 
 interface Page2Props {
   model: InvestigationPresentationModel
@@ -22,6 +25,7 @@ interface Page2Props {
   selectedRequirement: string
   onSelectRequirement: (id: string) => void
   selectedTestCase: string
+  onSelectTestCase: (id: string) => void
   currentFrame: IncidentFrame | undefined
   frames: readonly IncidentFrame[]
   onSelectFrameIndex: (idx: number) => void
@@ -56,6 +60,7 @@ export function Page2Tracking({
   selectedRequirement,
   onSelectRequirement,
   selectedTestCase,
+  onSelectTestCase,
   currentFrame,
   frames,
   onSelectFrameIndex,
@@ -69,6 +74,12 @@ export function Page2Tracking({
   discoveredFindings,
   collectedEvidenceIds,
 }: Page2Props) {
+  const referenceFunction=getReferenceEntity(selectedComponent)?.entityKind==='LOGICAL_FUNCTION'
+  const runtimeComponent=getRuntimeComponentForReferenceFunction(selectedComponent)
+  const toolComponent=runtimeComponent??selectedComponent
+  const toolOutputIds=getOutputSignals(toolComponent).map(signal=>signal.id)
+  const hasMismatchEvidence=discoveredFindings.some(finding=>finding.outcome==='MISMATCH'&&toolOutputIds.includes(finding.subjectId))
+  const referenceOnly=referenceFunction&&!runtimeComponent
   const requiresSelection=trackingView!=='FLOW'&&!selectedComponent
   const path=model.relevantFunctionPath
   const selectedPathIndex=path.indexOf(selectedComponent)
@@ -125,8 +136,9 @@ export function Page2Tracking({
           <Page2ContextBar selection={{ componentId:selectedComponent, signalId:selectedSignal, interfaceId:selectedInterface, requirementId:selectedRequirement, testCaseId:selectedTestCase }} currentPath={currentPath}/>
           {trackingView === 'FLOW' && <FunctionInspector
             model={model}
-            selectedComponent={selectedComponent}
+            selectedComponent={toolComponent}
             selectedSignal={selectedSignal}
+            hasMismatchEvidence={hasMismatchEvidence}
             currentFrame={currentFrame}
             previousFrame={previousFrame}
             onSelectSignal={onSelectSignal}
@@ -138,11 +150,25 @@ export function Page2Tracking({
             onSetHypothesisTarget={onSetHypothesisTarget}
           />}
 
+          {referenceOnly&&trackingView!=='FLOW'&&<ReferenceVehicleInspector
+            view={trackingView}
+            selectedComponent={selectedComponent}
+            selectedSignal={selectedSignal}
+            selectedInterface={selectedInterface}
+            selectedRequirement={selectedRequirement}
+            selectedTestCase={selectedTestCase}
+            onSelectComponent={(id)=>onNavigateContext('FLOW',{componentId:id},`${id} Reference Function으로 이동`)}
+            onNavigateToSignal={(id)=>onNavigateContext('SIGNALS',{signalId:id},`${id} Reference Signal로 이동`)}
+            onNavigateToInterface={(id)=>onNavigateContext('INTERFACES',{interfaceId:id},`${id} Reference Interface로 이동`)}
+            onNavigateToRequirement={(id)=>onNavigateContext('STANDARDS',{requirementId:id},`${id} Reference Requirement로 이동`)}
+            onSelectTestCase={onSelectTestCase}
+          />}
+
       {requiresSelection&&<section className="selection-required"><p className="investigation-section-label">조사 컨텍스트 필요</p><h3>먼저 조사할 기능을 선택하세요.</h3><p>Signal Monitor, 인터페이스와 요구사항은 선택한 기능을 기준으로 정보를 보여줍니다.</p><button type="button" onClick={()=>onSelectView('FLOW')}>기능 흐름에서 선택 →</button></section>}
 
-      {trackingView === 'SIGNALS' && !requiresSelection && (
+      {trackingView === 'SIGNALS' && !requiresSelection && !referenceOnly && (
         <ViewBSignals
-          selectedComponent={selectedComponent}
+          selectedComponent={toolComponent}
           selectedSignal={selectedSignal}
           onSelectSignal={onSelectSignal}
           currentFrame={currentFrame}
@@ -156,11 +182,11 @@ export function Page2Tracking({
         />
       )}
 
-      {trackingView === 'INTERFACES' && !requiresSelection && (
+      {trackingView === 'INTERFACES' && !requiresSelection && !referenceOnly && (
         <ViewCInterfaces
           model={model}
           selectedInterfaceId={selectedInterface}
-          selectedComponentId={selectedComponent}
+          selectedComponentId={toolComponent}
           onSelectInterface={onSelectInterface}
           selectedSignalId={selectedSignal}
           onSelectSignal={onSelectSignal}
@@ -171,9 +197,9 @@ export function Page2Tracking({
         />
       )}
 
-      {trackingView === 'STANDARDS' && !requiresSelection && (
+      {trackingView === 'STANDARDS' && !requiresSelection && !referenceOnly && (
         <ViewDStandards
-          selectedComponent={selectedComponent}
+          selectedComponent={toolComponent}
           selectedSignal={selectedSignal}
           selectedRequirementId={selectedRequirement}
           onSelectRequirement={onSelectRequirement}

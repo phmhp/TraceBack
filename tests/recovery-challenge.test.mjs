@@ -31,3 +31,24 @@ test('retry resets timer/checkpoints and personal best is scoped and persisted',
  const replay=make(store);assert.equal(replay.getSnapshot().personalBestSeconds,6);replay.unlock();replay.start();assert.equal(replay.getSnapshot().elapsedSeconds,0);assert.equal(replay.getSnapshot().checkpointIndex,0)
  const otherMission={...mission,id:'OTHER'};const other=new RecoveryChallenge(createRecoveryTrack('TRACK',route,'OTHER'),otherMission,store);assert.equal(other.getSnapshot().personalBestSeconds,null)
 })
+
+test('sector timing reuses ordered route boundaries and records a finish sector',()=>{
+ const challenge=make();challenge.unlock();challenge.start()
+ challenge.advance(2,{x:40,z:0})
+ assert.deepEqual(challenge.getSnapshot().sectorResults.map(item=>[item.id,item.timeSeconds]),[['SECTOR_1',2]])
+ challenge.advance(3,{x:80,z:0});challenge.advance(4,{x:120,z:0})
+ assert.deepEqual(challenge.getSnapshot().sectorResults.map(item=>[item.id,item.timeSeconds]),[['SECTOR_1',2],['SECTOR_2',7]])
+ assert.equal(challenge.getSnapshot().sectorIndex,2)
+})
+
+test('clean rematch has a separate PB scope and compares sectors with the case return',()=>{
+ const store=createMemoryBestTimeStore(),challenge=make(store);challenge.unlock();challenge.start()
+ challenge.advance(3,{x:40,z:0});challenge.advance(3,{x:80,z:0});challenge.advance(3,{x:120,z:0})
+ assert.equal(challenge.getSnapshot().personalBestSeconds,9)
+ challenge.prepare('CLEAN_REMATCH');assert.equal(challenge.getSnapshot().personalBestSeconds,null)
+ challenge.start();challenge.advance(2,{x:40,z:0})
+ assert.equal(challenge.getSnapshot().lastSectorResult.comparisonDeltaSeconds,-1)
+ challenge.advance(2,{x:80,z:0});challenge.advance(2,{x:120,z:0})
+ assert.equal(challenge.getSnapshot().personalBestSeconds,6)
+ challenge.prepare('CASE_RECOVERY');assert.equal(challenge.getSnapshot().personalBestSeconds,9)
+})

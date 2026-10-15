@@ -1,5 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { useNavigation } from '../src/ui/state/navigation.ts'
 import { DEFAULT_SESSION_CONFIG } from '../src/domain/session/SessionConfig.ts'
 import { SimulationRuntime } from '../src/runtime/SimulationRuntime.ts'
@@ -56,4 +57,13 @@ test('investigation exit cannot silently skip into a finished result', () => {
   assert.deepEqual({ phase: useNavigation.getState().phase, screen: useNavigation.getState().screen }, { phase: 'RECOVERY_COUNTDOWN', screen: 'race' })
   useNavigation.getState().openDebrief()
   assert.equal(useNavigation.getState().phase,'RECOVERY_COUNTDOWN')
+})
+
+test('fault event stops the vehicle without exposing the generic pause menu', () => {
+  const composition=readFileSync(new URL('../src/app/GameApplication.tsx',import.meta.url),'utf8')
+  assert.match(composition,/phase === 'PAUSE_MENU' \|\| phase === 'FAULT_EVENT' \|\| phase === 'INVESTIGATION'\) runtime\.pause\(\)/)
+  const runtime=readFileSync(new URL('../src/runtime/SimulationRuntime.ts',import.meta.url),'utf8')
+  assert.match(runtime,/phase === 'CAPTURED' \|\| phase === 'SUBMITTED'/)
+  const race=readFileSync(new URL('../src/ui/screens/RaceScreen.tsx',import.meta.url),'utf8')
+  assert.match(race,/phase !== 'FAULT_EVENT' && <RacePauseOverlay/)
 })

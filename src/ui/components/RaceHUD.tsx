@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react'
 import { useRaceHud } from '../state/raceHud'
 import { useRecoveryHud } from '../state/recoveryHud'
 import { useNavigation } from '../state/navigation'
+import { useIncidentRace } from '../state/incidentRace.ts'
 
 function formatTime(seconds: number) {
   return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toFixed(1).padStart(4, '0')}`
@@ -11,7 +12,9 @@ export function RaceTimerHUD() {
   const simulationTime = useRaceHud((s) => s.simulationTime)
   const recoveryTime=useRecoveryHud(s=>s.elapsedSeconds)
   const phase=useNavigation(s=>s.phase)
-  const time=phase==='RECOVERY_COUNTDOWN'||phase==='RECOVERY_DRIVE'||phase==='MISSION_FINISH'?recoveryTime:simulationTime
+  const incidentStart=useIncidentRace(s=>s.incidentStartRaceSeconds),incidentLoss=useIncidentRace(s=>s.incidentTimeLossSeconds)
+  const runMode=useRecoveryHud(s=>s.runMode)
+  const time=phase==='RECOVERY_COUNTDOWN'||phase==='RECOVERY_DRIVE'||phase==='MISSION_FINISH'?(runMode==='CLEAN_REMATCH'?recoveryTime:incidentStart+incidentLoss+recoveryTime):simulationTime
   return <output className="race-timer" aria-label="Race time">{formatTime(time)}</output>
 }
 
@@ -20,7 +23,8 @@ export function RecoveryMissionHUD(){
   const phase=useNavigation(s=>s.phase),recovery=useRecoveryHud()
   if(!['RECOVERY_COUNTDOWN','RECOVERY_DRIVE','MISSION_FINISH'].includes(phase))return null
   const next=Math.min(recovery.checkpointIndex+1,recovery.checkpointCount)
-  return <aside className="recovery-mission-hud" aria-label="회복 주행 미션"><div className="cat-reaction-portrait" data-emotion={recovery.reaction}><span aria-hidden="true">🐱</span><small>{emotionCopy[recovery.reaction]}</small></div><div><small>수리 확인 주행</small><strong>{recovery.checkpointIndex===recovery.checkpointCount?'FINISH로 이동':`CHECKPOINT ${next}`}</strong><p>{recovery.checkpointIndex} / {recovery.checkpointCount} 통과</p></div>{recovery.lastCheckpointId&&<i key={recovery.lastCheckpointId}>✓ {recovery.lastCheckpointId}</i>}</aside>
+  const sector=Math.min(recovery.sectorIndex+1,recovery.sectorCount),sectorElapsed=recovery.elapsedSeconds-recovery.sectorStartSeconds,last=recovery.lastSectorResult
+  return <aside className="recovery-mission-hud" aria-label="회복 주행 미션"><div className="cat-reaction-portrait" data-emotion={recovery.reaction}><span aria-hidden="true">🐱</span><small>{emotionCopy[recovery.reaction]}</small></div><div><small>{recovery.runMode==='CLEAN_REMATCH'?'CLEAN REMATCH · 수리된 차량':'CONTROL RESTORED · 같은 레이스 복귀'}</small><strong>{recovery.checkpointIndex===recovery.checkpointCount?'FINISH로 이동':`CHECKPOINT ${next}`}</strong><p>SECTOR {sector}/{recovery.sectorCount} · {formatTime(sectorElapsed)} · CP {recovery.checkpointIndex}/{recovery.checkpointCount}</p>{recovery.personalBestSeconds&&<p className="recovery-best">BEST {formatTime(recovery.personalBestSeconds)}</p>}</div>{last&&<i key={`${last.id}-${last.timeSeconds}`}>{last.id} {formatTime(last.timeSeconds)} {last.isNewBest?'NEW BEST':last.deltaSeconds===null?'':`${last.deltaSeconds>=0?'+':''}${last.deltaSeconds.toFixed(2)}`}</i>}</aside>
 }
 
 export function RaceDrivingHUD() {

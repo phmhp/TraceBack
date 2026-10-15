@@ -7,6 +7,17 @@ export type GameplayPhase =
   | 'ASSISTED_SOLUTION' | 'RETRY_REPAIR'
 
 export type CatEmotion = 'IDLE' | 'FOCUSED' | 'HAPPY_DRIVING' | 'SURPRISED' | 'WORRIED' | 'THINKING' | 'HOPEFUL' | 'RELIEVED' | 'CELEBRATING'
+export type RecoveryRunMode = 'CASE_RECOVERY' | 'CLEAN_REMATCH'
+
+export interface SectorResult {
+  id:string
+  index:number
+  timeSeconds:number
+  bestSeconds:number
+  deltaSeconds:number|null
+  comparisonDeltaSeconds:number|null
+  isNewBest:boolean
+}
 
 export interface CheckpointDefinition {
   id: string
@@ -42,6 +53,7 @@ export interface RaceMissionDefinition {
 
 export interface RecoverySnapshot {
   status: 'LOCKED' | 'READY' | 'RUNNING' | 'FINISHED'
+  runMode: RecoveryRunMode
   elapsedSeconds: number
   checkpointIndex: number
   checkpointCount: number
@@ -49,6 +61,12 @@ export interface RecoverySnapshot {
   finishTimeSeconds: number | null
   personalBestSeconds: number | null
   isNewBest: boolean
+  sectorIndex:number
+  sectorCount:number
+  sectorStartSeconds:number
+  sectorResults:readonly SectorResult[]
+  sectorBestSeconds:readonly (number|null)[]
+  lastSectorResult:SectorResult|null
   reaction: CatEmotion
 }
 
@@ -82,7 +100,7 @@ const within = (position: Pick<MapPoint, 'x' | 'z'>, target: Pick<MapPoint, 'x' 
 
 export class RecoveryChallenge {
   private snapshot: RecoverySnapshot
-  private readonly key: string
+  private readonly keyPrefix: string
   private listeners = new Set<() => void>()
   readonly track:TrackDefinition
   readonly mission:RaceMissionDefinition
@@ -90,33 +108,55 @@ export class RecoveryChallenge {
   constructor(track: TrackDefinition, mission: RaceMissionDefinition, bestTimes: BestTimeStore = createMemoryBestTimeStore()) {
     if (mission.trackId !== track.id) throw new Error('Recovery mission and track do not match')
     this.track=track;this.mission=mission;this.bestTimes=bestTimes
-    this.key = `trackback:best:${track.id}:${track.version}:${mission.id}:${mission.version}:${mission.rulesVersion}`
+    this.keyPrefix = `trackback:best:${track.id}:${track.version}:${mission.id}:${mission.version}:${mission.rulesVersion}`
     this.snapshot = this.initial('LOCKED')
   }
-  private initial(status: RecoverySnapshot['status']): RecoverySnapshot { return { status, elapsedSeconds: 0, checkpointIndex: 0, checkpointCount: this.track.checkpoints.length, lastCheckpointId: null, finishTimeSeconds: null, personalBestSeconds: this.bestTimes.read(this.key), isNewBest: false, reaction: status === 'READY' ? 'HOPEFUL' : 'IDLE' } }
+  private bestKey(mode:RecoveryRunMode){return `${this.keyPrefix}:${mode}`}
+  private sectorKey(mode:RecoveryRunMode,index:number){return `${this.keyPrefix}:${mode}:sector:${index+1}`}
+  private sectorCount(){return Math.max(2,Math.min(4,this.track.checkpoints.length))}
+  private initial(status: RecoverySnapshot['status'],runMode:RecoveryRunMode='CASE_RECOVERY'): RecoverySnapshot {
+    const sectorCount=this.sectorCount()
+    return { status, runMode, elapsedSeconds: 0, checkpointIndex: 0, checkpointCount: this.track.checkpoints.length, lastCheckpointId: null, finishTimeSeconds: null, personalBestSeconds: this.bestTimes.read(this.bestKey(runMode)), isNewBest: false, sectorIndex:0, sectorCount, sectorStartSeconds:0, sectorResults:[], sectorBestSeconds:Array.from({length:sectorCount},(_,index)=>this.bestTimes.read(this.sectorKey(runMode,index))), lastSectorResult:null, reaction: status === 'READY' ? 'HOPEFUL' : 'IDLE' }
+  }
   readonly subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
   readonly getSnapshot = () => this.snapshot
   private update(patch: Partial<RecoverySnapshot>) { this.snapshot = { ...this.snapshot, ...patch }; this.listeners.forEach(listener => listener()) }
-  lock(){this.snapshot=this.initial('LOCKED');this.listeners.forEach(listener=>listener())}
-  unlock() { this.snapshot = this.initial('READY'); this.listeners.forEach(listener => listener()) }
-  start() { if (this.snapshot.status === 'LOCKED') throw new Error('Repair verification must pass before recovery drive'); this.snapshot = this.initial('RUNNING'); this.snapshot.reaction = 'FOCUSED'; this.listeners.forEach(listener => listener()) }
+  lock(){this.snapshot=this.initial('LOCKED','CASE_RECOVERY');this.listeners.forEach(listener=>listener())}
+  unlock() { this.prepare('CASE_RECOVERY') }
+  prepare(runMode:RecoveryRunMode=this.snapshot.runMode){this.snapshot=this.initial('READY',runMode);this.listeners.forEach(listener=>listener())}
+  start() { if (this.snapshot.status === 'LOCKED') throw new Error('Repair verification must pass before recovery drive'); this.snapshot = this.initial('RUNNING',this.snapshot.runMode); this.snapshot.reaction = 'FOCUSED'; this.listeners.forEach(listener => listener()) }
   retry() { this.start() }
+  private completeSector(index:number,elapsedSeconds:number){
+    if(index<0||index>=this.snapshot.sectorCount||this.snapshot.sectorResults.some(item=>item.index===index))return null
+    const timeSeconds=elapsedSeconds-this.snapshot.sectorStartSeconds
+    const previous=this.snapshot.sectorBestSeconds[index]??null
+    const isNewBest=previous===null||timeSeconds<previous
+    const bestSeconds=isNewBest?timeSeconds:previous
+    if(isNewBest)this.bestTimes.write(this.sectorKey(this.snapshot.runMode,index),timeSeconds)
+    const comparison=this.snapshot.runMode==='CLEAN_REMATCH'?this.bestTimes.read(this.sectorKey('CASE_RECOVERY',index)):null
+    const result:SectorResult={id:`SECTOR_${index+1}`,index,timeSeconds,bestSeconds,deltaSeconds:previous===null?null:timeSeconds-previous,comparisonDeltaSeconds:comparison===null?null:timeSeconds-comparison,isNewBest}
+    return result
+  }
   advance(dt: number, position: Pick<MapPoint, 'x' | 'z'>) {
     if (this.snapshot.status !== 'RUNNING' || !Number.isFinite(dt) || dt <= 0) return { checkpoint: null as string | null, finished: false }
+    const elapsedSeconds = this.snapshot.elapsedSeconds + dt
     let checkpoint: string | null = null
     const next = this.track.checkpoints[this.snapshot.checkpointIndex]
     if (next && within(position, next.position, next.radiusMeters)) {
       checkpoint = next.id
-      this.update({ checkpointIndex: this.snapshot.checkpointIndex + 1, lastCheckpointId: next.id, reaction: 'HAPPY_DRIVING' })
+      const nextCheckpointIndex=this.snapshot.checkpointIndex+1
+      const sectorBoundary=next.order<this.snapshot.sectorCount-1
+      const sector=sectorBoundary?this.completeSector(next.order,elapsedSeconds):null
+      this.update({ checkpointIndex:nextCheckpointIndex, lastCheckpointId: next.id, elapsedSeconds, reaction: 'HAPPY_DRIVING', ...(sector?{sectorIndex:sector.index+1,sectorStartSeconds:elapsedSeconds,sectorResults:[...this.snapshot.sectorResults,sector],sectorBestSeconds:this.snapshot.sectorBestSeconds.map((value,index)=>index===sector.index?sector.bestSeconds:value),lastSectorResult:sector}:{}) })
     }
-    const elapsedSeconds = this.snapshot.elapsedSeconds + dt
-    this.update({ elapsedSeconds, reaction: checkpoint ? 'HAPPY_DRIVING' : 'FOCUSED' })
+    if(!checkpoint)this.update({ elapsedSeconds, reaction:'FOCUSED' })
     const allCollected = this.snapshot.checkpointIndex === this.track.checkpoints.length
     if (!allCollected || !within(position, this.track.finish.position, this.track.finish.radiusMeters)) return { checkpoint, finished: false }
+    const finalSector=this.completeSector(this.snapshot.sectorCount-1,elapsedSeconds)
     const previous = this.snapshot.personalBestSeconds
     const isNewBest = previous === null || elapsedSeconds < previous
-    if (isNewBest) this.bestTimes.write(this.key, elapsedSeconds)
-    this.update({ status: 'FINISHED', finishTimeSeconds: elapsedSeconds, personalBestSeconds: isNewBest ? elapsedSeconds : previous, isNewBest, reaction: 'CELEBRATING' })
+    if (isNewBest) this.bestTimes.write(this.bestKey(this.snapshot.runMode), elapsedSeconds)
+    this.update({ status: 'FINISHED', finishTimeSeconds: elapsedSeconds, personalBestSeconds: isNewBest ? elapsedSeconds : previous, isNewBest, sectorIndex:this.snapshot.sectorCount, ...(finalSector?{sectorStartSeconds:elapsedSeconds,sectorResults:[...this.snapshot.sectorResults,finalSector],sectorBestSeconds:this.snapshot.sectorBestSeconds.map((value,index)=>index===finalSector.index?finalSector.bestSeconds:value),lastSectorResult:finalSector}:{}), reaction: 'CELEBRATING' })
     return { checkpoint, finished: true }
   }
 }

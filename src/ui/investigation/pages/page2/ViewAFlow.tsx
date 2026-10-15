@@ -8,6 +8,12 @@ import {
 } from '../../../../registries/investigation/Architecture'
 import { getRequirementsForComponent } from '../../../../registries/investigation/Trace'
 import type { InvestigationPresentationModel } from '../../presentation/InvestigationPresentationModel'
+import {
+  getReferenceEntity,
+  getReferenceFocus,
+  getReferenceFunctionsForArea,
+  getReferenceStatus,
+} from '../../referenceVehicle/ReferenceVehicleUIAdapter.ts'
 
 interface ViewAFlowProps {
   model: InvestigationPresentationModel
@@ -19,35 +25,51 @@ interface ViewAFlowProps {
   onSetHypothesisTarget: (target: string) => void
 }
 
-const propulsionNodes = ['GearLogic', 'PropulsionFunction', 'VMC', 'eDrive'] as const
+const vehicleContextGroups = [
+  { label: '입력·상태', areas: ['INPUT_ENV', 'SENSING', 'VEHICLE_STATE'] },
+  { label: '주행 기능', areas: ['GEAR', 'PROPULSION', 'BRAKING', 'STEERING', 'ADAS', 'STABILITY'] },
+  { label: '운동 조정', areas: ['MOTION_COORDINATION'] },
+  { label: '실행·차량', areas: ['EXECUTION', 'ACTUATION_PLANT'] },
+  { label: '지원 기능', areas: ['ENERGY', 'FAULT', 'COMMUNICATION', 'OCCUPANT'] },
+] as const
 
-function ArchitectureNodeButton({
-  id,
-  selectedComponent,
-  relevantPath,
-  onSelect,
-  status,
-}: {
-  id: string
-  selectedComponent: string
-  relevantPath: ReadonlySet<string>
-  onSelect: (id: string) => void
-  status: string
-}) {
-  const node = architectureNode(id)
-  const selected = selectedComponent === id
-  return (
-    <button
-      type="button"
-      className={`vehicle-architecture-node investigation-target ${selected ? 'selected' : ''} ${relevantPath.has(id) ? 'case-path-node' : ''} status-${status.toLowerCase()}`}
-      aria-pressed={selected}
-      onClick={() => onSelect(id)}
-      title={node.role}
-    >
-      <b>{node.label}</b>
-      <code>{node.id}</code>
-    </button>
-  )
+function ReferenceVehicleContext({ selectedComponent, onSelectComponent }: { selectedComponent:string; onSelectComponent:(id:string)=>void }) {
+  const selectedEntity=getReferenceEntity(selectedComponent)
+  const selectedAreaId=selectedEntity?.entityKind==='LOGICAL_FUNCTION'?String(selectedEntity.metadata.areaId??''):''
+  return <section className="reference-context-map" aria-label="Reference Vehicle 전체 구조 속 현재 조사 경로">
+    <header><div><p className="investigation-section-label">WHOLE VEHICLE CONTEXT</p><h4>전체 차량에서 선택한 기능의 위치</h4></div></header>
+    <div className="reference-context-flow">
+      {vehicleContextGroups.map((group,index)=><div className="reference-context-layer" key={group.label}>
+        <small>{group.label}</small>
+        <div>{group.areas.map(areaId=>{const area=getReferenceEntity(areaId);if(!area)return null;const functions=getReferenceFunctionsForArea(areaId);const first=functions[0];const focus=getReferenceFocus(area);const selected=selectedAreaId===areaId;return <button type="button" key={areaId} className={`${selected?'selected ':''}focus-${focus.toLowerCase()}`} aria-pressed={selected} disabled={!first} onClick={()=>first&&onSelectComponent(first.id)}><strong>{area.name||area.id}</strong><span>{functions.length} functions</span></button>})}</div>
+        {index<vehicleContextGroups.length-1&&<i aria-hidden="true">→</i>}
+      </div>)}
+    </div>
+    <div className="reference-context-legend"><span><i className="primary"/>현재 사건 경로</span><span><i className="context"/>같은 기능 영역</span><span><i className="background"/>전체 차량 맥락</span><small>영역을 선택하면 Function Inspector에서 내부 기능과 연결 관계를 확인합니다.</small></div>
+  </section>
+}
+
+const familiarFunctionNames:Record<string,string>={
+  'LF-GEAR-INTERLOCK':'Gear',
+  'LF-PROP-ACQ':'PropulsionFunction',
+  'LF-PROP-GEN':'VMC',
+  'LF-PROP-EDRV':'eDrive',
+}
+const functionKindLabels:Record<string,string>={REQUEST_PROCESSOR:'입력·요청 처리',CONTROLLER:'제어·계산',COORDINATOR:'기능 조정',MONITOR:'상태 감시',STATE_MANAGER:'상태·복구 관리'}
+
+function ReferenceDomainFlow({areaId,label,selectedComponent,onSelectComponent}:{areaId:'GEAR'|'PROPULSION'|'BRAKING'|'STEERING';label:string;selectedComponent:string;onSelectComponent:(id:string)=>void}){
+  const functions=getReferenceFunctionsForArea(areaId)
+  const groups=[...new Set(functions.map(item=>String(item.metadata.functionKind??'OTHER')))]
+  return <section className="vehicle-domain reference-domain" aria-label={`${label} Reference Vehicle 기능 흐름`}>
+    <header><span>VEHICLE DOMAIN</span><h4>{label}</h4><small>{functions.length}개 기능</small></header>
+    <div className="reference-domain-chain">
+      {groups.map(kind=><section className="reference-function-group" key={kind}><h5>{functionKindLabels[kind]??'기타 기능'}</h5>{functions.filter(item=>String(item.metadata.functionKind??'OTHER')===kind).map(item=>{const status=getReferenceStatus(item),familiar=familiarFunctionNames[item.id];return <div key={item.id} className="reference-domain-step">
+        <button type="button" aria-pressed={selectedComponent===item.id} onClick={()=>onSelectComponent(item.id)} title={`${item.id} · ${item.description}`}>
+          <strong>{familiar&&<b>{familiar}</b>}<span>{item.name}</span></strong><small>{status.capability==='CURRENT'?'현재 지원':status.capability==='PARTIAL'?'부분 지원':'Reference 설계'}</small>
+        </button>
+      </div>})}</section>)}
+    </div>
+  </section>
 }
 
 function ContextNode({
@@ -108,12 +130,13 @@ export function ViewAFlow({
         <header className="diagram-heading">
           <div>
             <p className="investigation-section-label">LEVEL 1 · VEHICLE FUNCTIONAL ARCHITECTURE</p>
-            <h3 id="vehicle-architecture-title">이 반응과 연결된 기능은 어디인가요?</h3>
+            <h3 id="vehicle-architecture-title">차량 기능 아키텍처</h3>
+            <p>Reference Vehicle의 주행 기능을 동일한 형식으로 비교합니다. 현재 실행 범위와 Reference 설계 범위는 각 기능의 상태로 구분합니다.</p>
           </div>
           <div className="architecture-legend" aria-label="다이어그램 범례">
-            <span><i className="legend-line case" />현재 차량 흐름</span>
+            <span><i className="legend-line case" />현재/부분 실행</span>
             <span><i className="legend-box selectable" />선택 가능</span>
-            <span><i className="legend-box unavailable" />상세 미지원</span>
+            <span><i className="legend-box unavailable" />Reference 설계</span>
           </div>
         </header>
 
@@ -139,33 +162,10 @@ export function ViewAFlow({
           </div>
 
           <div className="functional-domains">
-            <section className="vehicle-domain propulsion-domain">
-              <header><span>VEHICLE DOMAIN</span><h4>Propulsion</h4></header>
-              <div className="propulsion-function-chain">
-                {propulsionNodes.map((id, index) => (
-                  <div className="domain-chain-step" key={id}>
-                    {index > 0 && <span className="diagram-arrow" aria-hidden="true">↓</span>}
-                    <ArchitectureNodeButton
-                      id={id}
-                      selectedComponent={selectedComponent}
-                      relevantPath={relevantPath}
-                      onSelect={onSelectComponent}
-                      status={model.getNodeStatus(id)}
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-
-            <section className="vehicle-domain unavailable-domain" aria-label="Braking 상세 미지원">
-              <header><span>VEHICLE DOMAIN</span><h4>Braking</h4></header>
-              <div className="unavailable-domain-body"><b>Brake control</b><span aria-hidden="true">× × ×</span><small>상세 미지원</small></div>
-            </section>
-
-            <section className="vehicle-domain unavailable-domain" aria-label="Steering 상세 미지원">
-              <header><span>VEHICLE DOMAIN</span><h4>Steering</h4></header>
-              <div className="unavailable-domain-body"><b>Steering control</b><span aria-hidden="true">× × ×</span><small>상세 미지원</small></div>
-            </section>
+            <ReferenceDomainFlow areaId="GEAR" label="Gear" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
+            <ReferenceDomainFlow areaId="PROPULSION" label="Propulsion" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
+            <ReferenceDomainFlow areaId="BRAKING" label="Braking" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
+            <ReferenceDomainFlow areaId="STEERING" label="Steering" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
           </div>
 
           <div className="domain-to-actuation" aria-hidden="true"><i /><i /><i /></div>
@@ -190,6 +190,7 @@ export function ViewAFlow({
             status={model.getNodeStatus('VehiclePhysics')}
           />
         </div>
+        <ReferenceVehicleContext selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
       </section>
 
       {!node?<section className="selection-required function-selection-prompt"><p className="investigation-section-label">기능 선택</p><h3>위 구조에서 조사할 기능을 선택하세요.</h3><p>선택한 기능의 상태·입력·출력과 연결된 인터페이스, 요구사항을 여기에서 확인할 수 있습니다.</p></section>:<section className="selected-function-sheet" aria-labelledby="selected-function-title">

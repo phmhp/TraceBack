@@ -1,7 +1,7 @@
 import type { InvestigationMission } from '../../../runtime/investigation/Mission'
 import type { DiscoveredFinding } from '../../../runtime/investigation/InvestigationSession'
 import type { CatReactionState } from '../../../runtime/investigation/Reaction'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 
 export interface DialogueBeat { id:string; speaker:string; line:string }
 
@@ -38,10 +38,8 @@ export function MissionCompleteToast({mission}:{mission:InvestigationMission|nul
 }
 
 export function DriverDialogue({beat,reaction,remaining,onNext,onSkip}:{beat:DialogueBeat|null;reaction:CatReactionState;remaining:number;onNext:()=>void;onSkip:()=>void}) {
-  const nextRef=useRef<HTMLButtonElement>(null)
   useEffect(()=>{
     if(!beat)return
-    nextRef.current?.focus()
     const onKeyDown=(event:KeyboardEvent)=>{
       if(event.key==='Escape'){event.preventDefault();onSkip()}
       if(event.key==='Enter'||event.key===' '){event.preventDefault();onNext()}
@@ -54,7 +52,7 @@ export function DriverDialogue({beat,reaction,remaining,onNext,onSkip}:{beat:Dia
     <div className="driver-dialogue-backdrop" aria-hidden="true"/>
     <aside className="driver-dialogue" data-reaction={reaction} role="dialog" aria-modal="true" aria-label="고양이 운전자 대화">
       <img src="/assets/investigation/cat-face.png" alt="고양이 운전자"/>
-      <div><small>{beat.speaker}</small><p>“{beat.line}”</p><span><button type="button" onClick={onSkip}>건너뛰기 <kbd>Esc</kbd></button><button ref={nextRef} type="button" className="dialogue-next" onClick={onNext}>{remaining>1?'다음':'계속'} <kbd>Enter</kbd></button></span></div>
+      <div><small>{beat.speaker}</small><p>“{beat.line}”</p><span><button type="button" onClick={onSkip}>건너뛰기 <kbd>Esc</kbd></button><button type="button" className="dialogue-next" onClick={onNext}>{remaining>1?'다음':'계속'} <kbd>Enter</kbd></button></span></div>
     </aside>
   </div>
 }

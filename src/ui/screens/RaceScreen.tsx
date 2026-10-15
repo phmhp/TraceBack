@@ -19,7 +19,7 @@ export function RaceScreen() {
     <RaceTimerHUD />
     <RecoveryMissionHUD />
     <Minimap map={map.definition} readVehicleState={readVehicleState} />
-    <RacePauseOverlay onResume={resume} />
+    {phase !== 'FAULT_EVENT' && <RacePauseOverlay onResume={resume} />}
     <RaceFinishOverlay />
     {(phase === 'PRE_RACE'||phase==='RECOVERY_COUNTDOWN') && <div className="race-countdown" role="status" aria-live="assertive">
       <span className="sr-only">3, 2, 1, 출발</span>
