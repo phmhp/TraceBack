@@ -1,6 +1,5 @@
 import type { InvestigationPresentationModel, HypothesisModel } from '../presentation/InvestigationPresentationModel'
 import type { Evidence } from '../../../runtime/investigation/Evidence'
-import type { GameplayClueProgress } from '../../../runtime/investigation/GameplayInvestigation.ts'
 import { useState, type ReactNode, type Ref } from 'react'
 
 interface SidebarProps {
@@ -11,7 +10,6 @@ interface SidebarProps {
   onOpenAddEvidenceModal?: () => void
   onSelectEvidence?: (ev: Evidence) => void
   onNavigateToTracking?: () => void
-  clueProgress?: readonly GameplayClueProgress[]
   clueRail?:ReactNode
 }
 
@@ -23,15 +21,10 @@ export function InvestigationSidebar({
   onOpenAddEvidenceModal,
   onSelectEvidence,
   onNavigateToTracking,
-  clueProgress,
   clueRail
 }: SidebarProps) {
-  const { progress } = model
-  const phenomenonConfirmed=clueProgress?.find(item=>item.id==='PHENOMENON')?.unlocked??progress.phenomenonConfirmed
-  const boundaryTracked=clueProgress?.find(item=>item.id==='FAULT_BOUNDARY')?.unlocked??progress.boundaryTracked
-  const hypothesisVerified=clueProgress?.find(item=>item.id==='PROOF')?.unlocked??progress.hypothesisVerified
   const [collapsed,setCollapsed]=useState(false)
-  const [notesOpen,setNotesOpen]=useState(true)
+  const [notesOpen,setNotesOpen]=useState(false)
   const investigationNotes=evidenceList.filter(item=>item.type!=='TEST_RESULT')
   const evidenceButton=(ev:Evidence) => {
     const icon=ev.type==='SIGNAL_BOUNDARY'||ev.type==='SIGNAL_COMPARISON'||ev.type==='SIGNAL_OBSERVATION'?'📈':ev.type==='REQUIREMENT'?'📄':'📌'
@@ -46,8 +39,8 @@ export function InvestigationSidebar({
       </button>
       {!collapsed&&<>
       {clueRail}
-      {/* 1. 사건 정보 카드 */}
-      <section className="sidebar-card sidebar-case-card">
+      {/* The live incident remains available as compact race context. */}
+      <section className="sidebar-card sidebar-case-card compact-case-card">
         <div className="sidebar-case-line">
           <span>조사 중</span>
           <code className="case-id-label">{model.caseId}</code>
@@ -68,45 +61,8 @@ export function InvestigationSidebar({
         </div>
       </section>
 
-      {/* 2. 조사 진행도 */}
-      <section className="sidebar-card">
-        <div className="sidebar-card-header">
-          <div className="sidebar-card-title">
-            <span>🧭</span>
-            <span>조사 진행도</span>
-          </div>
-        </div>
-
-        <div className="progress-list">
-          <div className={`progress-item ${phenomenonConfirmed ? 'completed' : 'current'}`}>
-            <span className="progress-dot">{phenomenonConfirmed ? '✓' : '1'}</span>
-            <span className="progress-copy">현상 근거 확보{phenomenonConfirmed && <small>실제 사건 관찰 저장</small>}</span>
-          </div>
-
-          <div className={`progress-item ${boundaryTracked ? 'completed' : phenomenonConfirmed ? 'current' : ''}`}>
-            <span className="progress-dot">{boundaryTracked ? '✓' : '2'}</span>
-            <span className="progress-copy">정상·이상 경계 확인{boundaryTracked && <small>두 경계 근거 지정</small>}</span>
-          </div>
-
-          <div className={`progress-item ${progress.hypothesisFormulated ? 'completed' : boundaryTracked ? 'current' : ''}`}>
-            <span className="progress-dot">{progress.hypothesisFormulated ? '✓' : '3'}</span>
-            <span className="progress-copy">가설 설정{progress.hypothesisFormulated && <small>가설 기록 완료</small>}</span>
-          </div>
-
-          <div className={`progress-item ${hypothesisVerified ? 'completed' : progress.hypothesisFormulated ? 'current' : ''}`}>
-            <span className="progress-dot">{hypothesisVerified ? '✓' : '4'}</span>
-            <span className="progress-copy">가설 증명{hypothesisVerified && <small>정식 검증 근거 충분</small>}</span>
-          </div>
-
-          <div className={`progress-item ${progress.conclusionSubmitted ? 'completed' : hypothesisVerified ? 'current' : ''}`}>
-            <span className="progress-dot">{progress.conclusionSubmitted ? '✓' : '5'}</span>
-            <span className="progress-copy">결론 제출{progress.conclusionSubmitted && <small>보고서 제출 완료</small>}</span>
-          </div>
-        </div>
-      </section>
-
-      {/* 3. 현재 가설 카드 */}
-      <section className="sidebar-card">
+      {/* A hypothesis appears only after the player has actually formed one. */}
+      {hypothesis&&<section className="sidebar-card compact-hypothesis-card">
         <div className="sidebar-card-header">
           <div className="sidebar-card-title">
             <span>💡</span>
@@ -114,26 +70,11 @@ export function InvestigationSidebar({
           </div>
         </div>
 
-        {hypothesis ? (
-          <div className="sidebar-hypothesis-summary"><b>{hypothesis.target}</b><p>{hypothesis.prediction}</p><button type="button" onClick={onNavigateToTracking}>조사 지도에서 보기 →</button></div>
-        ) : (
-          <div className="sidebar-empty-guidance">
-            <p>원인 추적 단계에서 의심되는 기능을 찾아 가설을 설정해보세요.</p>
-            {onNavigateToTracking && (
-              <button
-                type="button"
-                onClick={onNavigateToTracking}
-                className="timeline-btn sidebar-guidance-action"
-              >
-                원인 추적으로 이동 →
-              </button>
-            )}
-          </div>
-        )}
-      </section>
+        <div className="sidebar-hypothesis-summary"><b>{hypothesis.target}</b><p>{hypothesis.prediction}</p><button type="button" onClick={onNavigateToTracking}>조사 지도에서 보기 →</button></div>
+      </section>}
 
       {/* 4. 조사 메모와 검증 근거는 서로 다른 생명주기를 가진다. */}
-      <section className="sidebar-card" style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <section className="sidebar-card compact-notebook-card">
         <div className="sidebar-card-header">
           <div className="sidebar-card-title">
             <span>📁</span>

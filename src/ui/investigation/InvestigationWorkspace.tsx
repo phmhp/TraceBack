@@ -347,6 +347,13 @@ export function InvestigationWorkspace() {
         controller.selectEvidence(id, selected)
     }
 
+    const guidedStep=gameplayInvestigation.active==='PHENOMENON'
+        ?1
+        :gameplayInvestigation.active==='FAULT_BOUNDARY'
+            ?!ui.session.boundarySelection.lastNormalEvidenceId?3:!ui.session.boundarySelection.firstAbnormalEvidenceId?4:5
+            :gameplayInvestigation.rootCauseUnlocked&&ui.page===4?7:6
+    const guidedStepLabel=guidedStep===1?'사건 파악':guidedStep===3?'마지막 정상 찾기':guidedStep===4?'첫 이상 찾기':guidedStep===5?'후보 좁히기':guidedStep===6?'가설 증명':'결론과 수리'
+
     return (
         <div className={`investigation-new-container focus-${gameplayInvestigation.active.toLowerCase().replace('_','-')} ${guidedReviewStep === null ? '' : `guided-review-active guided-review-step-${guidedReviewStep}`}`}>
             {/* 1. 상단 Stepper 헤더 */}
@@ -364,7 +371,6 @@ export function InvestigationWorkspace() {
                     model={presentationModel}
                     hypothesis={ui.hypothesis}
                     evidenceList={state.evidence}
-                    clueProgress={gameplayInvestigation.clues}
                     clueRail={<InvestigationClueRail
                         clues={gameplayInvestigation.clues}
                         evidenceList={state.evidence}
@@ -374,13 +380,10 @@ export function InvestigationWorkspace() {
                         score={gameplayInvestigation.score}
                         recommendedTools={gameplayInvestigation.activeStep.recommendedTools}
                         hintLevel={ui.session.hintLevels[gameplayInvestigation.active]}
-                        normalCandidates={gameplayInvestigation.normalCandidates}
-                        abnormalCandidates={gameplayInvestigation.abnormalCandidates}
-                        lastNormalEvidenceId={ui.session.boundarySelection.lastNormalEvidenceId}
-                        firstAbnormalEvidenceId={ui.session.boundarySelection.firstAbnormalEvidenceId}
+                        overallStep={guidedStep}
+                        overallLabel={guidedStepLabel}
                         onUseHint={()=>{ui.useHint(gameplayInvestigation.active);const next=Math.min(3,ui.session.hintLevels[gameplayInvestigation.active]+1) as 1|2|3;recordIncidentHint(next)}}
                         onNavigate={()=>gameplayInvestigation.active==='PHENOMENON'?ui.navigate({page:1},'현상 단서 찾기'):gameplayInvestigation.active==='FAULT_BOUNDARY'?ui.navigate({page:2,view:'SIGNALS'},'경계 단서 찾기'):ui.navigate({page:3},'증명 단서 찾기')}
-                        onMarkBoundary={ui.markBoundary}
                     />}
                     videoSlotRef={setVideoSlot}
                     onSelectEvidence={(ev) => {
@@ -470,6 +473,12 @@ export function InvestigationWorkspace() {
                         onNavigateContext={(view, selection, origin) => ui.navigate({ page: 2, view, selection }, origin ?? `원인 추적 ${view} 보기`)}
                         discoveredFindings={ui.session.discoveredFindings}
                         collectedEvidenceIds={ui.session.collectedEvidenceIds}
+                        boundaryActive={gameplayInvestigation.active==='FAULT_BOUNDARY'}
+                        normalCandidates={gameplayInvestigation.normalCandidates}
+                        abnormalCandidates={gameplayInvestigation.abnormalCandidates}
+                        lastNormalEvidenceId={ui.session.boundarySelection.lastNormalEvidenceId}
+                        firstAbnormalEvidenceId={ui.session.boundarySelection.firstAbnormalEvidenceId}
+                        onMarkBoundary={ui.markBoundary}
                     />
                 )}
 
@@ -535,8 +544,8 @@ export function InvestigationWorkspace() {
             <ClueUnlockToast clue={unlockedClue}/>
             <DriverDialogue beat={dialogueQueue[0]??null} reaction={catReaction} remaining={dialogueQueue.length} onNext={()=>setDialogueQueue(queue=>queue.slice(1))} onSkip={()=>setDialogueQueue([])}/>
 
-            {/* 3. 하단 공통 타임라인 바 */}
-            <InvestigationTimeline
+            {/* 사건 시간축이 실제 문제 풀이에 필요한 화면에서만 표시합니다. */}
+            {(ui.page===1||(ui.page===2&&ui.trackingView==='SIGNALS'))&&<InvestigationTimeline
                 currentIndex={state.selected}
                 totalFrames={state.frames.length}
                 currentTimeSeconds={currentFrame?.sw.executionTime ?? 0}
@@ -546,7 +555,7 @@ export function InvestigationWorkspace() {
                 onTogglePlay={handleTogglePlay}
                 onSeek={handleSeek}
                 onJumpToEvent={handleJumpToEvent}
-            />
+            />}
 
             {guidedReviewStep !== null && <aside className="guided-review-controls" aria-live="polite">
                 <p className="investigation-section-label">조사 해설 {guidedReviewStep + 1} / {guidedReview.length}</p>

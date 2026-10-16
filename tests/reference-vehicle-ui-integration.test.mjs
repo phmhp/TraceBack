@@ -82,13 +82,16 @@ test('Trackback_VMC copy explicitly rejects full Motion Coordination identity', 
 test('Page 2 integrates whole-vehicle context into the existing structure view', async () => {
   const source=await readFile(new URL('../src/ui/investigation/pages/page2/ViewAFlow.tsx', import.meta.url),'utf8')
   assert.doesNotMatch(source, /<ReferenceVehicleArchitecture/)
-  assert.match(source, /className="reference-context-map"/)
-  assert.match(source, /className="vehicle-architecture-diagram"/)
-  assert.ok(source.indexOf('className="vehicle-architecture-diagram"')<source.indexOf('<ReferenceVehicleContext'))
-  assert.match(source, /ReferenceDomainFlow areaId="GEAR"/)
-  assert.match(source, /ReferenceDomainFlow areaId="PROPULSION"/)
-  assert.match(source, /ReferenceDomainFlow areaId="BRAKING"/)
-  assert.match(source, /ReferenceDomainFlow areaId="STEERING"/)
+  assert.match(source, /className="reference-context-map/)
+  assert.match(source, /vehicle-architecture-diagram architecture-domain-grid/)
+  assert.match(source, /architecture-breadcrumb/)
+  assert.match(source, /1단계 · 전체 차량/)
+  assert.match(source, /2단계 · 도메인 안 기능/)
+  assert.match(source, /3단계 · 기능 안 로직/)
+  assert.match(source, /'GEAR'/)
+  assert.match(source, /'PROPULSION'/)
+  assert.match(source, /'BRAKING'/)
+  assert.match(source, /'STEERING'/)
 })
 
 test('canonical functions preserve the established signal, interface and requirement tool shapes', async () => {
@@ -108,7 +111,8 @@ test('canonical functions preserve the established signal, interface and require
 
 test('Page 2 flow uses the existing Function Inspector for canonical and runtime functions', async () => {
   const source=await readFile(new URL('../src/ui/investigation/pages/Page2Tracking.tsx', import.meta.url),'utf8')
-  assert.match(source, /trackingView === 'FLOW' && <FunctionInspector/)
+  assert.match(source, /trackingView === 'FLOW' && selectedComponent&&<details[^>]*function-inspector-drawer/)
+  assert.match(source, /<FunctionInspector/)
   assert.doesNotMatch(source, /trackingView === 'FLOW' && !referenceFunction/)
 })
 

@@ -8,6 +8,7 @@ import { ViewDStandards } from './page2/ViewDStandards'
 import { Page2ContextBar } from './page2/Page2ContextBar'
 import { FunctionInspector } from './page2/FunctionInspector'
 import type { DiscoveredFinding } from '../../../runtime/investigation/InvestigationSession'
+import type { Evidence } from '../../../runtime/investigation/Evidence.ts'
 import { ReferenceVehicleInspector } from '../referenceVehicle/ReferenceVehiclePanels.tsx'
 import { getReferenceEntity, getRuntimeComponentForReferenceFunction } from '../referenceVehicle/ReferenceVehicleUIAdapter.ts'
 import { getOutputSignals } from '../../../registries/investigation/Architecture.ts'
@@ -38,6 +39,12 @@ interface Page2Props {
   onNavigateContext: (view: TrackingView, selection?: Partial<InvestigationSelection>, origin?: string) => void
   discoveredFindings: readonly DiscoveredFinding[]
   collectedEvidenceIds: readonly string[]
+  boundaryActive:boolean
+  normalCandidates:readonly Evidence[]
+  abnormalCandidates:readonly Evidence[]
+  lastNormalEvidenceId?:string
+  firstAbnormalEvidenceId?:string
+  onMarkBoundary:(kind:'LAST_NORMAL'|'FIRST_ABNORMAL',id:string)=>void
 }
 
 const views = [
@@ -46,6 +53,17 @@ const views = [
   { id: 'INTERFACES' as TrackingView, label: '인터페이스' },
   { id: 'STANDARDS' as TrackingView, label: '요구사항' }
 ]
+
+function BoundaryAssignmentPanel({normalCandidates,abnormalCandidates,lastNormalEvidenceId,firstAbnormalEvidenceId,onMarkBoundary}:{normalCandidates:readonly Evidence[];abnormalCandidates:readonly Evidence[];lastNormalEvidenceId?:string;firstAbnormalEvidenceId?:string;onMarkBoundary:(kind:'LAST_NORMAL'|'FIRST_ABNORMAL',id:string)=>void}){
+  return <section className="guided-boundary-panel" aria-label="정상과 이상 경계 답안">
+    <header><span>전체 3–4/7</span><div><b>정상은 어디까지였나요?</b><small>저장한 실제 신호 근거로 두 경계를 지정하세요.</small></div></header>
+    <div className="boundary-evidence-picker">
+      <label><span>마지막 정상<small>LAST KNOWN NORMAL</small></span><select value={lastNormalEvidenceId??''} onChange={event=>event.target.value&&onMarkBoundary('LAST_NORMAL',event.target.value)}><option value="">정상 근거 선택</option>{normalCandidates.map(item=><option key={item.id} value={item.id}>{item.details?.subjectId??item.title}</option>)}</select></label>
+      <i aria-hidden="true">→</i>
+      <label><span>첫 이상<small>FIRST KNOWN ABNORMAL</small></span><select value={firstAbnormalEvidenceId??''} onChange={event=>event.target.value&&onMarkBoundary('FIRST_ABNORMAL',event.target.value)}><option value="">이상 근거 선택</option>{abnormalCandidates.map(item=><option key={item.id} value={item.id}>{item.details?.subjectId??item.title}</option>)}</select></label>
+    </div>
+  </section>
+}
 
 export function Page2Tracking({
   model,
@@ -73,6 +91,12 @@ export function Page2Tracking({
   onNavigateContext,
   discoveredFindings,
   collectedEvidenceIds,
+  boundaryActive,
+  normalCandidates,
+  abnormalCandidates,
+  lastNormalEvidenceId,
+  firstAbnormalEvidenceId,
+  onMarkBoundary,
 }: Page2Props) {
   const referenceFunction=getReferenceEntity(selectedComponent)?.entityKind==='LOGICAL_FUNCTION'
   const runtimeComponent=getRuntimeComponentForReferenceFunction(selectedComponent)
@@ -114,10 +138,11 @@ export function Page2Tracking({
           ))}
         </div>
 
-        {discoveredFindings.length>0&&<div className="reasoning-trace" aria-label="확인한 조사 사실"><span>확인한 사실</span><div>{discoveredFindings.slice(-4).map(finding=><span key={finding.id} className={(finding.outcome??'observed').toLowerCase()}>{finding.outcome==='MATCH'?'✓':finding.outcome==='MISMATCH'?'!':finding.kind==='REQUIREMENT'?'▣':'·'} {finding.claim??finding.subjectId}</span>)}</div>{collectedEvidenceIds.length>0&&<small>조사 노트 {collectedEvidenceIds.length}건</small>}</div>}
+        {discoveredFindings.length>0&&<details className="reasoning-trace" aria-label="확인한 조사 사실"><summary>확인한 사실 {discoveredFindings.length}개 · 조사 노트 {collectedEvidenceIds.length}건</summary><div>{discoveredFindings.slice(-4).map(finding=><span key={finding.id} className={(finding.outcome??'observed').toLowerCase()}>{finding.outcome==='MATCH'?'✓':finding.outcome==='MISMATCH'?'!':finding.kind==='REQUIREMENT'?'▣':'·'} {finding.claim??finding.subjectId}</span>)}</div></details>}
       </div>
 
-      <div className="investigation-map-layout">
+      <div className={`investigation-map-layout ${trackingView==='FLOW'?'flow-layout':'tool-layout'}`}>
+        {trackingView==='FLOW'&&
         <aside className="investigation-map-pane" onClick={event=>{if(event.target===event.currentTarget)onSelectComponent('')}}>
           <ViewAFlow
           model={model}
@@ -131,10 +156,10 @@ export function Page2Tracking({
           onNavigateToRequirement={(requirementId) => onNavigateContext('STANDARDS', { requirementId }, `기능에서 ${requirementId} 요구사항으로 이동`)}
           onSetHypothesisTarget={onSetHypothesisTarget}
           />
-        </aside>
+        </aside>}
         <div className="context-inspector-pane">
           <Page2ContextBar selection={{ componentId:selectedComponent, signalId:selectedSignal, interfaceId:selectedInterface, requirementId:selectedRequirement, testCaseId:selectedTestCase }} currentPath={currentPath}/>
-          {trackingView === 'FLOW' && <FunctionInspector
+          {trackingView === 'FLOW' && selectedComponent&&<details className="technical-detail-drawer function-inspector-drawer"><summary>선택 기능의 연결·출처 자세히</summary><FunctionInspector
             model={model}
             selectedComponent={toolComponent}
             selectedSignal={selectedSignal}
@@ -148,7 +173,7 @@ export function Page2Tracking({
             onOpenInterface={(interfaceId)=>onNavigateContext('INTERFACES',{interfaceId},`${interfaceId} 경계 검사`)}
             onOpenRequirement={(requirementId)=>onNavigateContext('STANDARDS',{requirementId},`${requirementId} 기준 확인`)}
             onSetHypothesisTarget={onSetHypothesisTarget}
-          />}
+          /></details>}
 
           {referenceOnly&&trackingView!=='FLOW'&&<ReferenceVehicleInspector
             view={trackingView}
@@ -165,6 +190,8 @@ export function Page2Tracking({
           />}
 
       {requiresSelection&&<section className="selection-required"><p className="investigation-section-label">조사 컨텍스트 필요</p><h3>먼저 조사할 기능을 선택하세요.</h3><p>Signal Monitor, 인터페이스와 요구사항은 선택한 기능을 기준으로 정보를 보여줍니다.</p><button type="button" onClick={()=>onSelectView('FLOW')}>기능 흐름에서 선택 →</button></section>}
+
+      {trackingView==='SIGNALS'&&boundaryActive&&!requiresSelection&&<BoundaryAssignmentPanel normalCandidates={normalCandidates} abnormalCandidates={abnormalCandidates} lastNormalEvidenceId={lastNormalEvidenceId} firstAbnormalEvidenceId={firstAbnormalEvidenceId} onMarkBoundary={onMarkBoundary}/>}
 
       {trackingView === 'SIGNALS' && !requiresSelection && !referenceOnly && (
         <ViewBSignals
