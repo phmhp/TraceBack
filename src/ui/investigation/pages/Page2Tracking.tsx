@@ -48,10 +48,10 @@ interface Page2Props {
 }
 
 const views = [
-  { id: 'FLOW' as TrackingView, label: '구조 및 기능' },
-  { id: 'SIGNALS' as TrackingView, label: '연관 신호' },
-  { id: 'INTERFACES' as TrackingView, label: '인터페이스' },
-  { id: 'STANDARDS' as TrackingView, label: '요구사항' }
+  { id: 'FLOW' as TrackingView, step:'1', label: '구조', help:'어디를 볼까?' },
+  { id: 'INTERFACES' as TrackingView, step:'2', label: '연결', help:'어디로 전달될까?' },
+  { id: 'SIGNALS' as TrackingView, step:'3', label: '신호', help:'무슨 값일까?' },
+  { id: 'STANDARDS' as TrackingView, step:'4', label: '기준', help:'왜 이상일까?' }
 ]
 
 function BoundaryAssignmentPanel({normalCandidates,abnormalCandidates,lastNormalEvidenceId,firstAbnormalEvidenceId,onMarkBoundary}:{normalCandidates:readonly Evidence[];abnormalCandidates:readonly Evidence[];lastNormalEvidenceId?:string;firstAbnormalEvidenceId?:string;onMarkBoundary:(kind:'LAST_NORMAL'|'FIRST_ABNORMAL',id:string)=>void}){
@@ -124,17 +124,20 @@ export function Page2Tracking({
 
         </div>
 
-        <div className="view-subtabs-bar inspector-mode-bar">
-          <span className="tool-tabs-label">Inspector</span>
-          {views.map((v) => (
+        <div className="view-subtabs-bar inspector-mode-bar hierarchical-tool-nav" aria-label="조사 도구 확대 순서">
+          <span className="tool-tabs-label">조사 확대</span>
+          {views.map((v,index) => (
+            <div className="hierarchical-tool-step" key={v.id}>
             <button
               key={v.id}
               type="button"
               className={`view-subtab-btn ${trackingView === v.id ? 'active' : ''}`}
               onClick={() => onSelectView(v.id)}
             >
-              <span>{v.label}</span>
+              <b>{v.step}</b><span>{v.label}<small>{v.help}</small></span>
             </button>
+            {index<views.length-1&&<i aria-hidden="true">→</i>}
+            </div>
           ))}
         </div>
 
@@ -189,7 +192,7 @@ export function Page2Tracking({
             onSelectTestCase={onSelectTestCase}
           />}
 
-      {requiresSelection&&<section className="selection-required"><p className="investigation-section-label">조사 컨텍스트 필요</p><h3>먼저 조사할 기능을 선택하세요.</h3><p>Signal Monitor, 인터페이스와 요구사항은 선택한 기능을 기준으로 정보를 보여줍니다.</p><button type="button" onClick={()=>onSelectView('FLOW')}>기능 흐름에서 선택 →</button></section>}
+      {requiresSelection&&<section className="selection-required"><p className="investigation-section-label">조사 위치가 필요해요</p><h3>먼저 구조에서 기능 하나를 골라주세요.</h3><p>기능을 고르면 그 기능의 연결 → 전달 신호 → 동작 기준 순으로 확대할 수 있습니다.</p><button type="button" onClick={()=>onSelectView('FLOW')}>1 · 구조에서 기능 고르기 →</button></section>}
 
       {trackingView==='SIGNALS'&&boundaryActive&&!requiresSelection&&<BoundaryAssignmentPanel normalCandidates={normalCandidates} abnormalCandidates={abnormalCandidates} lastNormalEvidenceId={lastNormalEvidenceId} firstAbnormalEvidenceId={firstAbnormalEvidenceId} onMarkBoundary={onMarkBoundary}/>}
 

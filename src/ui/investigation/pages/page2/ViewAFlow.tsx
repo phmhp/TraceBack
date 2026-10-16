@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { architectureNode, getIncomingInterfaces, getInputSignals, getOutgoingInterfaces, getOutputSignals, normalFunctionFlows } from '../../../../registries/investigation/Architecture'
 import type { InvestigationPresentationModel } from '../../presentation/InvestigationPresentationModel'
 import {
@@ -44,20 +45,6 @@ function areaForComponent(id:string){
   return runtimeArea[id]??''
 }
 
-function FullVehicleReference({selectedAreaId,onSelectArea}:{selectedAreaId:string;onSelectArea:(id:string)=>void}){
-  return <details className="reference-context-map technical-detail-drawer" aria-label="Reference Vehicle 전체 구조 속 현재 조사 경로">
-    <summary>전체 Reference Vehicle 지도 보기</summary>
-    <div className="reference-context-flow">
-      {vehicleContextGroups.map((group,index)=><div className="reference-context-layer" key={group.label}>
-        <small>{group.label}</small>
-        <div>{group.areas.map(areaId=>{const area=getReferenceEntity(areaId);const functions=getReferenceFunctionsForArea(areaId);return area?<button type="button" key={areaId} className={selectedAreaId===areaId?'selected':''} aria-pressed={selectedAreaId===areaId} onClick={()=>onSelectArea(areaId)}><strong>{areaEasyNames[areaId]??area.name??area.id}</strong><code>{areaId}</code><span>{functions.length}개 기능</span></button>:null})}</div>
-        {index<vehicleContextGroups.length-1&&<i aria-hidden="true">→</i>}
-      </div>)}
-    </div>
-    <div className="reference-context-legend"><span><i className="primary"/>현재 사건 경로</span><span><i className="context"/>같은 기능 영역</span><span><i className="background"/>전체 차량 맥락</span></div>
-  </details>
-}
-
 export function ViewAFlow({model,selectedComponent,onSelectComponent,onNavigateToSignal,onNavigateToInterface,onNavigateToRequirement,onSetHypothesisTarget}:ViewAFlowProps){
   const [selectedAreaId,setSelectedAreaId]=useState(()=>areaForComponent(selectedComponent))
   const componentAreaId=areaForComponent(selectedComponent)
@@ -80,6 +67,10 @@ export function ViewAFlow({model,selectedComponent,onSelectComponent,onNavigateT
   const selectedRole=node?.role??reference?.entity.description
   const relevantPath=new Set(model.relevantFunctionPath)
   const discoveredMismatch=node?model.getNodeStatus(node.id) === 'DIFFERENCE_FOUND':false
+  const primaryContextGroups=vehicleContextGroups.slice(0,4)
+  const supportContextGroup=vehicleContextGroups[4]
+  const visibleInputs=inputItems.slice(0,3)
+  const visibleOutputs=outputItems.slice(0,3)
 
   const chooseArea=(areaId:string)=>{setSelectedAreaId(areaId);if(areaForComponent(selectedComponent)!==areaId)onSelectComponent('')}
 
@@ -91,28 +82,39 @@ export function ViewAFlow({model,selectedComponent,onSelectComponent,onNavigateT
     </nav>
 
     {!selectedAreaId&&<section className="vehicle-architecture-sheet architecture-level architecture-domain-level" aria-labelledby="vehicle-architecture-title">
-      <header className="diagram-heading simple-heading"><div><p className="investigation-section-label">1단계 · 전체 차량</p><h3 id="vehicle-architecture-title">어느 기능 영역을 볼까요?</h3><p>사건과 관련 있어 보이는 영역을 선택하세요. 전체 기능 이름은 다음 단계에서 보여줍니다.</p></div><span className="architecture-level-badge">도메인</span></header>
-      <div className="vehicle-architecture-diagram architecture-domain-grid functional-domains">
-        {vehicleContextGroups.flatMap(group=>group.areas.map(areaId=>{const area=getReferenceEntity(areaId);if(!area)return null;const functions=getReferenceFunctionsForArea(areaId);const focus=getReferenceFocus(area);return <button type="button" key={areaId} className={`architecture-domain-card focus-${focus.toLowerCase()} ${selectedAreaId===areaId?'selected':''}`} aria-pressed={selectedAreaId===areaId} onClick={()=>chooseArea(areaId)}><small>{group.label}</small><strong>{areaEasyNames[areaId]??area.name??areaId}</strong><code>{areaId}</code><span>{functions.length}개 기능</span><em>{focus==='PRIMARY_FOCUS'?'현재 사건과 가까움':'선택해서 기능 보기'}</em></button>}))}
+      <header className="diagram-heading simple-heading"><div><p className="investigation-section-label">1단계 · 전체 차량 지도</p><h3 id="vehicle-architecture-title">차량의 정보가 반응으로 이어지는 길</h3><p>왼쪽의 입력부터 오른쪽의 실제 반응까지 흐릅니다. 궁금한 도메인을 누르면 내부 기능이 열립니다.</p></div><span className="architecture-level-badge">도메인 수준</span></header>
+      <div className="vehicle-architecture-diagram vehicle-domain-architecture" aria-label="전체 차량 도메인 연결 구조">
+        <div className="vehicle-domain-main-flow">
+          {primaryContextGroups.map((group,index)=><div className="vehicle-domain-stage-wrap" key={group.label}>
+            <section className="vehicle-domain-stage"><header><span>{index+1}</span><b>{group.label}</b></header><div>{group.areas.map(areaId=>{const area=getReferenceEntity(areaId);if(!area)return null;const functions=getReferenceFunctionsForArea(areaId);const focus=getReferenceFocus(area);return <button type="button" key={areaId} className={`architecture-domain-card focus-${focus.toLowerCase()}`} onClick={()=>chooseArea(areaId)}><strong>{areaEasyNames[areaId]??area.name??areaId}</strong><span>{functions.length}개 기능 · 내부 보기</span><code>{areaId}</code></button>})}</div></section>
+            {index<primaryContextGroups.length-1&&<span className="architecture-flow-arrow" aria-hidden="true">→</span>}
+          </div>)}
+        </div>
+        <section className="vehicle-support-bus"><header><span>↕</span><b>{supportContextGroup.label}</b><small>각 단계의 상태를 돕고 감시합니다.</small></header><div>{supportContextGroup.areas.map(areaId=>{const area=getReferenceEntity(areaId);if(!area)return null;const functions=getReferenceFunctionsForArea(areaId);return <button type="button" key={areaId} className="architecture-domain-card" onClick={()=>chooseArea(areaId)}><strong>{areaEasyNames[areaId]??area.name??areaId}</strong><span>{functions.length}개 기능</span><code>{areaId}</code></button>})}</div></section>
       </div>
-      <FullVehicleReference selectedAreaId={selectedAreaId} onSelectArea={chooseArea}/>
+      <div className="architecture-reading-key"><span><b>읽는 법</b> 입력·상태 → 주행 기능 → 움직임 조정 → 실제 반응</span><span>지원 기능은 전체 흐름을 감시·보조</span></div>
     </section>}
 
     {selectedAreaId&&!selectedComponent&&<section className="vehicle-architecture-sheet architecture-level architecture-function-level" aria-label={`${selectedArea?.name??selectedAreaId} 기능 수준 아키텍처`}>
-      <header className="diagram-heading simple-heading"><div><p className="investigation-section-label">2단계 · 도메인 안 기능</p><h3>{areaEasyNames[selectedAreaId]??selectedArea?.name??selectedAreaId} <code>{selectedAreaId}</code></h3><p>이 영역 안에서 값이 들어오고 나가는 기능을 골라보세요.</p></div><span className="architecture-level-badge">기능</span></header>
-      <div className="domain-function-architecture">
-        {functionGroups.map((kind,index)=><section className="reference-function-group" key={kind}><h4><span>{index+1}</span>{functionKindLabels[kind]??'기타 기능'}</h4><div>{areaFunctions.filter(item=>String(item.metadata.functionKind??'OTHER')===kind).map(item=>{const status=getReferenceStatus(item);const familiar=familiarFunctionNames[item.id];const casePath=getReferenceFocus(item)==='PRIMARY_FOCUS'||relevantPath.has(familiar??item.id);return <button type="button" key={item.id} className={`${casePath?'case-path-node ':''}${selectedComponent===item.id?'selected':''}`} aria-pressed={selectedComponent===item.id} onClick={()=>onSelectComponent(item.id)}><TechnicalTerm id={familiar??item.id} fallback={item.name} compact/><small>{status.capability==='CURRENT'?'실행 가능':status.capability==='PARTIAL'?'부분 관찰':'설계 정보'}</small></button>})}</div></section>)}
+      <header className="diagram-heading simple-heading"><div><p className="investigation-section-label">2단계 · 도메인 서브시스템</p><h3>{areaEasyNames[selectedAreaId]??selectedArea?.name??selectedAreaId} <code>{selectedAreaId}</code></h3><p>도메인 안에서 요청이 판단과 상태 관리를 거쳐 전달되는 순서입니다. 기능을 누르면 내부 로직만 확대합니다.</p></div><span className="architecture-level-badge">기능 수준</span></header>
+      <div className="domain-function-architecture" style={{'--function-stage-count':Math.max(1,functionGroups.length)} as CSSProperties}>
+        <span className="subsystem-port input-port"><small>IN</small><b>도메인 입력</b></span>
+        <div className="domain-function-pipeline">
+          {functionGroups.map((kind,index)=><div className="reference-function-stage-wrap" key={kind}><section className="reference-function-group"><h4><span>{index+1}</span>{functionKindLabels[kind]??'기타 기능'}</h4><div>{areaFunctions.filter(item=>String(item.metadata.functionKind??'OTHER')===kind).map(item=>{const status=getReferenceStatus(item);const familiar=familiarFunctionNames[item.id];const casePath=getReferenceFocus(item)==='PRIMARY_FOCUS'||relevantPath.has(familiar??item.id);return <button type="button" key={item.id} className={`${casePath?'case-path-node ':''}${selectedComponent===item.id?'selected':''}`} aria-pressed={selectedComponent===item.id} onClick={()=>onSelectComponent(item.id)}><TechnicalTerm id={familiar??item.id} fallback={item.name} compact/><small>{status.capability==='CURRENT'?'실행·관찰 가능':status.capability==='PARTIAL'?'일부 관찰 가능':'설계 정보'}</small></button>})}</div></section>{index<functionGroups.length-1&&<span className="architecture-flow-arrow" aria-hidden="true">→</span>}</div>)}
+        </div>
+        <span className="subsystem-port output-port"><small>OUT</small><b>다음 도메인</b></span>
       </div>
+      <p className="architecture-level-help">이 화면에서는 <b>어떤 기능을 거치는지</b>만 봅니다. 값은 기능을 고른 뒤 ‘연결 → 신호’에서 확인하세요.</p>
     </section>}
 
     {selectedComponent&&(node||reference)&&<section className="selected-function-sheet architecture-level architecture-logic-level" aria-labelledby="selected-function-title">
-      <header className="selected-function-header"><div><p className="investigation-section-label">3단계 · 기능 안 로직</p><h3 id="selected-function-title"><TechnicalTerm id={node?.id??reference?.entity.id??selectedComponent} fallback={selectedName}/></h3><p className="selected-function-role">{selectedRole}</p></div><div className="selected-function-actions">{discoveredMismatch&&<span className="discovered-mismatch">확인된 차이</span>}<button type="button" className="report-text-button" onClick={()=>onSetHypothesisTarget(selectedComponent)}>이 기능으로 가설 만들기</button></div></header>
+      <header className="selected-function-header"><div><p className="investigation-section-label">3단계 · 기능 내부 확대</p><h3 id="selected-function-title"><TechnicalTerm id={node?.id??reference?.entity.id??selectedComponent} fallback={selectedName}/></h3><p className="selected-function-role">지금은 <b>무엇을 받아서 무엇을 내보내는지</b>만 확인하세요.</p></div><div className="selected-function-actions">{discoveredMismatch&&<span className="discovered-mismatch">확인된 차이</span>}<button type="button" className="report-text-button" onClick={()=>onSetHypothesisTarget(selectedComponent)}>이 기능으로 가설 만들기</button></div></header>
       <div className="selected-function-flow logic-architecture-flow">
-        <section className="function-flow-stage signal-stage"><header><span>STATE + INPUT</span><b>들어오는 값</b></header><div className="actionable-signal-list">{inputItems.length?inputItems.map(item=><button type="button" className="function-signal-node" key={item.id} onClick={()=>onNavigateToSignal(item.id)}><small>{item.kind}</small><TechnicalTerm id={item.id} fallback={item.label} compact/></button>):<p>등록된 입력 없음</p>}</div></section>
+        <section className="function-flow-stage signal-stage"><header><span>IN PORT</span><b>들어오는 값</b></header><div className="actionable-signal-list">{visibleInputs.length?visibleInputs.map(item=><button type="button" className="function-signal-node" key={item.id} onClick={()=>onNavigateToSignal(item.id)}><small>{item.kind}</small><TechnicalTerm id={item.id} fallback={item.label} compact/></button>):<p>등록된 입력 없음</p>}{inputItems.length>visibleInputs.length&&<small className="hidden-item-count">외 {inputItems.length-visibleInputs.length}개 · 기술 상세에서 확인</small>}</div></section>
         <span className="fan-in-arrow" aria-hidden="true">→</span>
-        <section className="function-flow-stage processing-stage"><header><span>PROCESS</span><b>기능이 하는 일</b></header><div className="processing-flow">{processing.map((step,index)=><div key={`${index}:${step}`}><span>{step}</span></div>)}</div></section>
+        <section className="function-flow-stage processing-stage subsystem-process"><header><span>SUBSYSTEM</span><b>{selectedName}</b></header><div className="simple-logic-story"><span>입력 받기</span><i>→</i><span>기능 처리</span><i>→</i><span>출력 만들기</span></div><p>{selectedRole||'입력과 상태를 확인해 다음 단계에 전달할 출력을 만듭니다.'}</p></section>
         <span className="fan-in-arrow" aria-hidden="true">→</span>
-        <section className="function-flow-stage signal-stage"><header><span>OUTPUT</span><b>다음으로 보내는 값</b></header><div className="actionable-signal-list">{outputItems.length?outputItems.map(item=><button type="button" className="function-signal-node" key={item.id} onClick={()=>onNavigateToSignal(item.id)}><TechnicalTerm id={item.id} fallback={item.label} compact/></button>):<p>등록된 출력 없음</p>}</div></section>
+        <section className="function-flow-stage signal-stage"><header><span>OUT PORT</span><b>나가는 값</b></header><div className="actionable-signal-list">{visibleOutputs.length?visibleOutputs.map(item=><button type="button" className="function-signal-node" key={item.id} onClick={()=>onNavigateToSignal(item.id)}><TechnicalTerm id={item.id} fallback={item.label} compact/></button>):<p>등록된 출력 없음</p>}{outputItems.length>visibleOutputs.length&&<small className="hidden-item-count">외 {outputItems.length-visibleOutputs.length}개 · 기술 상세에서 확인</small>}</div></section>
       </div>
       <div className="function-neighbor-strip" aria-label="선택 기능의 앞뒤 연결">
         <span><small>앞에서 오는 기능</small><b>{incoming.map(item=>architectureNode(item.sourceId)?.label??item.sourceId).join(' · ')||'Reference 연결 확인'}</b></span>
@@ -121,7 +123,7 @@ export function ViewAFlow({model,selectedComponent,onSelectComponent,onNavigateT
         <i aria-hidden="true">→</i>
         <span><small>다음으로 가는 기능</small><b>{outgoing.map(item=>architectureNode(item.targetId)?.label??item.targetId).join(' · ')||'Reference 연결 확인'}</b></span>
       </div>
-      <details className="function-handoffs-details technical-detail-drawer"><summary>인터페이스·요구사항 기술 상세</summary><div className="function-technical-links"><button type="button" onClick={()=>reference?.interfaces[0]&&onNavigateToInterface(reference.interfaces[0].id)} disabled={!reference?.interfaces.length}>연결 인터페이스 보기</button><button type="button" onClick={()=>reference?.requirements[0]&&onNavigateToRequirement(reference.requirements[0].id)} disabled={!reference?.requirements.length}>관련 요구사항 보기</button><small>Reference ID · {reference?.entity.id??node?.id}</small></div></details>
+      <details className="function-handoffs-details technical-detail-drawer"><summary>전체 내부 설명과 기술 상세</summary><div className="function-logic-details"><p>{processing.join(' → ')}</p><div className="function-technical-links"><button type="button" onClick={()=>reference?.interfaces[0]&&onNavigateToInterface(reference.interfaces[0].id)} disabled={!reference?.interfaces.length}>연결 인터페이스 보기</button><button type="button" onClick={()=>reference?.requirements[0]&&onNavigateToRequirement(reference.requirements[0].id)} disabled={!reference?.requirements.length}>관련 요구사항 보기</button><small>Reference ID · {reference?.entity.id??node?.id}</small></div></div></details>
     </section>}
 
     {!selectedAreaId&&<p className="architecture-start-hint">도메인 → 기능 → 내부 로직 순으로 한 단계씩 확대됩니다.</p>}
