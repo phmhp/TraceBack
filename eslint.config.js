@@ -10,7 +10,7 @@ const enginePackages = ['react', 'react/**', 'react-dom', 'react-dom/**',
   'three', 'three/**', '@react-three/**', '@dimforge/**', 'zustand', 'zustand/**']
 
 export default tseslint.config(
-  { ignores: ['dist/**', 'node_modules/**', '.tools/**', '.zig-cache/**'] },
+  { ignores: ['dist/**', 'node_modules/**', '.tools/**', '.zig-cache/**', '.tmp-*-audit*/**'] },
   js.configs.recommended,
   { files: ['tests/**/*.mjs'], languageOptions: { globals: globals.node } },
   ...tseslint.configs.recommended,

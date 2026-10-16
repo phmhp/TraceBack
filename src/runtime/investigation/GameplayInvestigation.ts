@@ -17,6 +17,7 @@ export interface GameplayClueProgress {
   question:string
   guidance:string
   recommendedTools:readonly string[]
+  objectives:readonly {id:string;label:string;points:number;completed:boolean}[]
 }
 
 export interface GameplaySuspect {id:string;label:string;status:SuspectStatus;evidenceIds:string[]}
@@ -39,7 +40,8 @@ export function deriveGameplayInvestigation(session:InvestigationSessionState,ev
     FAULT_BOUNDARY:{unlocked:normalValid&&abnormalValid,evidenceIds:[normalValid?normal!.id:'',abnormalValid?abnormal!.id:''].filter(Boolean)},
     PROOF:{unlocked:proofAssessment.sufficient,evidenceIds:proofAssessment.sufficient?proofEvidenceIds:[]},
   }
-  const clues:GameplayClueProgress[]=clueSteps(recipe).map(step=>({id:step.clue,label:step.label,question:step.question,guidance:step.id==='PROOF'&&!proofAssessment.sufficient?(proofAssessment.reasons[0]??step.guidance):step.guidance,recommendedTools:step.recommendedTools,...completion[step.clue]}))
+  const objectiveCompleted=(completionKind:string)=>completionKind==='INCIDENT_EVIDENCE'?Boolean(phenomenon):completionKind==='BOUNDARY_PAIR'?normalValid&&abnormalValid:completionKind==='FORMAL_PROOF'?proofAssessment.sufficient:false
+  const clues:GameplayClueProgress[]=clueSteps(recipe).map(step=>({id:step.clue,label:step.label,question:step.question,guidance:step.id==='PROOF'&&!proofAssessment.sufficient?(proofAssessment.reasons[0]??step.guidance):step.guidance,recommendedTools:step.recommendedTools,objectives:step.objectives.map(objective=>({...objective,completed:objectiveCompleted(objective.completion)})),...completion[step.clue]}))
   const active=clues.find(item=>!item.unlocked)?.id??'PROOF'
   const suspects:GameplaySuspect[]=definition.incidentPath
     .filter(id=>['SW','STATE'].includes(architectureNode(id)?.kind??''))

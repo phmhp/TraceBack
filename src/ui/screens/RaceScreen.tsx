@@ -1,5 +1,5 @@
 import { IncidentDialogue } from '../components/IncidentDialogue'
-import { RaceTimerHUD, RaceDrivingHUD, RecoveryMissionHUD } from '../components/RaceHUD'
+import { RaceTimerHUD, RaceDrivingHUD, RecoveryMissionHUD, DrivingEventHUD } from '../components/RaceHUD'
 import { RacePauseOverlay } from '../components/RacePauseOverlay'
 import { useRaceActions } from '../state/RaceActionsContext'
 import { useWorldView } from '../state/WorldViewContext'
@@ -19,6 +19,7 @@ export function RaceScreen() {
     <h1 tabIndex={-1} className="sr-only">RACE</h1>
     <RaceTimerHUD />
     <RecoveryMissionHUD />
+    <DrivingEventHUD />
     {['PRE_RACE','NORMAL_DRIVE'].includes(phase)&&<aside className="initial-race-objective" aria-label="현재 레이스 목표"><small>RACE · SECTOR 1</small><strong>NEXT CHECKPOINT 1 / {route?.checkpoints.length??0}</strong><span>도로 흐름을 따라 다음 구간까지 빠르고 안전하게 주행하세요.</span></aside>}
     <Minimap map={map.definition} readVehicleState={readVehicleState} />
     {phase !== 'FAULT_EVENT' && <RacePauseOverlay onResume={resume} />}

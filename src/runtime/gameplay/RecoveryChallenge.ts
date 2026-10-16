@@ -55,6 +55,7 @@ export interface RecoverySnapshot {
   status: 'LOCKED' | 'READY' | 'RUNNING' | 'FINISHED'
   runMode: RecoveryRunMode
   elapsedSeconds: number
+  penaltySeconds:number
   checkpointIndex: number
   checkpointCount: number
   lastCheckpointId: string | null
@@ -116,7 +117,7 @@ export class RecoveryChallenge {
   private sectorCount(){return Math.max(2,Math.min(4,this.track.checkpoints.length))}
   private initial(status: RecoverySnapshot['status'],runMode:RecoveryRunMode='CASE_RECOVERY'): RecoverySnapshot {
     const sectorCount=this.sectorCount()
-    return { status, runMode, elapsedSeconds: 0, checkpointIndex: 0, checkpointCount: this.track.checkpoints.length, lastCheckpointId: null, finishTimeSeconds: null, personalBestSeconds: this.bestTimes.read(this.bestKey(runMode)), isNewBest: false, sectorIndex:0, sectorCount, sectorStartSeconds:0, sectorResults:[], sectorBestSeconds:Array.from({length:sectorCount},(_,index)=>this.bestTimes.read(this.sectorKey(runMode,index))), lastSectorResult:null, reaction: status === 'READY' ? 'HOPEFUL' : 'IDLE' }
+    return { status, runMode, elapsedSeconds: 0, penaltySeconds:0, checkpointIndex: 0, checkpointCount: this.track.checkpoints.length, lastCheckpointId: null, finishTimeSeconds: null, personalBestSeconds: this.bestTimes.read(this.bestKey(runMode)), isNewBest: false, sectorIndex:0, sectorCount, sectorStartSeconds:0, sectorResults:[], sectorBestSeconds:Array.from({length:sectorCount},(_,index)=>this.bestTimes.read(this.sectorKey(runMode,index))), lastSectorResult:null, reaction: status === 'READY' ? 'HOPEFUL' : 'IDLE' }
   }
   readonly subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
   readonly getSnapshot = () => this.snapshot
@@ -126,6 +127,7 @@ export class RecoveryChallenge {
   prepare(runMode:RecoveryRunMode=this.snapshot.runMode){this.snapshot=this.initial('READY',runMode);this.listeners.forEach(listener=>listener())}
   start() { if (this.snapshot.status === 'LOCKED') throw new Error('Repair verification must pass before recovery drive'); this.snapshot = this.initial('RUNNING',this.snapshot.runMode); this.snapshot.reaction = 'FOCUSED'; this.listeners.forEach(listener => listener()) }
   retry() { this.start() }
+  addPenalty(seconds:number){if(this.snapshot.status!=='RUNNING'||!Number.isFinite(seconds)||seconds<=0)return;this.update({elapsedSeconds:this.snapshot.elapsedSeconds+seconds,penaltySeconds:this.snapshot.penaltySeconds+seconds,reaction:'WORRIED'})}
   private completeSector(index:number,elapsedSeconds:number){
     if(index<0||index>=this.snapshot.sectorCount||this.snapshot.sectorResults.some(item=>item.index===index))return null
     const timeSeconds=elapsedSeconds-this.snapshot.sectorStartSeconds

@@ -24,7 +24,15 @@ export function RecoveryMissionHUD(){
   if(!['RECOVERY_COUNTDOWN','RECOVERY_DRIVE','MISSION_FINISH'].includes(phase))return null
   const next=Math.min(recovery.checkpointIndex+1,recovery.checkpointCount)
   const sector=Math.min(recovery.sectorIndex+1,recovery.sectorCount),sectorElapsed=recovery.elapsedSeconds-recovery.sectorStartSeconds,last=recovery.lastSectorResult
-  return <aside className="recovery-mission-hud" aria-label="회복 주행 미션"><div className="cat-reaction-portrait" data-emotion={recovery.reaction}><span aria-hidden="true">🐱</span><small>{emotionCopy[recovery.reaction]}</small></div><div><small>{recovery.runMode==='CLEAN_REMATCH'?'CLEAN REMATCH · 수리된 차량':'CONTROL RESTORED · 같은 레이스 복귀'}</small><strong>{recovery.checkpointIndex===recovery.checkpointCount?'FINISH로 이동':`CHECKPOINT ${next}`}</strong><p>SECTOR {sector}/{recovery.sectorCount} · {formatTime(sectorElapsed)} · CP {recovery.checkpointIndex}/{recovery.checkpointCount}</p>{recovery.personalBestSeconds&&<p className="recovery-best">BEST {formatTime(recovery.personalBestSeconds)}</p>}</div>{last&&<i key={`${last.id}-${last.timeSeconds}`}>{last.id} {formatTime(last.timeSeconds)} {last.isNewBest?'NEW BEST':last.deltaSeconds===null?'':`${last.deltaSeconds>=0?'+':''}${last.deltaSeconds.toFixed(2)}`}</i>}</aside>
+  return <aside className="recovery-mission-hud" aria-label="회복 주행 미션"><div className="cat-reaction-portrait" data-emotion={recovery.reaction}><span aria-hidden="true">🐱</span><small>{emotionCopy[recovery.reaction]}</small></div><div><small>{recovery.runMode==='CLEAN_REMATCH'?'CLEAN REMATCH · 수리된 차량':'CONTROL RESTORED · 같은 레이스 복귀'}</small><strong>{recovery.checkpointIndex===recovery.checkpointCount?'FINISH로 이동':`CHECKPOINT ${next}`}</strong><p>SECTOR {sector}/{recovery.sectorCount} · {formatTime(sectorElapsed)} · CP {recovery.checkpointIndex}/{recovery.checkpointCount}</p>{recovery.penaltySeconds>0&&<p className="recovery-best">COLLISION PENALTY +{recovery.penaltySeconds.toFixed(1)} s</p>}{recovery.personalBestSeconds&&<p className="recovery-best">BEST {formatTime(recovery.personalBestSeconds)}</p>}</div>{last&&<i key={`${last.id}-${last.timeSeconds}`}>{last.id} {formatTime(last.timeSeconds)} {last.isNewBest?'NEW BEST':last.deltaSeconds===null?'':`${last.deltaSeconds>=0?'+':''}${last.deltaSeconds.toFixed(2)}`}</i>}</aside>
+}
+
+export function DrivingEventHUD(){
+  const event=useRaceHud(state=>state.drivingEvent)
+  const phase=useNavigation(state=>state.phase)
+  if(!['RECOVERY_COUNTDOWN','RECOVERY_DRIVE'].includes(phase)||event.status==='IDLE')return null
+  const distance=event.relativeDistanceM===null?'—':`${Math.max(0,event.relativeDistanceM).toFixed(0)} m`
+  return <aside className={`driving-event-hud status-${event.status.toLowerCase()}`} aria-live="polite"><small>DRIVING EVENT</small><strong>{event.status==='CLEARED'?'안전하게 통과':event.status==='HIT'?'충돌 발생':event.title}</strong><span>{event.status==='ACTIVE'?`${event.objective} · ${distance}`:event.status==='HIT'?`기록 페널티 +${event.collisionPenaltySeconds.toFixed(1)} s`:'제동·조향 판단 완료'}</span></aside>
 }
 
 export function RaceDrivingHUD() {

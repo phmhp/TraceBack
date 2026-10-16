@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { HypothesisModel } from '../presentation/InvestigationPresentationModel.ts'
 import type { IncidentFrame, ExperimentRun } from '../../../runtime/case/PropulsionCase.ts'
@@ -9,6 +9,9 @@ import type { VehicleScenarioDefinition, VehicleScenarioSnapshot } from '../../.
 import { VehicleScenarioWorkbench } from './VehicleScenarioWorkbench.tsx'
 import type { ComponentTestTarget } from '../../../runtime/case/CaseExperiment.ts'
 import { getSourceClaim } from '../../../data/Gv70OwnerManual.ts'
+import { functionExecutionCoverage } from '../../../runtime/investigation/ExecutionCoverage.ts'
+import { getEntity, getRequirementsForEntity } from '../../../referenceVehicle/index.ts'
+import { TechnicalTerm, formatInvestigationTerm } from '../presentation/InvestigationTerminology.tsx'
 // Old source-test vocabulary retained but not rendered: EXECUTION MODE; COMPONENT / MODEL TEST; VEHICLE SCENARIO TEST; 실행 가능한 검증 방법이 없습니다.
 
 const initialComponentInput=(target:ComponentTestTarget)=>target==='GearLogic'||target==='PropulsionFunction'||target==='VMC'||target==='BrakingExecution'?.5:target==='SteeringExecution'?.3:90
@@ -31,6 +34,18 @@ export function Page3Verification(props:Props){
   const selectedTc=selectedTestCaseId?getTestCase(selectedTestCaseId):undefined
   const fallbackTarget=selectedTc?.execution.status==='EXECUTABLE'?selectedTc.execution.target:undefined
   const contextTarget:InvestigationTarget=hypothesis?{type:hypothesis.targetType??'FUNCTION',id:hypothesis.target,domainScope:hypothesis.domainScope}:selectedContextTarget??(fallbackTarget?{type:'FUNCTION',id:fallbackTarget,domainScope:'Propulsion'}:{type:'ACTUATION_PLANT',id:'VehiclePhysics',domainScope:'Vehicle Motion'})
+  const initialScenarioFunctionId=functionExecutionCoverage.some(item=>item.functionId===contextTarget.id)?contextTarget.id:'LF-PLANT-MOTION'
+  const [scenarioFunctionId,setScenarioFunctionId]=useState(initialScenarioFunctionId)
+  useEffect(()=>{if(functionExecutionCoverage.some(item=>item.functionId===contextTarget.id))setScenarioFunctionId(contextTarget.id)},[contextTarget.id])
+  const scenarioEntry=functionExecutionCoverage.find(item=>item.functionId===scenarioFunctionId)!
+  const scenarioTarget:InvestigationTarget={type:'FUNCTION',id:scenarioEntry.functionId,label:scenarioEntry.name,domainScope:getEntity(scenarioEntry.areaId)?.name??scenarioEntry.areaId}
+  const scenarioRequirementEntity=getRequirementsForEntity(scenarioFunctionId)[0]
+  const scenarioRequirement=scenarioRequirementEntity?{id:scenarioRequirementEntity.id,statement:scenarioRequirementEntity.description??scenarioRequirementEntity.name??scenarioRequirementEntity.id}:undefined
+  const scenarioGroups=useMemo(()=>{
+    const grouped=new Map<string,typeof functionExecutionCoverage[number][]>()
+    for(const item of functionExecutionCoverage)grouped.set(item.areaId,[...(grouped.get(item.areaId)??[]),item])
+    return [...grouped.entries()].sort(([a],[b])=>a.localeCompare(b))
+  },[])
   const [componentId,setComponentId]=useState<ComponentTestTarget>(contextTarget.id==='GearLogic'?'GearLogic':contextTarget.id==='PropulsionFunction'?'PropulsionFunction':contextTarget.id==='VMC'?'VMC':contextTarget.id==='DriveAdapterExecution'||contextTarget.id==='DriveAdapter'?'DriveAdapterExecution':contextTarget.id==='BrakingExecution'?'BrakingExecution':contextTarget.id==='SteeringExecution'?'SteeringExecution':'eDrive')
   const target:InvestigationTarget={type:'FUNCTION',id:componentId,domainScope:componentDomain(componentId)}
   const capability=getVerificationCapability(target)!
@@ -63,15 +78,16 @@ export function Page3Verification(props:Props){
   return <div className="investigation-main-content verification-page verification-redesign generalized-workbench">
     <section className="investigation-page-heading"><p className="investigation-page-title">3 · 가설 검증</p><h2>원인이 맞는지 확인해보세요.</h2></section>
     <div className="verification-action-bar" aria-label="현재 검증 대상">
-      <span><small>가설 대상</small><strong>{hypothesis?(architectureNode(hypothesis.target)?.label??hypothesis.target):'차량 전체 반응 탐색'}</strong></span>
-      <div className="verification-target-choice" aria-label="실행 가능한 독립 계산기">{(['GearLogic','PropulsionFunction','VMC','eDrive','DriveAdapterExecution','BrakingExecution','SteeringExecution'] as const).map(id=><button type="button" key={id} aria-pressed={componentId===id} onClick={()=>{setComponentId(id);setInput(initialComponentInput(id))}}><b>{componentLabel(id)}</b></button>)}</div>
+      <span><small>가설 대상</small><TechnicalTerm id={hypothesis?.target??scenarioEntry.functionId} fallback={hypothesis?(architectureNode(hypothesis.target)?.label??hypothesis.target):scenarioEntry.name} compact/></span>
+      <label className="verification-scenario-target"><span>차량 시나리오에서 관찰할 기능</span><select value={scenarioFunctionId} onChange={event=>setScenarioFunctionId(event.target.value)}>{scenarioGroups.map(([areaId,items])=><optgroup key={areaId} label={getEntity(areaId)?.name??areaId}>{items.map(item=><option key={item.functionId} value={item.functionId}>{formatInvestigationTerm(item.functionId,item.name)}</option>)}</optgroup>)}</select><small>{scenarioEntry.independentExecutable?'독립 기대값 검증 + 차량 시나리오 관찰':'차량 시나리오 관찰만 가능 · 독립 PASS/FAIL 기준 없음'} · {scenarioEntry.limitation}</small></label>
+      <div className="verification-target-choice" aria-label="독립 기대값 검증이 가능한 계산기">{(['GearLogic','PropulsionFunction','VMC','eDrive','DriveAdapterExecution','BrakingExecution','SteeringExecution'] as const).map(id=><button type="button" key={id} aria-pressed={componentId===id} onClick={()=>{setComponentId(id);setInput(initialComponentInput(id))}}><TechnicalTerm id={id} fallback={componentLabel(id)} compact/></button>)}</div>
       <details className="verification-capability-help"><summary>실행 범위와 출처</summary><p>GearLogic·PropulsionFunction·VMC·eDrive는 실제 라이브 경로와 같은 차량 SW 계산을 실행합니다. 이 계산은 C로 작성되어 브라우저에서 실행할 수 있는 WebAssembly로 변환된 동일 로직입니다. 구동력 변환 어댑터는 라이브 물리 경계의 실제 TypeScript 로직과 동일한 보정값을 실행합니다. 제동·조향은 실제 주행 경로와 같은 TRACKBACK_EXECUTION_MODEL을 실행합니다. 이들은 GV70 내부 ECU 로직이 아닙니다.</p></details>
       <button type="button" className="report-text-button" onClick={onNavigateToTracking}>{hypothesis?'가설 수정':'조사 지도에서 가설 선택'}</button>
     </div>
     <div className="verification-unified-workbench">
       <div className="verification-setup-column"><p className="verification-column-title"><b>조건 설정</b><span>요구사항을 기준으로 정상·비정상 TC를 구성합니다.</span></p><ComponentWorkbench/><div ref={setScenarioSetupHost}/></div>
       <div className="verification-result-column"><p className="verification-column-title"><b>관찰 결과</b><span>차량 반응을 먼저 보고, 계산 차이를 근거로 확인합니다.</span></p><div ref={setScenarioResultHost}/><div ref={setComponentResultHost}/></div>
-      <VehicleScenarioWorkbench scenario={vehicleScenario} investigationTarget={contextTarget} requirement={requirement} hypothesisId={hypothesis?.id} technique={technique} onRun={onRunVehicleScenario} onReplay={onReplayVehicleScenario} onAbort={onAbortVehicleScenario} onCollect={onCollectVehicleScenario} onOpenRequirement={onOpenRequirement} viewportSlotRef={scenarioViewportRef} setupHost={scenarioSetupHost} resultHost={scenarioResultHost}/>
+      <VehicleScenarioWorkbench scenario={vehicleScenario} investigationTarget={scenarioTarget} requirement={scenarioRequirement} hypothesisId={hypothesis?.id} technique={technique} onRun={onRunVehicleScenario} onReplay={onReplayVehicleScenario} onAbort={onAbortVehicleScenario} onCollect={onCollectVehicleScenario} onOpenRequirement={onOpenRequirement} viewportSlotRef={scenarioViewportRef} setupHost={scenarioSetupHost} resultHost={scenarioResultHost}/>
     </div>
   </div>
 
@@ -81,14 +97,14 @@ export function Page3Verification(props:Props){
       <section className="verification-setup-card"><header><div><p className="investigation-section-label">6–9 · PRECONDITIONS / STIMULUS / MONITOR / ORACLE</p><h3>{testDesignTechniqueLabels[technique].label}</h3></div><button type="button" className="report-text-button" onClick={loadIncident}>사건 조건 불러오기</button></header>
         <div className="verification-source-choice">{executableTc&&<label><input type="checkbox" checked={useExistingTc} onChange={event=>setUseExistingTc(event.target.checked)}/><span><b>등록된 TC 조건 사용</b><small>{executableTc.id} · 해제하면 같은 요구사항으로 새 TC 구성</small></span></label>}</div>
         {requirement&&<aside className="imported-requirement-basis"><span>판정 기준이 되는 요구사항</span><code>{requirement.id}</code><p>{requirement.statement}</p><button type="button" onClick={()=>onOpenRequirement(requirement.id)}>요구사항 원문 보기</button></aside>}
-        <dl className="test-purpose-grid experiment-design-grid"><div><dt>계산할 기능</dt><dd>{componentLabel(componentId)}</dd></div><div><dt>검증 방식</dt><dd>{capability.runner==='COMPONENT_C_WASM'?'실제 차량 SW 독립 계산':capability.runner==='RUNTIME_ADAPTER'?'라이브 런타임 어댑터 계산':'TRACKBACK 실행 모델 계산'}</dd></div><div><dt>입력 형태</dt><dd>일정한 값(CONSTANT)</dd></div><div><dt>변화시킬 입력</dt><dd><code>{inputSignal}</code></dd></div><div><dt>확인할 출력</dt><dd><code>{outputSignal}</code></dd></div></dl>
+        <dl className="test-purpose-grid experiment-design-grid"><div><dt>계산할 기능</dt><dd><TechnicalTerm id={componentId} fallback={componentLabel(componentId)} compact/></dd></div><div><dt>검증 방식</dt><dd>{capability.runner==='COMPONENT_C_WASM'?'차량 SW 로직 독립 계산':capability.runner==='RUNTIME_ADAPTER'?'실제 주행 경계 계산':'TRACKBACK 교육용 실행 모델'}</dd></div><div><dt>입력 형태</dt><dd>일정한 입력 · CONSTANT</dd></div><div><dt>변화시킬 입력</dt><dd><TechnicalTerm id={inputSignal} compact/></dd></div><div><dt>확인할 출력</dt><dd><TechnicalTerm id={outputSignal} compact/></dd></div></dl>
         <div className="verification-control-panel"><p className="investigation-section-label">고정 조건과 입력</p>
-          <div className="control-row"><div><span>Validity</span><small>지원되는 상태 조건</small></div><div className="finite-choice" role="radiogroup">{(['VALID','INVALID'] as const).map(value=><button type="button" aria-pressed={validity===value} key={value} onClick={()=>setValidity(value)}>{value}</button>)}</div></div>
+          <div className="control-row"><div><TechnicalTerm id="Validity" compact/><small>이 값을 계산에 사용해도 되는지 선택</small></div><div className="finite-choice" role="radiogroup">{(['VALID','INVALID'] as const).map(value=><button type="button" aria-pressed={validity===value} key={value} onClick={()=>setValidity(value)}>{value==='VALID'?'유효 · VALID':'무효 · INVALID'}</button>)}</div></div>
           {target.id==='GearLogic'?<><div className="control-row"><div><span>현재 기어</span><small>시험 시작 상태</small></div><div className="finite-choice" role="radiogroup">{(['D','R'] as const).map(value=><button type="button" aria-pressed={previousGear===value} key={value} onClick={()=>setPreviousGear(value)}>{value}</button>)}</div></div><div className="control-row"><div><span>요청 기어</span><small>운전자가 선택한 방향</small></div><div className="finite-choice" role="radiogroup">{(['D','R'] as const).map(value=><button type="button" aria-pressed={requestedGear===value} key={value} onClick={()=>setRequestedGear(value)}>{value}</button>)}</div></div></>:['PropulsionFunction','VMC','eDrive','DriveAdapterExecution'].includes(target.id)?<div className="control-row"><div><span>{target.id==='PropulsionFunction'?'기어 방향':target.id==='DriveAdapterExecution'?'구동 방향':'토크 방향'}</span><small>지원되는 방향 조건</small></div><div className="finite-choice" role="radiogroup">{(['FORWARD','REVERSE'] as const).map(value=><button type="button" aria-pressed={direction===value} key={value} onClick={()=>setDirection(value)}>{value}</button>)}</div></div>:null}
-          {(target.id==='VMC'||target.id==='SteeringExecution')&&<label className="numeric-control"><span><code>VehicleSpeed</code><small>0–60 m/s</small></span><input type="number" min="0" max="60" value={speed} onChange={event=>setSpeed(event.target.valueAsNumber)}/></label>}
+          {(target.id==='VMC'||target.id==='SteeringExecution')&&<label className="numeric-control"><span><TechnicalTerm id="VehicleSpeed" compact/><small>0–60 m/s</small></span><input type="number" min="0" max="60" value={speed} onChange={event=>setSpeed(event.target.valueAsNumber)}/></label>}
           {technique==='BOUNDARY_VALUE_ANALYSIS'&&<div className="boundary-candidates"><span>등록 범위 기반 후보</span>{candidates.map(value=><button type="button" key={value} aria-pressed={input===value} onClick={()=>setInput(value)}>{value}</button>)}</div>}
           {technique==='EQUIVALENCE_CLASS_ANALYSIS'&&<div className="boundary-candidates"><span>유효 입력 클래스 대표값 · 등록 범위 안에서 같은 처리 규칙을 확인</span>{[capability.variableInput.min,(capability.variableInput.min+capability.variableInput.max)/2,capability.variableInput.max].map(value=><button type="button" key={value} aria-pressed={input===value} onClick={()=>setInput(value)}>{value}</button>)}</div>}
-          <label className="numeric-control primary"><span><code>{inputSignal}</code><small>{capability.variableInput.min}–{capability.variableInput.max}</small></span><input type="number" min={capability.variableInput.min} max={capability.variableInput.max} step={capability.variableInput.step} value={input} onChange={event=>setInput(event.target.valueAsNumber)}/></label>
+          <label className="numeric-control primary"><span><TechnicalTerm id={inputSignal} compact/><small>{capability.variableInput.min}–{capability.variableInput.max}</small></span><input type="number" min={capability.variableInput.min} max={capability.variableInput.max} step={capability.variableInput.step} value={input} onChange={event=>setInput(event.target.valueAsNumber)}/></label>
           <button type="button" className="verification-run-button" onClick={run}>10 · 컴포넌트 시험 실행 →</button>
         </div>
         {target.id==='GearLogic'&&<aside className="verification-source-disclosure"><b>{getSourceClaim('GV70-OM-SHIFT-DIRECTION')?.authority}</b><p>{getSourceClaim('GV70-OM-SHIFT-DIRECTION')?.plainLanguage}</p><small>매뉴얼 p.327 / PDF p.335 · 완전 정차 원칙만 근거로 사용</small><b>{getSourceClaim('TRACKBACK-GEAR-THRESHOLD')?.authority}</b><p>{getSourceClaim('TRACKBACK-GEAR-THRESHOLD')?.plainLanguage}</p><small>이 값은 GV70 OEM 사양이 아닙니다.</small></aside>}

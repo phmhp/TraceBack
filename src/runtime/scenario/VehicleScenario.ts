@@ -53,7 +53,7 @@ export interface VehicleScenarioDefinition {
   }
   environment?:{
     collisionObstacle?:{distanceAheadM:number;halfWidthM:number}
-    leadVehicle?:{distanceAheadM:number;speedMps:number;brakeAtSeconds?:number}
+    leadVehicle?:{distanceAheadM:number;lateralOffsetM?:number;speedMps:number;brakeAtSeconds?:number}
   }
   verification?:{ hypothesisId?:string; method?:string; designTechnique?:string; executionMode:'VEHICLE_SCENARIO_TEST' }
   faultInjection?:FaultInjectionDefinition
@@ -121,7 +121,7 @@ export function validateVehicleScenario(definition:VehicleScenarioDefinition){
   const obstacle=definition.environment?.collisionObstacle
   if(obstacle&&(!Number.isFinite(obstacle.distanceAheadM)||obstacle.distanceAheadM<4||!Number.isFinite(obstacle.halfWidthM)||obstacle.halfWidthM<=0))throw new Error('Scenario collision obstacle contract violated')
   const lead=definition.environment?.leadVehicle
-  if(lead&&(!Number.isFinite(lead.distanceAheadM)||lead.distanceAheadM<6||!Number.isFinite(lead.speedMps)||lead.speedMps<0||lead.brakeAtSeconds!==undefined&&(!Number.isFinite(lead.brakeAtSeconds)||lead.brakeAtSeconds<0)))throw new Error('Scenario lead vehicle contract violated')
+  if(lead&&(!Number.isFinite(lead.distanceAheadM)||lead.distanceAheadM<6||lead.lateralOffsetM!==undefined&&!Number.isFinite(lead.lateralOffsetM)||!Number.isFinite(lead.speedMps)||lead.speedMps<0||lead.brakeAtSeconds!==undefined&&(!Number.isFinite(lead.brakeAtSeconds)||lead.brakeAtSeconds<0)))throw new Error('Scenario lead vehicle contract violated')
 }
 
 export function scenarioPhaseAt(definition:VehicleScenarioDefinition,timeSeconds:number):Exclude<VehicleScenarioPhase,'RESULT'>{

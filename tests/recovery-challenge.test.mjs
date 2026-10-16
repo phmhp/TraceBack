@@ -52,3 +52,11 @@ test('clean rematch has a separate PB scope and compares sectors with the case r
  assert.equal(challenge.getSnapshot().personalBestSeconds,6)
  challenge.prepare('CASE_RECOVERY');assert.equal(challenge.getSnapshot().personalBestSeconds,9)
 })
+
+test('driving-event penalties affect race time, sector time, and personal best without changing engineering results',()=>{
+ const challenge=make();challenge.unlock();challenge.start();challenge.advance(1,{x:0,z:0});challenge.addPenalty(3)
+ assert.equal(challenge.getSnapshot().penaltySeconds,3)
+ assert.equal(challenge.getSnapshot().elapsedSeconds,4)
+ challenge.advance(1,{x:40,z:0})
+ assert.equal(challenge.getSnapshot().lastSectorResult.timeSeconds,5)
+})

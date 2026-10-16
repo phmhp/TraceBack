@@ -28,6 +28,7 @@ export interface LeadVehicleObservation {
   relativeLateralDistanceM:number
   leadSpeedMps:number
   closingSpeedMps:number
+  collisionActive:boolean
 }
 export interface ScenarioActorPose {
   available:boolean
@@ -45,7 +46,7 @@ export interface VehiclePhysicsPort {
   readCollisionState?(): Readonly<CollisionObservation>
   /** Deterministic physical obstacle used only by an explicit vehicle scenario. */
   setScenarioObstacle?(definition:Readonly<{distanceAheadM:number;halfWidthM:number}>|null):void
-  setScenarioLeadVehicle?(definition:Readonly<{distanceAheadM:number;speedMps:number;brakeAtSeconds?:number}>|null):void
+  setScenarioLeadVehicle?(definition:Readonly<{distanceAheadM:number;lateralOffsetM?:number;speedMps:number;brakeAtSeconds?:number}>|null):void
   readLeadVehicleState?():Readonly<LeadVehicleObservation>
   readScenarioLeadVehiclePose?():Readonly<ScenarioActorPose>
   reset(): void

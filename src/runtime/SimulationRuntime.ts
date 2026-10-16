@@ -42,6 +42,8 @@ import type { VehicleFunctionObservation, VehicleScenarioDefinition, VehicleScen
 import { FaultInjectionRuntime, summarizeInterfaceComparison } from './scenario/FaultInjection.ts'
 import type { FaultInjectionTelemetry, InterfaceEndpointTelemetry } from './scenario/FaultInjection.ts'
 import type { RecoveryChallenge, RecoveryRunMode, RecoverySnapshot } from './gameplay/RecoveryChallenge.ts'
+import { DrivingEventRuntime, EMPTY_DRIVING_EVENT } from './gameplay/DrivingEvent.ts'
+import type { DrivingEventDefinition, DrivingEventSnapshot } from './gameplay/DrivingEvent.ts'
 
 export interface SimulationPropulsionCalibration {
   keyboardPedalResponse: {
@@ -85,6 +87,7 @@ export interface RaceTelemetry {
   status: RaceStatus
   error: string | null
   raceFinished: boolean
+  drivingEvent:DrivingEventSnapshot
 }
 export const INITIAL_TELEMETRY: RaceTelemetry = {
   vehicleSw: null,
@@ -94,7 +97,7 @@ export const INITIAL_TELEMETRY: RaceTelemetry = {
   driveTorqueRequest: { magnitudeNm: 0, direction: 'NONE', validity: 'VALID' },
   eDriveCommand: { magnitudeNm: 0, direction: 'NONE', validity: 'VALID' },
   longitudinalVelocity: 0, longitudinalAcceleration: 0, vehicleReady: false, propulsionEnable: false,
-  status: 'idle', error: null, raceFinished: false,
+  status: 'idle', error: null, raceFinished: false, drivingEvent:EMPTY_DRIVING_EVENT,
 }
 
 /** Single fixed-step owner. No React, browser events, Rapier objects or SW task scheduler. */
@@ -166,6 +169,7 @@ export class SimulationRuntime {
   private currentInterfaceTelemetry:InterfaceEndpointTelemetry|undefined
   private recoveryChallenge:RecoveryChallenge|null=null
   private publishRecovery:(snapshot:RecoverySnapshot)=>void=()=>{}
+  private readonly drivingEvent=new DrivingEventRuntime()
 
   constructor(
     calibration: Readonly<SimulationPropulsionCalibration>,
@@ -185,8 +189,10 @@ export class SimulationRuntime {
   readonly readInterpolationAlpha = () => !this.clock.running || this.clock.paused ? 1 : Math.min(1, this.accumulator / PHYSICS_TIMESTEP)
   configureFinish(point: { x: number; z: number }, heading: number) { this.finish = { x: point.x, z: point.z, heading } }
   configureRecoveryChallenge(challenge:RecoveryChallenge,publish:(snapshot:RecoverySnapshot)=>void){this.recoveryChallenge=challenge;this.publishRecovery=publish;publish(challenge.getSnapshot())}
+  configureDrivingEvent(definition:DrivingEventDefinition){this.drivingEvent.configure(definition)}
   unlockRecoveryChallenge(){this.recoveryChallenge?.unlock();if(this.recoveryChallenge)this.publishRecovery(this.recoveryChallenge.getSnapshot())}
   prepareRecoveryChallenge(runMode:RecoveryRunMode){if(!this.recoveryChallenge)throw new Error('Recovery challenge is not configured');this.recoveryChallenge.prepare(runMode);this.publishRecovery(this.recoveryChallenge.getSnapshot())}
+  private startConfiguredDrivingEvent(){const definition=this.drivingEvent.getDefinition();if(!definition||definition.activation!=='RECOVERY_START')return;const actor=this.drivingEvent.start();this.physics?.setScenarioLeadVehicle?.(actor)}
   startRecoveryChallenge(){
     if(!this.recoveryChallenge)throw new Error('Recovery challenge is not configured')
     // The incident can be captured on the edge of the drivable corridor.  Begin the
@@ -196,6 +202,7 @@ export class SimulationRuntime {
     this.clock.pause()
     this.resetLogicalState(false)
     this.physics?.reset()
+    this.startConfiguredDrivingEvent()
     if(this.physics)this.physics.readState(this.vehicle)
     this.copyPreviousPose()
     this.accumulator=0
@@ -207,7 +214,7 @@ export class SimulationRuntime {
     this.publishRecovery(this.recoveryChallenge.getSnapshot())
     this.publishNow()
   }
-  retryRecoveryChallenge(){if(!this.recoveryChallenge)throw new Error('Recovery challenge is not configured');this.clock.pause();this.driverInput.reset();this.vehicleSw.reset();this.physics?.reset();if(this.physics)this.physics.readState(this.vehicle);this.copyPreviousPose();this.accumulator=0;this.skipResumeDelta=true;this.raceFinished=false;this.finishElapsed=0;this.error=null;this.recoveryChallenge.retry();this.clock.resume();this.publishRecovery(this.recoveryChallenge.getSnapshot());this.publishNow()}
+  retryRecoveryChallenge(){if(!this.recoveryChallenge)throw new Error('Recovery challenge is not configured');this.clock.pause();this.driverInput.reset();this.vehicleSw.reset();this.physics?.reset();this.drivingEvent.reset();this.startConfiguredDrivingEvent();if(this.physics)this.physics.readState(this.vehicle);this.copyPreviousPose();this.accumulator=0;this.skipResumeDelta=true;this.raceFinished=false;this.finishElapsed=0;this.error=null;this.recoveryChallenge.retry();this.clock.resume();this.publishRecovery(this.recoveryChallenge.getSnapshot());this.publishNow()}
   configureSession(config: SessionConfig) { this.sessionConfig = { ...config } }
   configureCase(incident: PropulsionCase) {
     if (!this.vehicleSw.setCaseVariant) throw new Error('Case requires a C case-capable backend')
@@ -266,6 +273,7 @@ export class SimulationRuntime {
     this.stabilityExecution.reset();this.stabilityOutput=null
     this.occupantProtectionExecution.reset();this.occupantProtectionOutput=null
     this.adasExecution.reset();this.adasOutput=null
+    this.drivingEvent.reset()
     this.faultInjection.reset()
     this.currentFaultTelemetry=undefined
     this.currentInterfaceTelemetry=undefined
@@ -550,7 +558,7 @@ export class SimulationRuntime {
       this.driverInput.advance(PHYSICS_TIMESTEP, this.calibration.keyboardPedalResponse)
       const input = this.driverInput.getState()
       const adasDemoEnabled=this.scenario.status==='RUNNING'&&(this.scenario.definition?.supportConditions?.adasDemoEnabled??false)
-      this.adasOutput=this.adasExecution.step({lead:this.physics.readLeadVehicleState?.()??{available:false,relativeLongitudinalDistanceM:0,relativeLateralDistanceM:0,leadSpeedMps:0,closingSpeedMps:0},lane:this.readRouteLaneContext(),demoEnabled:adasDemoEnabled})
+      this.adasOutput=this.adasExecution.step({lead:this.physics.readLeadVehicleState?.()??{available:false,relativeLongitudinalDistanceM:0,relativeLateralDistanceM:0,leadSpeedMps:0,closingSpeedMps:0,collisionActive:false},lane:this.readRouteLaneContext(),demoEnabled:adasDemoEnabled})
       const acceleratorDelivery=this.faultInjection.applyAccelerator(this.scenario.status==='RUNNING'?this.scenario.definition?.faultInjection:undefined,input.accelerator,tickTime)
       this.currentFaultTelemetry=acceleratorDelivery.telemetry
       const supportConditions=this.scenario.status==='RUNNING'?this.scenario.definition?.supportConditions:undefined
@@ -629,6 +637,9 @@ export class SimulationRuntime {
       this.physics.readState(this.vehicle)
       const collisionObservation=this.physics.readCollisionState?.()??{active:false,contactPairCount:0,contactPointCount:0,maximumNormalImpulseNs:0}
       this.occupantProtectionOutput=this.occupantProtectionExecution.step(collisionObservation,this.scenario.status==='RUNNING'&&(this.scenario.definition?.supportConditions?.occupantDemoEnabled??false))
+      const drivingEventResult=this.drivingEvent.step(this.physics.readLeadVehicleState?.()??{available:false,relativeLongitudinalDistanceM:0,relativeLateralDistanceM:0,leadSpeedMps:0,closingSpeedMps:0,collisionActive:false})
+      if(drivingEventResult.applyPenaltySeconds>0)this.recoveryChallenge?.addPenalty(drivingEventResult.applyPenaltySeconds)
+      if(drivingEventResult.removeActor)this.physics.setScenarioLeadVehicle?.(null)
       if (this.resetAccelerationOnNextState) {
         this.vehicle.longitudinalAcceleration = 0
         this.resetAccelerationOnNextState = false
@@ -684,6 +695,7 @@ export class SimulationRuntime {
       status: this.error ? 'error' : !this.clock.running ? 'idle' : this.clock.paused ? 'paused' : !this.physics ? 'loading' : 'running',
       error: this.error,
       raceFinished: this.raceFinished,
+      drivingEvent:this.drivingEvent.getSnapshot(),
     })
   }
 }

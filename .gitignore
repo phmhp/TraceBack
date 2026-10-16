@@ -7,3 +7,4 @@ dist/
 *.local
 .tools/
 .zig-cache/
+.tmp-*-audit*/

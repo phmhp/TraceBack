@@ -14,6 +14,7 @@ import {
   getReferenceFunctionsForArea,
   getReferenceStatus,
 } from '../../referenceVehicle/ReferenceVehicleUIAdapter.ts'
+import { TechnicalTerm } from '../../presentation/InvestigationTerminology.tsx'
 
 interface ViewAFlowProps {
   model: InvestigationPresentationModel
@@ -41,7 +42,7 @@ function ReferenceVehicleContext({ selectedComponent, onSelectComponent }: { sel
     <div className="reference-context-flow">
       {vehicleContextGroups.map((group,index)=><div className="reference-context-layer" key={group.label}>
         <small>{group.label}</small>
-        <div>{group.areas.map(areaId=>{const area=getReferenceEntity(areaId);if(!area)return null;const functions=getReferenceFunctionsForArea(areaId);const first=functions[0];const focus=getReferenceFocus(area);const selected=selectedAreaId===areaId;return <button type="button" key={areaId} className={`${selected?'selected ':''}focus-${focus.toLowerCase()}`} aria-pressed={selected} disabled={!first} onClick={()=>first&&onSelectComponent(first.id)}><strong>{area.name||area.id}</strong><span>{functions.length} functions</span></button>})}</div>
+        <div>{group.areas.map(areaId=>{const area=getReferenceEntity(areaId);if(!area)return null;const functions=getReferenceFunctionsForArea(areaId);const first=functions[0];const focus=getReferenceFocus(area);const selected=selectedAreaId===areaId;return <button type="button" key={areaId} className={`${selected?'selected ':''}focus-${focus.toLowerCase()}`} aria-pressed={selected} disabled={!first} onClick={()=>first&&onSelectComponent(first.id)}><strong>{area.name||area.id}</strong><span>{functions.length}개 기능</span></button>})}</div>
         {index<vehicleContextGroups.length-1&&<i aria-hidden="true">→</i>}
       </div>)}
     </div>
@@ -57,15 +58,15 @@ const familiarFunctionNames:Record<string,string>={
 }
 const functionKindLabels:Record<string,string>={REQUEST_PROCESSOR:'입력·요청 처리',CONTROLLER:'제어·계산',COORDINATOR:'기능 조정',MONITOR:'상태 감시',STATE_MANAGER:'상태·복구 관리'}
 
-function ReferenceDomainFlow({areaId,label,selectedComponent,onSelectComponent}:{areaId:'GEAR'|'PROPULSION'|'BRAKING'|'STEERING';label:string;selectedComponent:string;onSelectComponent:(id:string)=>void}){
+function ReferenceDomainFlow({areaId,label,technicalLabel,selectedComponent,onSelectComponent}:{areaId:'GEAR'|'PROPULSION'|'BRAKING'|'STEERING';label:string;technicalLabel:string;selectedComponent:string;onSelectComponent:(id:string)=>void}){
   const functions=getReferenceFunctionsForArea(areaId)
   const groups=[...new Set(functions.map(item=>String(item.metadata.functionKind??'OTHER')))]
   return <section className="vehicle-domain reference-domain" aria-label={`${label} Reference Vehicle 기능 흐름`}>
-    <header><span>VEHICLE DOMAIN</span><h4>{label}</h4><small>{functions.length}개 기능</small></header>
+    <header><span>차량 기능 영역</span><h4>{label}<code>{technicalLabel}</code></h4><small>{functions.length}개 기능</small></header>
     <div className="reference-domain-chain">
       {groups.map(kind=><section className="reference-function-group" key={kind}><h5>{functionKindLabels[kind]??'기타 기능'}</h5>{functions.filter(item=>String(item.metadata.functionKind??'OTHER')===kind).map(item=>{const status=getReferenceStatus(item),familiar=familiarFunctionNames[item.id];return <div key={item.id} className="reference-domain-step">
         <button type="button" aria-pressed={selectedComponent===item.id} onClick={()=>onSelectComponent(item.id)} title={`${item.id} · ${item.description}`}>
-          <strong>{familiar&&<b>{familiar}</b>}<span>{item.name}</span></strong><small>{status.capability==='CURRENT'?'현재 지원':status.capability==='PARTIAL'?'부분 지원':'Reference 설계'}</small>
+          <strong>{familiar?<TechnicalTerm id={familiar} fallback={item.name} compact/>:<><b>{item.name}</b><code>{item.id}</code></>} </strong><small>{status.capability==='CURRENT'?'현재 지원':status.capability==='PARTIAL'?'부분 지원':'Reference 설계'}</small>
         </button>
       </div>})}</section>)}
     </div>
@@ -97,8 +98,8 @@ function ContextNode({
       onClick={() => onSelect(id)}
       title={architectureNode(id)?.role??`${label}의 차량 기능 역할`}
     >
-      <span>{kind === 'observation' ? 'OBSERVATION' : 'ACTUATION'}</span>
-      <b>{label}</b>
+      <span>{kind === 'observation' ? '관찰' : '실행 경계'}</span>
+      <TechnicalTerm id={id} fallback={label} compact/>
     </button>
   )
 }
@@ -144,7 +145,7 @@ export function ViewAFlow({
           <div className="architecture-context-column">
             <ContextNode
               id="DriverInput"
-              label="Driver / Environment"
+              label="운전자·환경 입력"
               kind="observation"
               selectedComponent={selectedComponent}
               relevantPath={relevantPath}
@@ -155,34 +156,35 @@ export function ViewAFlow({
           </div>
 
           <div className="shared-context-node">
-            <span>SHARED CONTEXT</span>
-            <b>Vehicle State / Mode</b>
+            <span>공통 주행 조건</span>
+            <b>차량 상태·운행 모드</b>
+            <code>Vehicle State / Mode</code>
             <small>모든 기능의 공통 조건</small>
             <div className="shared-context-fanout" aria-hidden="true"><i /><i /><i /></div>
           </div>
 
           <div className="functional-domains">
-            <ReferenceDomainFlow areaId="GEAR" label="Gear" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
-            <ReferenceDomainFlow areaId="PROPULSION" label="Propulsion" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
-            <ReferenceDomainFlow areaId="BRAKING" label="Braking" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
-            <ReferenceDomainFlow areaId="STEERING" label="Steering" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
+            <ReferenceDomainFlow areaId="GEAR" label="변속" technicalLabel="Gear" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
+            <ReferenceDomainFlow areaId="PROPULSION" label="추진" technicalLabel="Propulsion" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
+            <ReferenceDomainFlow areaId="BRAKING" label="제동" technicalLabel="Braking" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
+            <ReferenceDomainFlow areaId="STEERING" label="조향" technicalLabel="Steering" selectedComponent={selectedComponent} onSelectComponent={onSelectComponent}/>
           </div>
 
           <div className="domain-to-actuation" aria-hidden="true"><i /><i /><i /></div>
 
           <section className="actuation-band" aria-label="액추에이션 경계">
-            <p>ACTUATION BOUNDARY</p>
+            <p>차량 물리로 전달되는 실행 경계 · ACTUATION</p>
             <div>
-              <ContextNode id="DriveAdapter" label="Drive Force" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} status={model.getNodeStatus('DriveAdapter')} />
-              <ContextNode id="BrakeAdapter" label="Brake Force" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} status={model.getNodeStatus('BrakeAdapter')} />
-              <ContextNode id="SteeringAdapter" label="Steering Angle" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} status={model.getNodeStatus('SteeringAdapter')} />
+              <ContextNode id="DriveAdapter" label="구동력 변환" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} status={model.getNodeStatus('DriveAdapter')} />
+              <ContextNode id="BrakeAdapter" label="제동력 변환" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} status={model.getNodeStatus('BrakeAdapter')} />
+              <ContextNode id="SteeringAdapter" label="조향각 변환" kind="actuation" selectedComponent={selectedComponent} relevantPath={relevantPath} onSelect={onSelectComponent} status={model.getNodeStatus('SteeringAdapter')} />
             </div>
           </section>
 
           <span className="diagram-arrow plant-arrow" aria-hidden="true">↓</span>
           <ContextNode
             id="VehiclePhysics"
-            label="Vehicle Dynamics / Response"
+            label="실제 차량 반응"
             kind="observation"
             selectedComponent={selectedComponent}
             relevantPath={relevantPath}
@@ -197,7 +199,7 @@ export function ViewAFlow({
         <header className="selected-function-header">
           <div>
             <p className="investigation-section-label">LEVEL 2 · SELECTED FUNCTION FLOW</p>
-            <h3 id="selected-function-title">{node.label} <code>{node.id}</code></h3>
+            <h3 id="selected-function-title"><TechnicalTerm id={node.id} fallback={node.label}/></h3>
             <details className="selected-function-description"><summary>기능 설명</summary><p className="selected-function-role investigation-prose">{node.role}</p></details>
           </div>
           <div className="selected-function-actions">
@@ -212,7 +214,7 @@ export function ViewAFlow({
             <div className="actionable-signal-list">
               {[...stateSignals,...valueInputSignals].length ? [...stateSignals,...valueInputSignals].map(signal => (
                 <div className="function-signal-node" key={signal.id}>
-                  <code>{signal.id}</code>
+                  <TechnicalTerm id={signal.id} fallback={signal.description} compact/>
                   {signal.description&&<details><summary>설명</summary><p>{signal.description}</p></details>}
                   <button type="button" onClick={() => onNavigateToSignal(signal.id)}>{signal.semanticRole==='STATE_OR_PRECONDITION'?'전제조건 시간 흐름 보기':'기능 입력 시간 흐름 보기'} →</button>
                 </div>
@@ -236,7 +238,7 @@ export function ViewAFlow({
             <div className="actionable-signal-list">
               {outputSignals.length ? outputSignals.map(signal => (
                 <div className="function-signal-node" key={signal.id}>
-                  <code>{signal.id}</code>
+                  <TechnicalTerm id={signal.id} fallback={signal.description} compact/>
                   {signal.description&&<details><summary>설명</summary><p>{signal.description}</p></details>}
                   <button type="button" onClick={() => onNavigateToSignal(signal.id)}>신호 비교에서 보기 →</button>
                 </div>

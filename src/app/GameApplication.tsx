@@ -18,6 +18,7 @@ import { SimulationRuntimeContext } from '../ui/state/SimulationRuntimeContext'
 import { RecoveryChallenge, createLocalBestTimeStore, createRecoveryTrack } from '../runtime/gameplay/RecoveryChallenge'
 import { publishRecoveryHud } from '../ui/state/recoveryHud'
 import { useIncidentRace } from '../ui/state/incidentRace.ts'
+import { STOPPED_VEHICLE_AVOIDANCE_EVENT } from '../data/gameplay/DrivingEvents.ts'
 
 /** Composition root: wires browser input, runtime, engine adapter and UI without reverse imports. */
 export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssembly.Module }) {
@@ -38,6 +39,7 @@ export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssem
     return new RecoveryChallenge(createRecoveryTrack(map.definition.mapId,route,mission.id),mission,createLocalBestTimeStore(window.localStorage))
   })
   useLayoutEffect(()=>runtime.configureRecoveryChallenge(recovery,publishRecoveryHud),[recovery,runtime])
+  useLayoutEffect(()=>runtime.configureDrivingEvent(STOPPED_VEHICLE_AVOIDANCE_EVENT),[runtime])
   useEffect(() => { const route = map.definition.routes.find((candidate) => candidate.routeId === map.definition.minimapConfig.routeId)!; runtime.configureFinish(route.finishPoint, route.finishHeading ?? 0); runtime.configureRoute(route.orderedPoints) }, [map, runtime])
   const screen = useNavigation((s) => s.screen)
   const phase = useNavigation((s) => s.phase)

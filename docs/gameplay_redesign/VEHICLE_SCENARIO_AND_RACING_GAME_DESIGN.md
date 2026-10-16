@@ -214,3 +214,13 @@ Incident 직전 2–3초를 scrub할 수 있게 하고, 같은 타임라인에�
 - source가 확보된 TPMS/lighting/energy Case
 
 실제 고장 빈도는 취급설명서만으로 판단하지 않는다. 빈도 순위를 주장하려면 정비·field 데이터가 별도로 필요하다.
+
+## 13. 2026-10-16 구현 갱신
+
+- 이전 “42개 미구현” 목록은 중간 상태였으며 현재는 모두 차량 시나리오 관찰 경로가 있다.
+- Page 3에서 74개 canonical Logical Function을 Area별로 선택할 수 있다.
+- 독립 Expected/PASS·FAIL 계산기는 별도 그룹으로 유지하며, oracle이 없는 기능은 OBSERVED로만 표시한다.
+- 첫 본편 Driving Event `EVENT-STOPPED-VEHICLE-001`을 repair 후 recovery race에 연결했다.
+- 정차 차량은 실제 Rapier collider와 동일 pose의 visual actor이며, 안전 통과 또는 실제 contact를 판정한다.
+- 충돌 시 `+3.0 s`는 race/sector/PB에만 반영되고 engineering verdict에는 영향을 주지 않는다.
+- 후속 상세 설계는 `docs/gameplay_redesign/RACING_AND_INVESTIGATION_IMPLEMENTATION_BLUEPRINT.md`를 따른다.

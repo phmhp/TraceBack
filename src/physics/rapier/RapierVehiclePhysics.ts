@@ -146,24 +146,28 @@ export class RapierVehiclePhysics implements VehiclePhysicsPort {
     this.scenarioObstacle=this.world.createRigidBody(this.rapier.RigidBodyDesc.fixed().setTranslation(position.x+forwardX*definition.distanceAheadM,position.y,position.z+forwardZ*definition.distanceAheadM).setRotation(rotation))
     this.world.createCollider(this.rapier.ColliderDesc.cuboid(definition.halfWidthM,1,.35).setFriction(1.4).setRestitution(0),this.scenarioObstacle)
   }
-  setScenarioLeadVehicle(definition:Readonly<{distanceAheadM:number;speedMps:number;brakeAtSeconds?:number}>|null){
+  setScenarioLeadVehicle(definition:Readonly<{distanceAheadM:number;lateralOffsetM?:number;speedMps:number;brakeAtSeconds?:number}>|null){
     if(this.scenarioLeadVehicle){this.world.removeRigidBody(this.scenarioLeadVehicle);this.scenarioLeadVehicle=null;this.scenarioLeadState=null}
     if(!definition)return
-    if(!Number.isFinite(definition.distanceAheadM)||definition.distanceAheadM<6||!Number.isFinite(definition.speedMps)||definition.speedMps<0||definition.brakeAtSeconds!==undefined&&(!Number.isFinite(definition.brakeAtSeconds)||definition.brakeAtSeconds<0))throw new Error('Scenario lead vehicle contract violated')
+    if(!Number.isFinite(definition.distanceAheadM)||definition.distanceAheadM<6||definition.lateralOffsetM!==undefined&&!Number.isFinite(definition.lateralOffsetM)||!Number.isFinite(definition.speedMps)||definition.speedMps<0||definition.brakeAtSeconds!==undefined&&(!Number.isFinite(definition.brakeAtSeconds)||definition.brakeAtSeconds<0))throw new Error('Scenario lead vehicle contract violated')
     const position=this.chassis.translation(),rotation=this.chassis.rotation()
     const forwardX=-2*(rotation.x*rotation.z+rotation.w*rotation.y),forwardZ=2*(rotation.x*rotation.x+rotation.y*rotation.y)-1
-    this.scenarioLeadVehicle=this.world.createRigidBody(this.rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(position.x+forwardX*definition.distanceAheadM,position.y,position.z+forwardZ*definition.distanceAheadM).setRotation(rotation).setCcdEnabled(true))
+    const rightX=-forwardZ,rightZ=forwardX,lateral=definition.lateralOffsetM??0
+    this.scenarioLeadVehicle=this.world.createRigidBody(this.rapier.RigidBodyDesc.kinematicPositionBased().setTranslation(position.x+forwardX*definition.distanceAheadM+rightX*lateral,position.y,position.z+forwardZ*definition.distanceAheadM+rightZ*lateral).setRotation(rotation).setCcdEnabled(true))
     this.world.createCollider(this.rapier.ColliderDesc.cuboid(config.chassisHalfExtents.x,config.chassisHalfExtents.y,config.chassisHalfExtents.z).setFriction(.9).setRestitution(0),this.scenarioLeadVehicle)
     this.scenarioLeadState={timeSeconds:0,speedMps:definition.speedMps,brakeAtSeconds:definition.brakeAtSeconds,forwardX,forwardZ}
   }
   readLeadVehicleState(){
-    if(!this.scenarioLeadVehicle||!this.scenarioLeadState)return {available:false,relativeLongitudinalDistanceM:0,relativeLateralDistanceM:0,leadSpeedMps:0,closingSpeedMps:0}
+    if(!this.scenarioLeadVehicle||!this.scenarioLeadState)return {available:false,relativeLongitudinalDistanceM:0,relativeLateralDistanceM:0,leadSpeedMps:0,closingSpeedMps:0,collisionActive:false}
     const player=this.chassis.translation(),lead=this.scenarioLeadVehicle.translation(),rotation=this.chassis.rotation()
     const forwardX=-2*(rotation.x*rotation.z+rotation.w*rotation.y),forwardZ=2*(rotation.x*rotation.x+rotation.y*rotation.y)-1
     const rightX=-forwardZ,rightZ=forwardX,dx=lead.x-player.x,dz=lead.z-player.z
     const speed=this.scenarioLeadState.brakeAtSeconds!==undefined&&this.scenarioLeadState.timeSeconds>=this.scenarioLeadState.brakeAtSeconds?0:this.scenarioLeadState.speedMps
     const velocity=this.chassis.linvel(),playerLongitudinalSpeed=velocity.x*forwardX+velocity.z*forwardZ
-    return {available:true,relativeLongitudinalDistanceM:dx*forwardX+dz*forwardZ,relativeLateralDistanceM:dx*rightX+dz*rightZ,leadSpeedMps:speed,closingSpeedMps:playerLongitudinalSpeed-speed}
+    const chassisCollider=this.chassis.collider(0),leadCollider=this.scenarioLeadVehicle.collider(0)
+    let collisionActive=false
+    if(chassisCollider&&leadCollider)this.world.contactPairsWith(chassisCollider,other=>{if(other.handle===leadCollider.handle)collisionActive=true})
+    return {available:true,relativeLongitudinalDistanceM:dx*forwardX+dz*forwardZ,relativeLateralDistanceM:dx*rightX+dz*rightZ,leadSpeedMps:speed,closingSpeedMps:playerLongitudinalSpeed-speed,collisionActive}
   }
   readScenarioLeadVehiclePose(){
     if(!this.scenarioLeadVehicle)return {available:false,position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0,w:1}}
