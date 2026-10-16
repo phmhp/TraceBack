@@ -9,6 +9,7 @@ import { MapRenderer } from '../graphics/world/MapRenderer'
 import { phase2Physics } from '../physics/rapier/phase2Config'
 import type { LoadedMap } from '../world/MapLoader'
 import { VehicleShadowLight } from '../graphics/VehicleShadowLight'
+import { ScenarioLeadVehicleRenderer } from '../graphics/ScenarioLeadVehicleRenderer'
 import { useRaceHud } from '../ui/state/raceHud'
 import { useCase } from '../ui/state/CaseContext'
 import { useSyncExternalStore } from 'react'
@@ -45,6 +46,7 @@ export function GameViewport({ screen, runtime, map }: { screen: Screen; runtime
       </PhysicsBoundary>}
       {drivingView && <>
         <MapRenderer map={map.definition} />
+        <ScenarioLeadVehicleRenderer readPose={runtime.readScenarioLeadVehiclePose}/>
         <VehicleRenderer readState={readState} readPreviousPose={readPrevious}
           readAlpha={readAlpha} presentedPose={presentedPose.current}
           originOffsetY={phase2Physics.visualOriginOffsetY} readSteering={() => recorded?.steering ?? runtime.driverInput.getState().steering} celebrating={celebrating} />

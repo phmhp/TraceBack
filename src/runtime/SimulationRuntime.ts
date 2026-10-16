@@ -2,7 +2,32 @@
 import { createVehiclePose, createVehicleState } from '../domain/vehicle/VehicleState.ts'
 import type { VehiclePoseReader, VehicleStateReader } from '../domain/vehicle/VehicleState.ts'
 import type { VehiclePhysicsCommand, VehiclePhysicsPort } from '../domain/vehicle/VehiclePhysicsPort.ts'
-import { writeTemporaryBrakeCommand, writeTemporarySteeringCommand } from './control/TemporaryBrakeSteeringAdapters.ts'
+import { BrakeExecutionModel } from './control/BrakeExecutionModel.ts'
+import { SteeringExecutionModel } from './control/SteeringExecutionModel.ts'
+import { VehicleSupportExecutionModel } from './control/VehicleSupportExecutionModel.ts'
+import type { VehicleSupportExecutionOutput } from './control/VehicleSupportExecutionModel.ts'
+import { FaultManagementExecutionModel } from './control/FaultManagementExecutionModel.ts'
+import type { FaultManagementExecutionOutput } from './control/FaultManagementExecutionModel.ts'
+import { GearReactionExecutionModel } from './control/GearReactionExecutionModel.ts'
+import type { GearReactionExecutionOutput } from './control/GearReactionExecutionModel.ts'
+import { RuntimeObservationQualityModel } from './control/RuntimeObservationQualityModel.ts'
+import type { RuntimeObservationQualityOutput } from './control/RuntimeObservationQualityModel.ts'
+import { ChassisDomainExecutionModel } from './control/ChassisDomainExecutionModel.ts'
+import type { BrakingDomainExecutionOutput, SteeringDomainExecutionOutput } from './control/ChassisDomainExecutionModel.ts'
+import { MotionCoordinationExecutionModel } from './control/MotionCoordinationExecutionModel.ts'
+import type { MotionCoordinationExecutionOutput } from './control/MotionCoordinationExecutionModel.ts'
+import { PlatformExecutionModel } from './control/PlatformExecutionModel.ts'
+import type { PlatformExecutionOutput } from './control/PlatformExecutionModel.ts'
+import { CommunicationExecutionModel } from './control/CommunicationExecutionModel.ts'
+import type { CommunicationExecutionOutput } from './control/CommunicationExecutionModel.ts'
+import { PropulsionSupervisionExecutionModel } from './control/PropulsionSupervisionExecutionModel.ts'
+import type { PropulsionSupervisionExecutionOutput } from './control/PropulsionSupervisionExecutionModel.ts'
+import { StabilityExecutionModel } from './control/StabilityExecutionModel.ts'
+import type { StabilityExecutionOutput } from './control/StabilityExecutionModel.ts'
+import { OccupantProtectionExecutionModel } from './control/OccupantProtectionExecutionModel.ts'
+import type { OccupantProtectionExecutionOutput } from './control/OccupantProtectionExecutionModel.ts'
+import { AdasExecutionModel } from './control/AdasExecutionModel.ts'
+import type { AdasExecutionOutput } from './control/AdasExecutionModel.ts'
 import { writeEDrivePhysicsCommand } from './control/EDriveToVehiclePhysicsAdapter.ts'
 import { DriverInputRuntime } from './driver/DriverInputRuntime.ts'
 import type { Gear } from '../domain/driver/DriverInputTypes.ts'
@@ -13,7 +38,7 @@ import { calibrationSlots } from './c/VehicleSwPort.ts'
 import type { VehicleSwPort, VehicleSwSnapshot } from './c/VehicleSwPort.ts'
 import type { PropulsionCase } from './case/PropulsionCase.ts'
 import { EMPTY_VEHICLE_SCENARIO, scenarioPhaseAt, scheduledStimulusValue, validateVehicleScenario } from './scenario/VehicleScenario.ts'
-import type { VehicleScenarioDefinition, VehicleScenarioRun, VehicleScenarioSample, VehicleScenarioSnapshot } from './scenario/VehicleScenario.ts'
+import type { VehicleFunctionObservation, VehicleScenarioDefinition, VehicleScenarioRun, VehicleScenarioSample, VehicleScenarioSnapshot } from './scenario/VehicleScenario.ts'
 import { FaultInjectionRuntime, summarizeInterfaceComparison } from './scenario/FaultInjection.ts'
 import type { FaultInjectionTelemetry, InterfaceEndpointTelemetry } from './scenario/FaultInjection.ts'
 import type { RecoveryChallenge, RecoveryRunMode, RecoverySnapshot } from './gameplay/RecoveryChallenge.ts'
@@ -79,6 +104,33 @@ export class SimulationRuntime {
   private readonly vehicle = createVehicleState()
   private readonly previousPose = createVehiclePose()
   private readonly command: VehiclePhysicsCommand = { driveForce: 0, brakeForce: 0, steering: 0 }
+  private readonly brakeExecution = new BrakeExecutionModel()
+  private readonly steeringExecution = new SteeringExecutionModel()
+  private readonly vehicleSupportExecution = new VehicleSupportExecutionModel()
+  private vehicleSupportOutput:VehicleSupportExecutionOutput|null=null
+  private readonly faultManagementExecution=new FaultManagementExecutionModel()
+  private faultManagementOutput:FaultManagementExecutionOutput|null=null
+  private readonly gearReactionExecution=new GearReactionExecutionModel()
+  private gearReactionOutput:GearReactionExecutionOutput|null=null
+  private readonly observationQualityExecution=new RuntimeObservationQualityModel()
+  private observationQualityOutput:RuntimeObservationQualityOutput|null=null
+  private readonly chassisDomainExecution=new ChassisDomainExecutionModel()
+  private brakingDomainOutput:BrakingDomainExecutionOutput|null=null
+  private steeringDomainOutput:SteeringDomainExecutionOutput|null=null
+  private readonly motionCoordinationExecution=new MotionCoordinationExecutionModel()
+  private motionCoordinationOutput:MotionCoordinationExecutionOutput|null=null
+  private readonly platformExecution=new PlatformExecutionModel()
+  private platformExecutionOutput:PlatformExecutionOutput|null=null
+  private readonly communicationExecution=new CommunicationExecutionModel()
+  private communicationExecutionOutput:CommunicationExecutionOutput|null=null
+  private readonly propulsionSupervisionExecution=new PropulsionSupervisionExecutionModel()
+  private propulsionSupervisionOutput:PropulsionSupervisionExecutionOutput|null=null
+  private readonly stabilityExecution=new StabilityExecutionModel()
+  private stabilityOutput:StabilityExecutionOutput|null=null
+  private readonly occupantProtectionExecution=new OccupantProtectionExecutionModel()
+  private occupantProtectionOutput:OccupantProtectionExecutionOutput|null=null
+  private readonly adasExecution=new AdasExecutionModel()
+  private adasOutput:AdasExecutionOutput|null=null
   private readonly vehicleSw: VehicleSwPort
   private swSnapshot: VehicleSwSnapshot | null = null
   private executionStep = 0
@@ -129,6 +181,7 @@ export class SimulationRuntime {
 
   readonly readVehicleState: VehicleStateReader = () => this.vehicle
   readonly readPreviousPose: VehiclePoseReader = () => this.previousPose
+  readonly readScenarioLeadVehiclePose=()=>this.physics?.readScenarioLeadVehiclePose?.()??{available:false,position:{x:0,y:0,z:0},rotation:{x:0,y:0,z:0,w:1}}
   readonly readInterpolationAlpha = () => !this.clock.running || this.clock.paused ? 1 : Math.min(1, this.accumulator / PHYSICS_TIMESTEP)
   configureFinish(point: { x: number; z: number }, heading: number) { this.finish = { x: point.x, z: point.z, heading } }
   configureRecoveryChallenge(challenge:RecoveryChallenge,publish:(snapshot:RecoverySnapshot)=>void){this.recoveryChallenge=challenge;this.publishRecovery=publish;publish(challenge.getSnapshot())}
@@ -169,6 +222,20 @@ export class SimulationRuntime {
     Object.assign(this.previousPose.position, this.vehicle.position)
     Object.assign(this.previousPose.rotation, this.vehicle.rotation)
   }
+  private readRouteLaneContext(){
+    if(this.route.length<2)return {available:false,offsetM:0,headingErrorRad:0}
+    const position=this.vehicle.position,rotation=this.vehicle.rotation
+    const vehicleHeading=Math.atan2(-2*(rotation.x*rotation.z+rotation.w*rotation.y),2*(rotation.x*rotation.x+rotation.y*rotation.y)-1)
+    let bestDistance=Infinity,bestOffset=0,bestHeading=0
+    for(let index=1;index<this.route.length;index++){
+      const start=this.route[index-1]!,end=this.route[index]!,dx=end.x-start.x,dz=end.z-start.z,lengthSquared=dx*dx+dz*dz
+      if(!lengthSquared)continue
+      const t=Math.max(0,Math.min(1,((position.x-start.x)*dx+(position.z-start.z)*dz)/lengthSquared)),closestX=start.x+t*dx,closestZ=start.z+t*dz
+      const lateralX=position.x-closestX,lateralZ=position.z-closestZ,distance=Math.hypot(lateralX,lateralZ)
+      if(distance<bestDistance){const length=Math.sqrt(lengthSquared);bestDistance=distance;bestOffset=(dx*lateralZ-dz*lateralX)/length;bestHeading=Math.atan2(dx,dz)}
+    }
+    return {available:Number.isFinite(bestDistance),offsetM:bestOffset,headingErrorRad:Math.atan2(Math.sin(vehicleHeading-bestHeading),Math.cos(vehicleHeading-bestHeading))}
+  }
   private resetLogicalState(resetIncident=true) {
     this.driverInput.reset()
     this.vehicleSw.reset()
@@ -183,6 +250,22 @@ export class SimulationRuntime {
     this.propulsionRequest = { magnitude: 0, direction: 'NONE', validity: 'VALID' }
     this.driveTorqueRequest = { magnitudeNm: 0, direction: 'NONE', validity: 'VALID' }
     this.eDriveCommand = { magnitudeNm: 0, direction: 'NONE', validity: 'VALID' }
+    this.brakeExecution.reset()
+    this.steeringExecution.reset()
+    this.vehicleSupportExecution.reset()
+    this.vehicleSupportOutput=null
+    this.faultManagementExecution.reset()
+    this.faultManagementOutput=null
+    this.gearReactionExecution.reset();this.gearReactionOutput=null
+    this.observationQualityExecution.reset();this.observationQualityOutput=null
+    this.chassisDomainExecution.reset();this.brakingDomainOutput=null;this.steeringDomainOutput=null
+    this.motionCoordinationExecution.reset();this.motionCoordinationOutput=null
+    this.platformExecution.reset();this.platformExecutionOutput=null
+    this.communicationExecution.reset();this.communicationExecutionOutput=null
+    this.propulsionSupervisionExecution.reset();this.propulsionSupervisionOutput=null
+    this.stabilityExecution.reset();this.stabilityOutput=null
+    this.occupantProtectionExecution.reset();this.occupantProtectionOutput=null
+    this.adasExecution.reset();this.adasOutput=null
     this.faultInjection.reset()
     this.currentFaultTelemetry=undefined
     this.currentInterfaceTelemetry=undefined
@@ -194,6 +277,8 @@ export class SimulationRuntime {
     this.clock.reset();this.error=null;this.raceFinished=false;this.finishElapsed=0;this.accumulator=0;this.ticksSincePublish=0
     this.resetLogicalState(false)
     this.physics.reset();this.physics.readState(this.vehicle);this.copyPreviousPose()
+    this.physics.setScenarioObstacle?.(definition.environment?.collisionObstacle??null)
+    this.physics.setScenarioLeadVehicle?.(definition.environment?.leadVehicle??null)
     this.driverInput.setGearRequest(definition.preconditions.gear)
     const runId=`vehicle-scenario-${++this.scenarioSerial}`
     this.scenario={status:'RUNNING',phase:'PRECONDITION',runId,elapsedSeconds:0,definition:structuredClone(definition),samples:[]}
@@ -231,14 +316,131 @@ export class SimulationRuntime {
     const definition=this.scenario.definition
     if(this.scenario.status!=='RUNNING'||!definition)return
     const input=this.driverInput.getState()
+    const environment=this.physics?.readEnvironmentState?.()
+    const wheelDynamics=this.physics?.readWheelDynamicsState?.()??[]
+    const collision=this.physics?.readCollisionState?.()
+    const lead=this.physics?.readLeadVehicleState?.()
+    const lane=this.readRouteLaneContext()
+    const contactWheels=wheelDynamics.filter(item=>item.inContact)
+    const denominator=Math.max(1,Math.abs(this.vehicle.longitudinalVelocity))
+    const maxWheelSlipEstimate=contactWheels.length?Math.max(...contactWheels.map(item=>Math.abs(Math.abs(item.wheelLinearSpeedMps)-Math.abs(this.vehicle.longitudinalVelocity))/denominator)):0
     const available:Record<string,number|string>={
       accelerator:input.accelerator,brake:input.brake,steering:input.steering,gearState:this.vehicle.gearState,
       propulsionRequest:this.propulsionRequest.magnitude,driveTorqueRequest:this.driveTorqueRequest.magnitudeNm,eDriveCommand:this.eDriveCommand.magnitudeNm,
       driveForce:this.command.driveForce,brakeForce:this.command.brakeForce,speedKmh:this.vehicle.speed*3.6,longitudinalVelocity:this.vehicle.longitudinalVelocity,
       longitudinalAcceleration:this.vehicle.longitudinalAcceleration,positionX:this.vehicle.position.x,positionZ:this.vehicle.position.z,
+      surfaceType:environment?.surfaceType??'UNAVAILABLE',surfaceFriction:environment?.friction??0,
+      vehicleMode:this.vehicleSupportOutput?.vehicleMode??'UNAVAILABLE',propulsionPermission:String(this.vehicleSupportOutput?.propulsionPermission??false),
+      energyStatus:this.vehicleSupportOutput?.energyStatus??'UNAVAILABLE',maxDriveTorqueCandidate:this.vehicleSupportOutput?.maxDriveTorqueCandidateNm??'NOT_CONFIGURED',
+      wheelContactCount:contactWheels.length,maxWheelSlipEstimate,yawRate:this.vehicle.angularVelocity.y,
+      collisionActive:String(collision?.active??false),collisionImpulse:collision?.maximumNormalImpulseNs??0,
+      leadDistance:lead?.available?lead.relativeLongitudinalDistanceM:'UNAVAILABLE',leadClosingSpeed:lead?.available?lead.closingSpeedMps:'UNAVAILABLE',
+      laneOffset:lane.available?lane.offsetM:'UNAVAILABLE',headingError:lane.available?lane.headingErrorRad:'UNAVAILABLE',
+      accStatus:this.adasOutput?.acc.status??'UNAVAILABLE',aebStatus:this.adasOutput?.aeb.status??'UNAVAILABLE',lkaStatus:this.adasOutput?.lka.status??'UNAVAILABLE',
     }
+    const executed=(functionId:string,actual:Record<string,number|string|boolean>):VehicleFunctionObservation=>({functionId,status:'EXECUTED',basis:'FUNCTION_EXECUTION',actual})
+    const observed=(functionId:string,actual:Record<string,number|string|boolean>):VehicleFunctionObservation=>({functionId,status:'OBSERVED_PARTIAL',basis:'HOST_RUNTIME_OBSERVATION',actual})
+    const functionObservations:VehicleFunctionObservation[]=[
+      executed('LF-GEAR-ACQ',{GearRequest:input.gearRequest,GearRequestValidity:input.gearRequestValidity}),
+      executed('LF-GEAR-INTERLOCK',{GearRequest:input.gearRequest,LongitudinalVelocity:this.vehicle.longitudinalVelocity,TransitionAccepted:this.swSnapshot?.output.transitionAccepted??false}),
+      executed('LF-GEAR-STATE',{GearState:this.vehicle.gearState,GearStateValidity:this.swSnapshot?.output.gearStateValidity??'INVALID'}),
+      executed('LF-PROP-ACQ',{AcceleratorPedalPosition:input.accelerator,AcceleratorPedalValidity:input.acceleratorValidity}),
+      executed('LF-PROP-INTERP',{PropulsionRequest:this.propulsionRequest.magnitude,Direction:this.propulsionRequest.direction,Validity:this.propulsionRequest.validity}),
+      executed('LF-PROP-GEN',{DriveTorqueRequest:this.driveTorqueRequest.magnitudeNm,Direction:this.driveTorqueRequest.direction,Validity:this.driveTorqueRequest.validity}),
+      executed('LF-PROP-EDRV',{EDriveCommand:this.eDriveCommand.magnitudeNm,Direction:this.eDriveCommand.direction,Validity:this.eDriveCommand.validity}),
+      executed('LF-ACT-DRIVE',{driveForce:this.command.driveForce}),
+      executed('LF-BRK-CMD',{DriverBrakeRequest:input.brake,brakeForce:this.command.brakeForce}),
+      executed('LF-ACT-BRAKE',{brakeForce:this.command.brakeForce}),
+      executed('LF-STR-ACT',{DriverSteeringRequest:input.steering,steering:this.command.steering}),
+      executed('LF-ACT-STEER',{steering:this.command.steering}),
+      executed('LF-PLANT-MOTION',{VehicleSpeed:this.vehicle.speed,LongitudinalVelocity:this.vehicle.longitudinalVelocity,LongitudinalAcceleration:this.vehicle.longitudinalAcceleration,PositionX:this.vehicle.position.x,PositionZ:this.vehicle.position.z}),
+      ...(environment?[executed('LF-PLANT-ENV',{SurfaceType:environment.surfaceType,Friction:environment.friction,RollingResistance:environment.rollingResistance})]:[]),
+      observed('LF-BRK-ACQ',{DriverBrakeRequest:input.brake,Validity:'VALID'}),
+      observed('LF-COM-PORT',{TransferMode:'DIRECT_SW_PORT',ExecutionStep:this.executionStep}),
+      observed('LF-EXE-CLOCK',{SimulationTimeSeconds:timeSeconds,FixedStepSeconds:PHYSICS_TIMESTEP}),
+      observed('LF-EXE-RECORD',{Recorder:'VEHICLE_SCENARIO',ConfiguredMonitorCount:definition.monitors.length}),
+      observed('LF-FM-OBS',{FaultActive:this.currentFaultTelemetry?.active??false,InjectionPoint:this.currentFaultTelemetry?.injectionPointId??'NONE'}),
+      observed('LF-DRV-ACQ',{Accelerator:input.accelerator,Brake:input.brake,Steering:input.steering,GearRequest:input.gearRequest}),
+      observed('LF-DRV-VALID',{AcceleratorValidity:input.acceleratorValidity,GearRequestValidity:input.gearRequestValidity}),
+      ...(environment?[observed('LF-ENV-STATE',{SurfaceType:environment.surfaceType,Friction:environment.friction})]:[]),
+      observed('LF-MC-LON',{Scope:'TRACKBACK_PROPULSION_ONLY',PropulsionRequest:this.propulsionRequest.magnitude,DriveTorqueRequest:this.driveTorqueRequest.magnitudeNm}),
+      observed('LF-PROP-LIM',{RequestedTorque:this.driveTorqueRequest.magnitudeNm,LimitedCommand:this.eDriveCommand.magnitudeNm}),
+      observed('LF-PROP-OUT',{EDriveCommand:this.eDriveCommand.magnitudeNm,driveForce:this.command.driveForce}),
+      observed('LF-PROP-STA',{PropulsionState:this.propulsionState,PropulsionEnable:this.swSnapshot?.input.propulsionEnable??false}),
+      observed('LF-SEN-ACT',{driveForce:this.command.driveForce,brakeForce:this.command.brakeForce,steering:this.command.steering}),
+      observed('LF-SEN-MOTION',{VehicleSpeed:this.vehicle.speed,LongitudinalVelocity:this.vehicle.longitudinalVelocity,LongitudinalAcceleration:this.vehicle.longitudinalAcceleration}),
+      observed('LF-STR-ACQ',{DriverSteeringRequest:input.steering,Validity:'VALID'}),
+      observed('LF-STR-DEMAND',{DriverSteeringRequest:input.steering,FrontWheelAngle:this.command.steering}),
+      observed('LF-VS-INIT',{VehicleReady:this.swSnapshot?.input.vehicleReady??false,PhysicsAttached:Boolean(this.physics)}),
+      observed('LF-VS-PERM',{PropulsionEnable:this.swSnapshot?.input.propulsionEnable??false,GearState:this.vehicle.gearState}),
+      ...(this.vehicleSupportOutput?[
+        executed('LF-VS-MODE',{VehicleMode:this.vehicleSupportOutput.vehicleMode,VehicleReady:this.vehicleSupportOutput.vehicleReady,PropulsionPermission:this.vehicleSupportOutput.propulsionPermission}),
+        executed('LF-VS-FAULT',{DegradedAvailability:this.vehicleSupportOutput.degradedAvailability,Reason:this.vehicleSupportOutput.reason}),
+        executed('LF-EN-READY',{DrivePowerAvailable:this.vehicleSupportOutput.drivePowerAvailable,EnergyStatus:this.vehicleSupportOutput.energyStatus}),
+        executed('LF-EN-LIMIT',{MaxDriveTorqueCandidateNm:this.vehicleSupportOutput.maxDriveTorqueCandidateNm??'NOT_CONFIGURED',Application:'OPEN_NOT_APPLIED'}),
+        executed('LF-EN-MON',{EnergyStatus:this.vehicleSupportOutput.energyStatus,ConstraintCandidatePresent:this.vehicleSupportOutput.maxDriveTorqueCandidateNm!==undefined}),
+      ]:[]),
+      ...(this.faultManagementOutput?[
+        executed('LF-FM-DETECT',{Detection:this.faultManagementOutput.detection,LifecycleState:this.faultManagementOutput.lifecycleState}),
+        executed('LF-FM-DIAG',{DiagnosticEvent:this.faultManagementOutput.diagnosticEvent,Authority:'TRACKBACK_EXECUTION_MODEL'}),
+        executed('LF-FM-REACT',{ReactionRequest:this.faultManagementOutput.reactionRequest,Application:'REQUEST_ONLY_NOT_SAFETY_POLICY'}),
+        executed('LF-FM-REC',{Recovery:this.faultManagementOutput.recovery}),
+      ]:[]),
+      ...(this.gearReactionOutput?[executed('LF-GEAR-REACT',{Reaction:this.gearReactionOutput.reaction,RetainedGear:this.gearReactionOutput.retainedGear,DriverNoticeRequired:this.gearReactionOutput.driverNoticeRequired})]:[]),
+      ...(this.observationQualityOutput?[executed('LF-SEN-QUALITY',{Quality:this.observationQualityOutput.quality,Reason:this.observationQualityOutput.reason,FiniteValues:this.observationQualityOutput.finiteValueCount,ExpectedValues:this.observationQualityOutput.expectedValueCount,Scope:'TRACKBACK_RUNTIME_OBSERVATION'})]:[]),
+      ...(this.brakingDomainOutput?[
+        executed('LF-BRK-STATE',{Availability:this.brakingDomainOutput.availability,Scope:'TRACKBACK_SERVICE_BRAKE'}),
+        executed('LF-BRK-DEMAND',{NormalizedBrakeDemand:this.brakingDomainOutput.normalizedDemand,Mapping:'IDENTITY_NORMALIZED_TRACKBACK'}),
+        executed('LF-BRK-COORD',{Source:this.brakingDomainOutput.coordinationSource,SelectedRequest:this.brakingDomainOutput.selectedRequest,OtherSources:'NOT_IMPLEMENTED'}),
+        executed('LF-BRK-BLEND',{Mode:this.brakingDomainOutput.blendMode,RegenContribution:this.brakingDomainOutput.regenContribution,FrictionRequest:this.brakingDomainOutput.frictionRequest}),
+        executed('LF-BRK-FDBK',{Status:this.brakingDomainOutput.feedbackStatus,CommandedBrakeForceN:this.brakingDomainOutput.commandedBrakeForceN,ObservedLongitudinalAccelerationMps2:this.brakingDomainOutput.observedLongitudinalAccelerationMps2}),
+      ]:[]),
+      ...(this.steeringDomainOutput?[
+        executed('LF-STR-STATE',{Availability:this.steeringDomainOutput.availability,Scope:'TRACKBACK_MANUAL_STEERING'}),
+        executed('LF-STR-COORD',{Source:this.steeringDomainOutput.coordinationSource,SelectedRequest:this.steeringDomainOutput.selectedRequest,AssistSources:'NOT_IMPLEMENTED'}),
+        executed('LF-STR-MON',{Status:this.steeringDomainOutput.monitoringStatus,FrontWheelAngleRad:this.steeringDomainOutput.frontWheelAngleRad,ObservedVehicleSpeedMps:this.steeringDomainOutput.observedVehicleSpeedMps,YawOracle:'UNAVAILABLE'}),
+      ]:[]),
+      ...(this.motionCoordinationOutput?[
+        executed('LF-MC-REQ',{Scope:this.motionCoordinationOutput.requestScope,PropulsionRequest:this.motionCoordinationOutput.longitudinalRequest.propulsion,BrakeRequest:this.motionCoordinationOutput.longitudinalRequest.brake,SteeringRequest:this.motionCoordinationOutput.lateralRequest}),
+        executed('LF-MC-AUTH',{Authority:this.motionCoordinationOutput.authority,LongitudinalPolicy:this.motionCoordinationOutput.longitudinalPolicy,OtherRequestSources:'NOT_IMPLEMENTED'}),
+        executed('LF-MC-LAT',{LateralRequest:this.motionCoordinationOutput.lateralRequest,Policy:this.motionCoordinationOutput.lateralPolicy}),
+        executed('LF-MC-ALLOC',{DriveForceN:this.motionCoordinationOutput.allocation.driveForceN,BrakeForceN:this.motionCoordinationOutput.allocation.brakeForceN,FrontWheelAngleRad:this.motionCoordinationOutput.allocation.frontWheelAngleRad,Scope:'CURRENT_TRACKBACK_COMMANDS'}),
+        executed('LF-MC-MON',{Status:this.motionCoordinationOutput.monitorStatus,ObservedLongitudinalAccelerationMps2:this.motionCoordinationOutput.observedLongitudinalAccelerationMps2}),
+      ]:[]),
+      ...(this.platformExecutionOutput?[
+        executed('LF-EXE-SCHED',{TaskId:this.platformExecutionOutput.taskId,ReleaseIndex:this.platformExecutionOutput.releaseIndex,ScheduledTimeSeconds:this.platformExecutionOutput.scheduledTimeSeconds,ActualTimeSeconds:this.platformExecutionOutput.actualTimeSeconds,PeriodSeconds:this.platformExecutionOutput.periodSeconds}),
+        executed('LF-EXE-SUP',{Completed:this.platformExecutionOutput.completed,Supervision:this.platformExecutionOutput.supervision,TimingErrorSeconds:this.platformExecutionOutput.timingErrorSeconds,Scope:'TRACKBACK_HOST_RUNTIME'}),
+      ]:[]),
+      ...(this.communicationExecutionOutput?[
+        executed('LF-COM-NET',{Transport:this.communicationExecutionOutput.transport,Sequence:this.communicationExecutionOutput.sequence,SourceTimestampSeconds:this.communicationExecutionOutput.sourceTimestampSeconds,DestinationTimestampSeconds:this.communicationExecutionOutput.destinationTimestampSeconds,Scope:'NOT_CAN_FD'}),
+        executed('LF-COM-SUP',{AgeSeconds:this.communicationExecutionOutput.ageSeconds,Freshness:this.communicationExecutionOutput.freshness}),
+      ]:[]),
+      ...(this.propulsionSupervisionOutput?[
+        executed('LF-PROP-MON',{Status:this.propulsionSupervisionOutput.monitorStatus,PropulsionRequest:this.propulsionSupervisionOutput.propulsionRequest,DriveTorqueRequestNm:this.propulsionSupervisionOutput.driveTorqueRequestNm,EDriveCommandNm:this.propulsionSupervisionOutput.eDriveCommandNm,ValidityChain:this.propulsionSupervisionOutput.validityChain}),
+        executed('LF-PROP-REACT',{Reaction:this.propulsionSupervisionOutput.reaction,Application:this.propulsionSupervisionOutput.reactionApplication}),
+        executed('LF-PROP-REC',{Recovery:this.propulsionSupervisionOutput.recovery}),
+      ]:[]),
+      ...(this.stabilityOutput?[
+        executed('LF-STB-ABS',{Status:this.stabilityOutput.abs.status,BrakeScale:this.stabilityOutput.abs.brakeScale,Scope:'TRACKBACK_GLOBAL_BRAKE_SCALE'}),
+        executed('LF-STB-TCS',{Status:this.stabilityOutput.tcs.status,DriveScale:this.stabilityOutput.tcs.driveScale,Scope:'TRACKBACK_GLOBAL_DRIVE_SCALE'}),
+        executed('LF-STB-ESC',{Status:this.stabilityOutput.esc.status,ExpectedYawRateRadPerSecond:this.stabilityOutput.esc.expectedYawRateRadPerSecond,YawDeviationRadPerSecond:this.stabilityOutput.esc.yawDeviationRadPerSecond,Intervention:this.stabilityOutput.esc.intervention}),
+        executed('LF-STB-COORD',{InterventionEnabled:this.stabilityOutput.coordination.interventionEnabled,DriveScale:this.stabilityOutput.coordination.driveScale,BrakeScale:this.stabilityOutput.coordination.brakeScale}),
+      ]:[]),
+      ...(this.occupantProtectionOutput?[
+        executed('LF-OCC-IMPACT',{Observation:this.occupantProtectionOutput.impactObservation,ContactPairCount:this.occupantProtectionOutput.contactPairCount,MaximumNormalImpulseNs:this.occupantProtectionOutput.maximumNormalImpulseNs}),
+        executed('LF-OCC-DECIDE',{Decision:this.occupantProtectionOutput.decision,Criterion:'TRACKBACK_DEMO_ANY_NON_GROUND_CONTACT'}),
+        executed('LF-OCC-DEPLOY',{Command:this.occupantProtectionOutput.deployCommand,PhysicalRestraintModel:this.occupantProtectionOutput.physicalRestraintModel}),
+      ]:[]),
+      ...(this.adasOutput?[
+        executed('LF-ADAS-COMMON',{DemoEnabled:this.adasOutput.common.demoEnabled,LongitudinalPerceptionAvailable:this.adasOutput.common.longitudinalPerceptionAvailable,LanePerceptionAvailable:this.adasOutput.common.lanePerceptionAvailable,Authority:'TRACKBACK_EXECUTION_MODEL'}),
+        executed('LF-ADAS-ACC',{Status:this.adasOutput.acc.status,DriveScale:this.adasOutput.acc.driveScale,DistanceM:this.adasOutput.acc.distanceM??'UNAVAILABLE'}),
+        executed('LF-ADAS-AEB',{Status:this.adasOutput.aeb.status,TtcSeconds:this.adasOutput.aeb.ttcSeconds??'UNAVAILABLE',BrakeOverride:this.adasOutput.aeb.brakeOverride}),
+        executed('LF-ADAS-LKA',{Status:this.adasOutput.lka.status,LaneOffsetM:this.adasOutput.lka.laneOffsetM??'UNAVAILABLE',HeadingErrorRad:this.adasOutput.lka.headingErrorRad??'UNAVAILABLE',SteeringCorrection:this.adasOutput.lka.steeringCorrection}),
+      ]:[]),
+    ]
     const sample:VehicleScenarioSample={
       timeSeconds,phase:scenarioPhaseAt(definition,timeSeconds),values:Object.fromEntries(definition.monitors.map(id=>[id,available[id]!])),
+      functionObservations,
       faultTelemetry:this.currentFaultTelemetry?structuredClone(this.currentFaultTelemetry):undefined,
       interfaceTelemetry:this.currentInterfaceTelemetry?structuredClone(this.currentInterfaceTelemetry):undefined,
     }
@@ -251,6 +453,7 @@ export class SimulationRuntime {
       const fault=definition.faultInjection
       const run:VehicleScenarioRun={
         runId:this.scenario.runId!,definition:structuredClone(definition),status:'COMPLETED',phase:'RESULT',fixedTimestepSeconds:PHYSICS_TIMESTEP,samples,
+        observedFunctionIds:[...new Set(samples.flatMap(item=>item.functionObservations.map(observation=>observation.functionId)))],
         events:{precondition:0,stimulusStart:firstStimulus,faultStart:fault?.activationStartSeconds,faultEnd:fault?.activationEndSeconds,observationStart:definition.observationWindow.startSeconds,end:definition.durationSeconds},
         faultTelemetry,interfaceTelemetry,interfaceComparison:summarizeInterfaceComparison(interfaceTelemetry),verdict:'OBSERVED',
         interpretation:fault
@@ -346,15 +549,28 @@ export class SimulationRuntime {
       this.applyVehicleScenario(tickTime)
       this.driverInput.advance(PHYSICS_TIMESTEP, this.calibration.keyboardPedalResponse)
       const input = this.driverInput.getState()
+      const adasDemoEnabled=this.scenario.status==='RUNNING'&&(this.scenario.definition?.supportConditions?.adasDemoEnabled??false)
+      this.adasOutput=this.adasExecution.step({lead:this.physics.readLeadVehicleState?.()??{available:false,relativeLongitudinalDistanceM:0,relativeLateralDistanceM:0,leadSpeedMps:0,closingSpeedMps:0},lane:this.readRouteLaneContext(),demoEnabled:adasDemoEnabled})
       const acceleratorDelivery=this.faultInjection.applyAccelerator(this.scenario.status==='RUNNING'?this.scenario.definition?.faultInjection:undefined,input.accelerator,tickTime)
       this.currentFaultTelemetry=acceleratorDelivery.telemetry
+      const supportConditions=this.scenario.status==='RUNNING'?this.scenario.definition?.supportConditions:undefined
+      const energyAvailability=supportConditions?.energy?.availability??'AVAILABLE'
+      this.vehicleSupportOutput=this.vehicleSupportExecution.step({
+        physicsAttached:this.physics!==null,
+        hostRunAuthorized:this.clock.running&&!this.error,
+        gearState:this.vehicle.gearState,
+        confirmedFault:supportConditions?.confirmedFault??false,
+        energyAvailable:energyAvailability==='AVAILABLE',
+        energyValidity:energyAvailability==='INVALID'?'INVALID':'VALID',
+        maxDriveTorqueCandidateNm:supportConditions?.energy?.maxDriveTorqueCandidateNm,
+      })
       const swInput = {
         acceleratorPedalPosition: acceleratorDelivery.deliveredValue,
         acceleratorPedalValidity: input.acceleratorValidity,
         gearRequest: input.gearRequest,
         gearRequestValidity: input.gearRequestValidity,
-        vehicleReady: this.physics !== null,
-        propulsionEnable: true,
+        vehicleReady: this.vehicleSupportOutput.vehicleReady,
+        propulsionEnable: this.vehicleSupportOutput.propulsionPermission,
         longitudinalVelocity: this.vehicle.longitudinalVelocity,
         vehicleSpeed: this.vehicle.speed,
       }
@@ -369,17 +585,38 @@ export class SimulationRuntime {
         input: swInput, output: swOutput,
         calibrationReference: 'TRACKBACK_SIMULATION_CALIBRATION_V0_1', calibration: calibrationSlots(this.calibration),
       }
+      this.platformExecutionOutput=this.platformExecution.step({releaseIndex:this.executionStep,scheduledTimeSeconds:this.swSnapshot.executionTime,actualTimeSeconds:tickTime,periodSeconds:PHYSICS_TIMESTEP,completed:true})
+      this.gearReactionOutput=this.gearReactionExecution.step({requestedGear:input.gearRequest,actualGear:swOutput.gearState,requestValidity:input.gearRequestValidity,stateValidity:swOutput.gearStateValidity,transitionAccepted:swOutput.transitionAccepted})
       this.vehicle.gearState = swOutput.gearState
       this.propulsionState = swOutput.propulsionState
       this.propulsionRequest = swOutput.propulsionRequest
       this.driveTorqueRequest = swOutput.driveTorqueRequest
       this.eDriveCommand = swOutput.eDriveCommand
-      const eDriveDelivery=this.faultInjection.applyEDriveCommand(this.scenario.status==='RUNNING'?this.scenario.definition?.faultInjection:undefined,this.eDriveCommand,tickTime)
+      this.communicationExecutionOutput=this.communicationExecution.step(this.eDriveCommand,tickTime)
+      const eDriveDelivery=this.faultInjection.applyEDriveCommand(this.scenario.status==='RUNNING'?this.scenario.definition?.faultInjection:undefined,this.communicationExecutionOutput.deliveredValue,tickTime)
       if(eDriveDelivery.telemetry)this.currentFaultTelemetry=eDriveDelivery.telemetry
       this.currentInterfaceTelemetry=this.scenario.status==='RUNNING'?eDriveDelivery.endpointTelemetry:undefined
+      this.faultManagementOutput=this.faultManagementExecution.step({
+        injectedFaultActive:this.currentFaultTelemetry?.active??false,
+        interfaceComparison:this.currentInterfaceTelemetry?.comparisonStatus??'UNAVAILABLE',
+        recoveryObserved:this.currentFaultTelemetry?.recoveryState==='RESTORED',
+      })
+      this.propulsionSupervisionOutput=this.propulsionSupervisionExecution.step({propulsionRequest:this.propulsionRequest,driveTorqueRequest:this.driveTorqueRequest,eDriveCommand:this.eDriveCommand,fault:this.faultManagementOutput})
       writeEDrivePhysicsCommand(eDriveDelivery.deliveredValue, this.calibration.torqueToForce.value, input.brake > 0, this.command)
-      writeTemporaryBrakeCommand(input, this.command)
-      writeTemporarySteeringCommand(input, this.vehicle.speed, this.command)
+      this.command.driveForce*=this.adasOutput.acc.driveScale
+      const effectiveBrakeRequest=Math.max(input.brake,this.adasOutput.aeb.brakeOverride)
+      const effectiveSteeringRequest=Math.max(-1,Math.min(1,input.steering+this.adasOutput.lka.steeringCorrection))
+      const brakeOutput=this.brakeExecution.step({driverBrakeRequest:effectiveBrakeRequest,validity:'VALID'})
+      const steeringOutput=this.steeringExecution.step({driverSteeringRequest:effectiveSteeringRequest,vehicleSpeedMps:this.vehicle.speed,validity:'VALID'})
+      this.command.brakeForce=brakeOutput.brakeForceN
+      this.command.steering=steeringOutput.frontWheelAngleRad
+      const previousWheelDynamics=this.physics.readWheelDynamicsState?.()??[]
+      const previousContactWheels=previousWheelDynamics.filter(item=>item.inContact)
+      const slipDenominator=Math.max(1,Math.abs(this.vehicle.longitudinalVelocity))
+      const maxLongitudinalSlipEstimate=previousContactWheels.length?Math.max(...previousContactWheels.map(item=>Math.abs(Math.abs(item.wheelLinearSpeedMps)-Math.abs(this.vehicle.longitudinalVelocity))/slipDenominator)):0
+      this.stabilityOutput=this.stabilityExecution.step({speedMps:this.vehicle.speed,maxLongitudinalSlipEstimate,brakeRequest:input.brake,driveRequest:this.propulsionRequest.magnitude,frontWheelAngleRad:this.command.steering,yawRateRadPerSecond:this.vehicle.angularVelocity.y,interventionEnabled:this.scenario.status==='RUNNING'&&(this.scenario.definition?.supportConditions?.stabilityInterventionEnabled??false)})
+      this.command.driveForce*=this.stabilityOutput.coordination.driveScale
+      this.command.brakeForce*=this.stabilityOutput.coordination.brakeScale
       if (this.raceFinished) {
         this.finishElapsed += PHYSICS_TIMESTEP
         this.command.driveForce = 0
@@ -390,6 +627,8 @@ export class SimulationRuntime {
       // Keep post-finish coast/braking physical, but freeze the official race time at the crossing tick.
       if (!this.raceFinished) this.clock.step()
       this.physics.readState(this.vehicle)
+      const collisionObservation=this.physics.readCollisionState?.()??{active:false,contactPairCount:0,contactPointCount:0,maximumNormalImpulseNs:0}
+      this.occupantProtectionOutput=this.occupantProtectionExecution.step(collisionObservation,this.scenario.status==='RUNNING'&&(this.scenario.definition?.supportConditions?.occupantDemoEnabled??false))
       if (this.resetAccelerationOnNextState) {
         this.vehicle.longitudinalAcceleration = 0
         this.resetAccelerationOnNextState = false
@@ -397,6 +636,14 @@ export class SimulationRuntime {
         this.vehicle.longitudinalAcceleration = (this.vehicle.longitudinalVelocity - this.previousLongitudinalVelocity) / PHYSICS_TIMESTEP
       }
       this.previousLongitudinalVelocity = this.vehicle.longitudinalVelocity
+      this.observationQualityOutput=this.observationQualityExecution.step({
+        physicsAttached:this.physics!==null,
+        values:[this.vehicle.speed,this.vehicle.longitudinalVelocity,this.vehicle.longitudinalAcceleration,this.command.driveForce,this.command.brakeForce,this.command.steering],
+        driverInputValid:input.acceleratorValidity==='VALID'&&input.gearRequestValidity==='VALID',
+      })
+      this.brakingDomainOutput=this.chassisDomainExecution.braking({driverBrakeRequest:effectiveBrakeRequest,validity:'VALID',execution:brakeOutput,longitudinalAccelerationMps2:this.vehicle.longitudinalAcceleration,coordinationSource:this.adasOutput.aeb.brakeOverride>0?'DRIVER_PLUS_TRACKBACK_AEB':'DRIVER_ONLY'})
+      this.steeringDomainOutput=this.chassisDomainExecution.steering({validity:'VALID',execution:steeringOutput,vehicleSpeedMps:this.vehicle.speed,coordinationSource:this.adasOutput.lka.steeringCorrection!==0?'DRIVER_PLUS_TRACKBACK_LKA':'DRIVER_ONLY'})
+      this.motionCoordinationOutput=this.motionCoordinationExecution.step({propulsionRequest:this.propulsionRequest.magnitude,brakeRequest:effectiveBrakeRequest,steeringRequest:effectiveSteeringRequest,driveForceN:this.command.driveForce,brakeForceN:this.command.brakeForce,frontWheelAngleRad:this.command.steering,longitudinalAccelerationMps2:this.vehicle.longitudinalAcceleration,authority:adasDemoEnabled?'DRIVER_PLUS_TRACKBACK_ADAS':'DRIVER_ONLY'})
       // Captured incidents lock movement until repair verification.
       if(this.scenario.status!=='RUNNING')this.incident?.afterStep(this.swSnapshot, this.vehicle, this.command, input.brake, input.steering)
       else this.recordVehicleScenarioSample(this.clock.currentTime)

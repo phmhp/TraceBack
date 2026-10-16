@@ -41,7 +41,7 @@ export interface EvidenceDetails {
   returnContext?:{page:1|2|3|4;view?:'FLOW'|'SIGNALS'|'INTERFACES'|'STANDARDS';componentId?:string;signalId?:string;interfaceId?:string;requirementId?:string;frameIndex?:number}
 }
 export interface Evidence {
-  id:string; type:EvidenceType; title:string; source:'DRIVE_RECORDING'|'STANDARD_TEST'|'C_WASM'|'GROUND_TRUTH'|'LIVE_VEHICLE_SCENARIO'
+  id:string; type:EvidenceType; title:string; source:'DRIVE_RECORDING'|'STANDARD_TEST'|'C_WASM'|'TRACKBACK_EXECUTION_MODEL'|'RUNTIME_ADAPTER'|'GROUND_TRUTH'|'LIVE_VEHICLE_SCENARIO'
   relatedComponent:string; relatedRequirementIds:string[]; relatedTestCaseIds:string[]
   reference:{frameId?:number;runId?:number;scenarioId?:string;requirementId?:string;testCaseId?:string}
   discovered:boolean; selectedForReport:boolean; status:EvidenceStatus

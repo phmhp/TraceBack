@@ -1,10 +1,13 @@
 import type { DriverInputState } from '../../domain/driver/DriverInputTypes.ts'
 import type { VehiclePhysicsCommand } from '../../domain/vehicle/VehiclePhysicsPort.ts'
+import { BrakeExecutionModel } from './BrakeExecutionModel.ts'
+import { SteeringExecutionModel } from './SteeringExecutionModel.ts'
 
-/** Temporary paths outside the approved Propulsion slice. */
+/** @deprecated Use BrakeExecutionModel. Retained as a compatibility seam. */
 export function writeTemporaryBrakeCommand(input: Readonly<DriverInputState>, command: VehiclePhysicsCommand) {
-  command.brakeForce = input.brake * 6500
+  command.brakeForce = new BrakeExecutionModel().step({driverBrakeRequest:input.brake,validity:'VALID'}).brakeForceN
 }
+/** @deprecated Use SteeringExecutionModel. Retained as a compatibility seam. */
 export function writeTemporarySteeringCommand(input: Readonly<DriverInputState>, vehicleSpeed: number, command: VehiclePhysicsCommand) {
-  command.steering = input.steering * (0.42 / (1 + vehicleSpeed * 0.07))
+  command.steering = new SteeringExecutionModel().step({driverSteeringRequest:input.steering,vehicleSpeedMps:vehicleSpeed,validity:'VALID'}).frontWheelAngleRad
 }

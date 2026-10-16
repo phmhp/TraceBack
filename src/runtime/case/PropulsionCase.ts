@@ -1,4 +1,4 @@
-import { defaultExperimentOptions, executeExperiment, validateExperiment, type ExperimentOptions } from './CaseExperiment.ts'
+import { defaultExperimentOptions, executeExperiment, validateExperiment, type ComponentTestTarget, type ExperimentOptions } from './CaseExperiment.ts'
 import type { VehicleSwInput, VehicleSwSnapshot } from '../c/VehicleSwPort.ts'
 import type { VehicleState } from '../../domain/vehicle/VehicleState.ts'
 import type { VehiclePhysicsCommand } from '../../domain/vehicle/VehiclePhysicsPort.ts'
@@ -23,7 +23,7 @@ export interface TestResult {
   id: string; input: number | string; direction: string; expected: number | string; actual: number | string
   pass: boolean; requirement: string
 }
-export interface ExperimentRun { id: number; title: string; rows: TestResult[]; source: 'C_WASM'; variant: CaseVariant; testObject: 'VMC' | 'eDrive'; options?: ExperimentOptions; testCaseId?:string; assertionScope?:'MAGNITUDE'; verification?:VerificationRunMetadata }
+export interface ExperimentRun { id: number; title: string; rows: TestResult[]; source: 'C_WASM'|'TRACKBACK_EXECUTION_MODEL'|'RUNTIME_ADAPTER'; variant: CaseVariant; testObject: ComponentTestTarget; options?: ExperimentOptions; testCaseId?:string; assertionScope?:'MAGNITUDE'|'GEAR_STATE'|'FORCE'|'ANGLE'; verification?:VerificationRunMetadata }
 export interface Diagnosis { component: string; mechanism: string; requirement: string; frameId: number; testRunId: number; correct: boolean; evidenceSufficient: boolean; report?:RootCauseReport; assessment?:EvidenceAssessment; requirementIds?:string[] }
 export interface CaseState {
   phase: 'DRIVING' | 'CAPTURED' | 'SUBMITTED' | 'RESOLVED'
@@ -51,8 +51,8 @@ export class PropulsionCase {
   private serial = 0
   private factory: () => WasmVehicleSw
   readonly buildHash: string
-  readonly limits: { forward: number; reverse: number }
-  constructor(factory: () => WasmVehicleSw, buildHash: string, limits: { forward: number; reverse: number }) {
+  readonly limits: { forward: number; reverse: number; gear?:number; torqueToForce?:number }
+  constructor(factory: () => WasmVehicleSw, buildHash: string, limits: { forward: number; reverse: number; gear?:number; torqueToForce?:number }) {
     this.factory = factory; this.buildHash = buildHash; this.limits = { ...limits }
   }
   readonly subscribe = (listener: () => void) => { this.listeners.add(listener); return () => { this.listeners.delete(listener) } }
@@ -112,17 +112,18 @@ export class PropulsionCase {
     this.active = true
     this.update({ phase: 'CAPTURED', frames, selected: frames.length - 1, source: 'STANDARD_TEST' })
   }
-  runExperiment(first: number, second: number | undefined, testObject: 'VMC' | 'eDrive' = 'eDrive', options = defaultExperimentOptions(), verification?:VerificationRunMetadata) {
+  runExperiment(first: number, second: number | undefined, testObject: ComponentTestTarget = 'eDrive', options = defaultExperimentOptions(), verification?:VerificationRunMetadata) {
     if (this.state.phase !== 'CAPTURED') throw new Error('주행 데이터를 먼저 확보하십시오.')
     const values = second === undefined ? [first] : [first, second]
-    validateExperiment(testObject, values, options)
+    const effectiveOptions=testObject==='DriveAdapterExecution'?{...options,torqueToForce:this.limits.torqueToForce}:options
+    validateExperiment(testObject, values, effectiveOptions)
     const core = this.factory(); core.setCaseVariant(1)
     const rows = values.map((input, i): TestResult => ({
-      id: 'PAIR-' + (i + 1), input, direction: options.direction,
-      ...executeExperiment(core, testObject, input, options),
-      requirement: testObject === 'VMC' ? 'SWR-VMC-001' : 'SWR-EDR-001',
+      id: 'PAIR-' + (i + 1), input, direction: effectiveOptions.direction,
+      ...executeExperiment(core, testObject, input, effectiveOptions),
+      requirement: testObject === 'VMC' ? 'SWR-VMC-001' : testObject==='GearLogic'?'SWR-GEAR-001':testObject==='PropulsionFunction'?'SWR-PROP-003':testObject==='eDrive'?'SWR-EDR-001':testObject==='DriveAdapterExecution'?'TB-SIM-DRIVE-ADAPTER-001':testObject==='BrakingExecution'?'TB-SIM-BRAKE-001':'TB-SIM-STEER-001',
     }))
-    const experiment: ExperimentRun = { id: ++this.serial, title: verification?.designOrigin==='EXISTING_TEST_CASE'?'기존 시험 케이스 실행':'플레이어 설계 실험', rows, source: 'C_WASM', variant: 1, testObject, options: { ...options }, testCaseId:verification?.existingTestCaseId,assertionScope:'MAGNITUDE',verification:verification?structuredClone(verification):undefined }
+    const experiment: ExperimentRun = { id: ++this.serial, title: verification?.designOrigin==='EXISTING_TEST_CASE'?'기존 시험 케이스 실행':'플레이어 설계 실험', rows, source:testObject==='DriveAdapterExecution'?'RUNTIME_ADAPTER':['BrakingExecution','SteeringExecution'].includes(testObject)?'TRACKBACK_EXECUTION_MODEL':'C_WASM', variant: 1, testObject, options: { ...effectiveOptions }, testCaseId:verification?.existingTestCaseId,assertionScope:testObject==='GearLogic'?'GEAR_STATE':testObject==='DriveAdapterExecution'||testObject==='BrakingExecution'?'FORCE':testObject==='SteeringExecution'?'ANGLE':'MAGNITUDE',verification:verification?structuredClone(verification):undefined }
     this.update({ experiment, experiments: [...this.state.experiments, experiment] })
   }
   selectExperiment(id: number) {
@@ -164,7 +165,7 @@ export class PropulsionCase {
     const testCaseId=run.testCaseId
     const requirementIds=testCaseId?traceRequirements(testCaseId).map(r=>r.id):run.verification?.requirementId?[run.verification.requirementId]:getRequirementsForComponent(run.testObject).filter(item=>item.level==='SOFTWARE').map(item=>item.id)
     const subjectId=testCaseId??`EXPERIMENT-${runId}`
-    this.discover({id:`test:${runId}`,type:'TEST_RESULT',title:`${testCaseId??'PLAYER EXPERIMENT'} · 시험 #${runId}`,source:'C_WASM',relatedComponent:run.testObject,relatedRequirementIds:requirementIds,relatedTestCaseIds:testCaseId?[testCaseId]:[],reference:{runId,...(testCaseId?{testCaseId}:{})},discovered:true,selectedForReport:false,status:passed?'MATCH':'MISMATCH',claim:passed?'선택한 조건에서 시험 출력이 Expected를 만족했습니다.':'선택한 조건에서 시험 출력이 Expected를 만족하지 않았습니다.',details:{subjectId,role:'OUTPUT',actual:run.rows.map(row=>String(row.actual)).join(' / '),criterionKind:'EXPECTED',criterionLabel:'시험 Expected',criterionValue:run.rows.map(row=>String(row.expected)).join(' / '),interpretation:passed?'이 시험 범위의 동작은 합격 기준과 일치합니다.':'이 시험은 해당 동작의 요구사항 위반을 보여주지만 근본 원인을 확정하지는 않습니다.',hypothesisId:run.verification?.hypothesisId,targetType:run.verification?.target.type??'FUNCTION',targetId:run.verification?.target.id??run.testObject,verificationMethod:run.verification?.method??'INPUT_VARIATION',executionMode:run.verification?.executionMode??'COMPONENT_MODEL_TEST',designTechnique:run.verification?.designTechnique,designOrigin:run.verification?.designOrigin??'PLAYER_DESIGNED_EXPERIMENT',preconditions:run.verification?.preconditions,stimulus:run.verification?.stimulus,monitoredOutputIds:run.verification?.monitoredOutputIds??[run.testObject==='eDrive'?'EDriveCommand':'DriveTorqueRequest'],expectedCriterion:run.verification?.expectedCriterion??'컴포넌트 오라클 Expected',verdict:passed?'PASS':'FAIL',runIndex:run.id,variationGroupId:run.verification?.variationGroupId}})
+    this.discover({id:`test:${runId}`,type:'TEST_RESULT',title:`${testCaseId??'PLAYER EXPERIMENT'} · 시험 #${runId}`,source:run.source,relatedComponent:run.testObject,relatedRequirementIds:requirementIds,relatedTestCaseIds:testCaseId?[testCaseId]:[],reference:{runId,...(testCaseId?{testCaseId}:{})},discovered:true,selectedForReport:false,status:passed?'MATCH':'MISMATCH',claim:passed?'선택한 조건에서 시험 출력이 Expected를 만족했습니다.':'선택한 조건에서 시험 출력이 Expected를 만족하지 않았습니다.',details:{subjectId,role:'OUTPUT',actual:run.rows.map(row=>String(row.actual)).join(' / '),criterionKind:'EXPECTED',criterionLabel:'시험 Expected',criterionValue:run.rows.map(row=>String(row.expected)).join(' / '),interpretation:passed?'이 시험 범위의 동작은 합격 기준과 일치합니다.':'이 시험은 해당 동작의 요구사항 위반을 보여주지만 근본 원인을 확정하지는 않습니다.',hypothesisId:run.verification?.hypothesisId,targetType:run.verification?.target.type??'FUNCTION',targetId:run.verification?.target.id??run.testObject,verificationMethod:run.verification?.method??'INPUT_VARIATION',executionMode:run.verification?.executionMode??'COMPONENT_MODEL_TEST',designTechnique:run.verification?.designTechnique,designOrigin:run.verification?.designOrigin??'PLAYER_DESIGNED_EXPERIMENT',preconditions:run.verification?.preconditions,stimulus:run.verification?.stimulus,monitoredOutputIds:run.verification?.monitoredOutputIds??[run.testObject==='GearLogic'?'GearState':run.testObject==='PropulsionFunction'?'PropulsionRequest':run.testObject==='eDrive'?'EDriveCommand':run.testObject==='DriveAdapterExecution'?'driveForce':run.testObject==='BrakingExecution'?'brakeForce':run.testObject==='SteeringExecution'?'steering':'DriveTorqueRequest'],expectedCriterion:run.verification?.expectedCriterion??'컴포넌트 오라클 Expected',verdict:passed?'PASS':'FAIL',runIndex:run.id,variationGroupId:run.verification?.variationGroupId}})
   }
   recordVehicleScenario(run:VehicleScenarioRun){
     if(this.state.vehicleScenarioRuns.some(item=>item.runId===run.runId))return
@@ -225,7 +226,7 @@ export class PropulsionCase {
     for (const previous of previousRuns) for (const row of previous.rows) {
       const value = Number(row.input)
       const actual = executeExperiment(core, previous.testObject, value, previous.options ?? defaultExperimentOptions()).actual
-      rows.push({ ...row, id: 'RECHECK-' + previous.testObject + '-' + previous.id + '-' + row.id, actual, pass: Math.abs(actual - Number(row.expected)) <= 1e-6 })
+      rows.push({ ...row, id: 'RECHECK-' + previous.testObject + '-' + previous.id + '-' + row.id, actual, pass:typeof actual==='number'&&typeof row.expected==='number'?Math.abs(actual-row.expected)<=1e-6:actual===row.expected })
     }
     for (const [direction, inputs, limit] of [
       ['FORWARD', [0, 45, 90, 179, 180, 181, 600], this.limits.forward],

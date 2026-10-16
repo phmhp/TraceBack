@@ -7,6 +7,8 @@ interface Props{
   active:GameplayClueId
   suspects:GameplaySuspect[]
   incidentTimeLossSeconds:number
+  score:number
+  recommendedTools:readonly string[]
   hintLevel:0|1|2|3
   normalCandidates:readonly Evidence[]
   abnormalCandidates:readonly Evidence[]
@@ -19,17 +21,16 @@ interface Props{
 
 const formatLoss=(seconds:number)=>`+${seconds.toFixed(1)} s`
 
-export function InvestigationClueRail({clues,evidenceList,active,suspects,incidentTimeLossSeconds,hintLevel,normalCandidates,abnormalCandidates,lastNormalEvidenceId,firstAbnormalEvidenceId,onUseHint,onNavigate,onMarkBoundary}:Props){
+export function InvestigationClueRail({clues,evidenceList,active,suspects,incidentTimeLossSeconds,score,recommendedTools,hintLevel,normalCandidates,abnormalCandidates,lastNormalEvidenceId,firstAbnormalEvidenceId,onUseHint,onNavigate,onMarkBoundary}:Props){
   const current=clues.find(item=>item.id===active)??clues.at(-1)!
   const evidenceById=new Map(evidenceList.map(item=>[item.id,item]))
-  const sourceLabel:Record<GameplayClueId,string>={PHENOMENON:'1. 현상 파악 · 사건 관찰 저장',FAULT_BOUNDARY:'2. 원인 추적 · MATCH/MISMATCH 근거 지정',PROOF:'3. 가설 검증 · 정식 컴포넌트 근거 저장'}
   return <section className="investigation-clue-rail" aria-label="현재 조사 목표">
     <div className="clue-rail-status">
       <span><small>INCIDENT LOSS</small><strong>{formatLoss(incidentTimeLossSeconds)}</strong><em>gameplay penalty</em></span>
-      <div>{clues.map(clue=><details key={clue.id} className={`clue-evidence-chip ${clue.unlocked?'unlocked':clue.id===active?'active':'locked'}`}><summary><b aria-hidden="true">{clue.unlocked?'🔑':'🔒'}</b><small>{clue.label}</small></summary><div className="clue-evidence-proof"><b>{clue.unlocked?'확보한 실제 근거':'획득 조건'}</b><span>{sourceLabel[clue.id]}</span>{clue.evidenceIds.map(id=>{const evidence=evidenceById.get(id);return <button type="button" key={id} title={evidence?.claim}>{evidence?.details?.subjectId??evidence?.title??id}<small>{evidence?.status??'SAVED'}</small></button>})}{!clue.evidenceIds.length&&<small>아직 조건을 만족한 저장 근거가 없습니다.</small>}</div></details>)}</div>
-      <span className={clues.every(clue=>clue.unlocked)?'root-unlocked':'root-locked'}><small>ROOT CAUSE</small><strong>{clues.every(clue=>clue.unlocked)?'UNLOCKED':'LOCKED'}</strong></span>
+      <div>{clues.map((clue,index)=><details key={clue.id} className={`clue-evidence-chip ${clue.unlocked?'unlocked':clue.id===active?'active':'locked'}`}><summary><b aria-hidden="true">{clue.unlocked?'🔑':'🔒'}</b><small>{clue.label}</small></summary><div className="clue-evidence-proof"><b>{clue.unlocked?'확보한 실제 근거':'획득 조건'}</b><span>{index+1}. {clue.recommendedTools.join(' · ')}</span>{clue.evidenceIds.map(id=>{const evidence=evidenceById.get(id);return <button type="button" key={id} title={evidence?.claim}>{evidence?.details?.subjectId??evidence?.title??id}<small>{evidence?.status??'SAVED'}</small></button>})}{!clue.evidenceIds.length&&<small>아직 조건을 만족한 저장 근거가 없습니다.</small>}</div></details>)}</div>
+      <span className={clues.every(clue=>clue.unlocked)?'root-unlocked':'root-locked'}><small>SCORE {score}</small><strong>{clues.every(clue=>clue.unlocked)?'ROOT OPEN':'ROOT LOCKED'}</strong></span>
     </div>
-    <div className="clue-current-question"><span><small>현재 질문</small><strong>{current.question}</strong><p>{current.guidance}</p></span><button type="button" onClick={onNavigate}>이 단서 찾기 →</button></div>
+    <div className="clue-current-question"><span><small>현재 질문 · {recommendedTools.join(' / ')}</small><strong>{current.question}</strong><p>{current.guidance}</p></span><button type="button" onClick={onNavigate}>이 단서 찾기 →</button></div>
     {active==='FAULT_BOUNDARY'&&<details className="boundary-assignment"><summary>저장한 근거를 경계로 지정</summary><div className="boundary-evidence-picker" aria-label="고장 경계 근거 지정">
       <label><span>LAST KNOWN NORMAL<small>마지막 정상 근거</small></span><select value={lastNormalEvidenceId??''} onChange={event=>event.target.value&&onMarkBoundary('LAST_NORMAL',event.target.value)}><option value="">저장한 MATCH 근거 선택</option>{normalCandidates.map(item=><option key={item.id} value={item.id}>{item.details?.subjectId??item.title}</option>)}</select></label>
       <i>→</i>

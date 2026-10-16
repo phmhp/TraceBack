@@ -45,12 +45,14 @@ export const architectureNodes: ArchitectureNode[] = [
   { id:'PropulsionFunction',label:'PropulsionFunction',area:'Propulsion',kind:'SW',implementation:'IMPLEMENTED',role:'유효성·추진 허용·실제 기어를 확인하여 정규화 추진 요청을 만듭니다.',inputs:['AcceleratorPedalPosition','AcceleratorPedalValidity','GearState','GearStateValidity','VehicleReady','PropulsionEnable'],outputs:['PropulsionRequest','PropulsionState'] },
   { id:'VMC',label:'VMC',area:'Propulsion',kind:'SW',implementation:'IMPLEMENTED',role:'현재 C 함수는 추진 요청과 속력으로 토크를 계산합니다. 전체 Vehicle Motion coordination/arbitration 구현은 아닙니다.',inputs:['PropulsionRequest','VehicleSpeed'],outputs:['DriveTorqueRequest'] },
   { id:'eDrive',label:'eDrive',area:'Propulsion',kind:'SW',implementation:'IMPLEMENTED',role:'요청 토크를 전진·후진 한계로 제한합니다. 모터·인버터의 전기 모델은 포함하지 않습니다.',inputs:['DriveTorqueRequest'],outputs:['EDriveCommand'] },
-  { id:'Brake',label:'Brake',area:'Brake',kind:'REFERENCE',implementation:'REFERENCE_ONLY',role:'제동 제어 SW의 참조 영역입니다. 현재 주행 제동은 임시 TS adapter로 처리됩니다.',inputs:['Brake demand'],outputs:['Brake command (reference)'] },
-  { id:'Steering',label:'Steering',area:'Steering',kind:'REFERENCE',implementation:'REFERENCE_ONLY',role:'조향 제어 SW의 참조 영역입니다. 현재 조향은 임시 TS adapter로 처리됩니다.',inputs:['Steering demand'],outputs:['Steering command (reference)'] },
+  { id:'BrakingExecution',label:'Service Brake Execution',area:'Braking',kind:'SW',implementation:'IMPLEMENTED',role:'정규화 운전자 제동 요청의 유효성을 확인하고 Vehicle Physics용 제동력 명령을 계산하는 TRACKBACK 실행 모델입니다. ABS·EBD·ESC·유압계는 포함하지 않습니다.',inputs:['DriverBrakeRequest','Validity'],outputs:['SelectedBrakingRequest','brakeForce'] },
+  { id:'SteeringExecution',label:'Manual Steering Execution',area:'Steering',kind:'SW',implementation:'IMPLEMENTED',role:'정규화 운전자 조향 요청과 차량 속도로 Vehicle Physics용 앞바퀴 조향각을 계산하는 TRACKBACK 실행 모델입니다. EPS·LKA·ESC 보정은 포함하지 않습니다.',inputs:['DriverSteeringRequest','VehicleSpeed','Validity'],outputs:['SelectedSteeringRequest','steering'] },
+  { id:'Brake',label:'Brake',area:'Brake',kind:'REFERENCE',implementation:'REFERENCE_ONLY',role:'ABS·EBD·ESC·유압계를 포함할 수 있는 넓은 제동 참조 영역입니다. 현재 주행에는 범위가 더 좁은 BrakingExecution 모델만 연결되어 있습니다.',inputs:['Brake demand'],outputs:['Brake command (reference)'] },
+  { id:'Steering',label:'Steering',area:'Steering',kind:'REFERENCE',implementation:'REFERENCE_ONLY',role:'EPS·LKA·ESC 보정을 포함할 수 있는 넓은 조향 참조 영역입니다. 현재 주행에는 범위가 더 좁은 SteeringExecution 모델만 연결되어 있습니다.',inputs:['Steering demand'],outputs:['Steering command (reference)'] },
   { id:'VehicleMotion',label:'Vehicle Motion Control',area:'Vehicle Motion',kind:'REFERENCE',implementation:'REFERENCE_ONLY',role:'종·횡방향 요청 coordination/arbitration의 참조 영역입니다. 현재 실행 함수 VMC보다 넓은 개념입니다.',inputs:['Motion requests','Vehicle feedback'],outputs:['Coordinated actuation (reference)'] },
   { id:'DriveAdapter',label:'Drive Force Adapter',area:'Host / Plant boundary',kind:'ADAPTER',implementation:'IMPLEMENTED',role:'최종 토크와 논리 방향을 signed force로 변환합니다. 제동 입력이 있으면 추진력을 차단합니다.',inputs:['EDriveCommand','Brake'],outputs:['driveForce'] },
-  { id:'BrakeAdapter',label:'Temporary Brake Adapter',area:'Host / Plant boundary',kind:'ADAPTER',implementation:'IMPLEMENTED',role:'TS에서 brake ratio를 제동력으로 변환합니다.',inputs:['Brake'],outputs:['brakeForce'] },
-  { id:'SteeringAdapter',label:'Temporary Steering Adapter',area:'Host / Plant boundary',kind:'ADAPTER',implementation:'IMPLEMENTED',role:'TS에서 조향 입력과 속력으로 바퀴 조향각을 계산합니다.',inputs:['Steering','VehicleSpeed'],outputs:['steering radians'] },
+  { id:'BrakeAdapter',label:'Brake Model Compatibility Seam',area:'Host / Plant boundary',kind:'ADAPTER',implementation:'IMPLEMENTED',role:'기존 호출자를 BrakingExecution 모델에 연결하는 호환 경계입니다.',inputs:['Brake'],outputs:['brakeForce'] },
+  { id:'SteeringAdapter',label:'Steering Model Compatibility Seam',area:'Host / Plant boundary',kind:'ADAPTER',implementation:'IMPLEMENTED',role:'기존 호출자를 SteeringExecution 모델에 연결하는 호환 경계입니다.',inputs:['Steering','VehicleSpeed'],outputs:['steering radians'] },
   { id:'VehiclePhysics',label:'Vehicle Dynamics',area:'Vehicle Dynamics',kind:'PLANT',implementation:'IMPLEMENTED',role:'Rapier가 힘·노면·충돌에 따른 차량 운동과 피드백을 계산합니다.',inputs:['driveForce','brakeForce','steering'],outputs:['VehicleSpeed','LongitudinalVelocity','LongitudinalAcceleration','Position'] },
 ]
 export const componentIds: RuntimeComponent[] = ['DriverInput','GearLogic','PropulsionFunction','VMC','eDrive','VehiclePhysics']
@@ -69,9 +71,14 @@ export const interfaceEdges: InterfaceEdge[] = [
   {id:'DriverInput->SteeringAdapter',sourceId:'DriverInput',targetId:'SteeringAdapter',signalIds:['Steering']},
   {id:'BrakeAdapter->VehiclePhysics',sourceId:'BrakeAdapter',targetId:'VehiclePhysics',signalIds:['brakeForce']},
   {id:'SteeringAdapter->VehiclePhysics',sourceId:'SteeringAdapter',targetId:'VehiclePhysics',signalIds:['steering']},
+  {id:'DriverInput->BrakingExecution',sourceId:'DriverInput',targetId:'BrakingExecution',signalIds:['Brake']},
+  {id:'BrakingExecution->VehiclePhysics',sourceId:'BrakingExecution',targetId:'VehiclePhysics',signalIds:['brakeForce']},
+  {id:'DriverInput->SteeringExecution',sourceId:'DriverInput',targetId:'SteeringExecution',signalIds:['Steering']},
+  {id:'SteeringExecution->VehiclePhysics',sourceId:'SteeringExecution',targetId:'VehiclePhysics',signalIds:['steering']},
   {id:'VehiclePhysics->GearLogic',sourceId:'VehiclePhysics',targetId:'GearLogic',signalIds:['LongitudinalVelocity']},
   {id:'VehiclePhysics->VMC',sourceId:'VehiclePhysics',targetId:'VMC',signalIds:['VehicleSpeed']},
   {id:'VehiclePhysics->SteeringAdapter',sourceId:'VehiclePhysics',targetId:'SteeringAdapter',signalIds:['VehicleSpeed']},
+  {id:'VehiclePhysics->SteeringExecution',sourceId:'VehiclePhysics',targetId:'SteeringExecution',signalIds:['VehicleSpeed']},
 ]
 
 const actualReaders: Record<string, (frame: IncidentFrame) => SignalValue> = {

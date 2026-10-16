@@ -5,7 +5,7 @@ import type { InvestigationSelection } from '../../runtime/investigation/Investi
 import { getEntity as getReferenceEntity, getInterfacesForFunction as getReferenceInterfacesForFunction, getRelations as getReferenceRelations, getRequirementsForEntity as getReferenceRequirementsForEntity, getSignalsForFunction as getReferenceSignalsForFunction, getTestsForRequirement as getReferenceTestsForRequirement } from '../../referenceVehicle/index.ts'
 
 export type TestExecution =
-  | { status:'EXECUTABLE'; runner:'COMPONENT_C_WASM'; target:'VMC'|'eDrive'; direction?:'FORWARD'|'REVERSE' }
+  | { status:'EXECUTABLE'; runner:'COMPONENT_C_WASM'; target:'GearLogic'|'PropulsionFunction'|'VMC'|'eDrive'; direction?:'FORWARD'|'REVERSE' }
   | { status:'REFERENCE_ONLY' }
 
 export interface CanonicalTestCaseDefinition {
@@ -21,6 +21,13 @@ export interface CanonicalTestCaseDefinition {
 }
 
 const executionByTestId:Record<string,TestExecution> = {
+  'TC-PROP-NORMAL-003':{status:'EXECUTABLE',runner:'COMPONENT_C_WASM',target:'PropulsionFunction'},
+  'TC-PROP-NORMAL-004':{status:'EXECUTABLE',runner:'COMPONENT_C_WASM',target:'PropulsionFunction'},
+  'TC-PROP-NORMAL-005':{status:'EXECUTABLE',runner:'COMPONENT_C_WASM',target:'PropulsionFunction'},
+  'TC-PROP-NORMAL-007':{status:'EXECUTABLE',runner:'COMPONENT_C_WASM',target:'PropulsionFunction',direction:'FORWARD'},
+  'TC-PROP-NORMAL-008':{status:'EXECUTABLE',runner:'COMPONENT_C_WASM',target:'PropulsionFunction',direction:'REVERSE'},
+  'TC-PROP-NORMAL-013':{status:'EXECUTABLE',runner:'COMPONENT_C_WASM',target:'GearLogic'},
+  'TC-PROP-NORMAL-014':{status:'EXECUTABLE',runner:'COMPONENT_C_WASM',target:'GearLogic'},
   'TC-PROP-NORMAL-009':{status:'EXECUTABLE',runner:'COMPONENT_C_WASM',target:'VMC'},
   'TC-PROP-NORMAL-010A':{status:'EXECUTABLE',runner:'COMPONENT_C_WASM',target:'eDrive',direction:'FORWARD'},
   'TC-PROP-NORMAL-010B':{status:'EXECUTABLE',runner:'COMPONENT_C_WASM',target:'eDrive',direction:'REVERSE'},
@@ -60,8 +67,8 @@ export const testsForComponent = (id:string) => {
   const ids=new Set(getRequirementsForComponent(id).flatMap(requirement => requirement.linkedTestCases))
   return testCaseDefinitions.filter(test => ids.has(test.id))
 }
-export const executableTest = (target:'VMC'|'eDrive',direction:string) => target==='VMC'?'TC-PROP-NORMAL-009':direction==='REVERSE'?'TC-PROP-NORMAL-010B':'TC-PROP-NORMAL-010A'
-export const benchTarget = (testCaseId:string):'VMC'|'eDrive'|null => {
+export const executableTest = (target:'GearLogic'|'PropulsionFunction'|'VMC'|'eDrive',direction:string) => target==='GearLogic'?'TC-PROP-NORMAL-013':target==='PropulsionFunction'?(direction==='REVERSE'?'TC-PROP-NORMAL-008':'TC-PROP-NORMAL-007'):target==='VMC'?'TC-PROP-NORMAL-009':direction==='REVERSE'?'TC-PROP-NORMAL-010B':'TC-PROP-NORMAL-010A'
+export const benchTarget = (testCaseId:string):'GearLogic'|'PropulsionFunction'|'VMC'|'eDrive'|null => {
   const execution=getTestCase(testCaseId)?.execution
   return execution?.status==='EXECUTABLE'?execution.target:null
 }

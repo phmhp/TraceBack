@@ -29,6 +29,11 @@ test('real Rapier gravity/contact, -Z acceleration and braking to rest in fixed 
     const driven = structuredClone(r.runtime.readVehicleState())
     assert.ok(driven.position.z < map.physics.vehicleSpawn.position.z - 25)
     assert.ok(driven.speed > 10)
+    const wheels=r.physics.readWheelDynamicsState()
+    assert.equal(wheels.length,4)
+    assert.ok(wheels.some(wheel=>wheel.inContact))
+    assert.ok(wheels.every(wheel=>Number.isFinite(wheel.angularVelocityRadPerSecond)&&Number.isFinite(wheel.forwardImpulseNs)))
+    assert.deepEqual(r.physics.readCollisionState(),{active:false,contactPairCount:0,contactPointCount:0,maximumNormalImpulseNs:0})
     r.runtime.driverInput.setBrake(1); r.run(120)
     assert.ok(r.runtime.readVehicleState().speed < 0.1)
     const stoppedZ = r.runtime.readVehicleState().position.z

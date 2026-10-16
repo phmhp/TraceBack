@@ -9,6 +9,17 @@ export type VehicleScenarioMonitorId =
   | 'propulsionRequest' | 'driveTorqueRequest' | 'eDriveCommand'
   | 'driveForce' | 'brakeForce' | 'speedKmh' | 'longitudinalVelocity'
   | 'longitudinalAcceleration' | 'positionX' | 'positionZ'
+  | 'surfaceType' | 'surfaceFriction'
+  | 'vehicleMode' | 'propulsionPermission' | 'energyStatus' | 'maxDriveTorqueCandidate'
+  | 'wheelContactCount' | 'maxWheelSlipEstimate' | 'yawRate' | 'collisionActive' | 'collisionImpulse'
+  | 'leadDistance' | 'leadClosingSpeed' | 'laneOffset' | 'headingError' | 'accStatus' | 'aebStatus' | 'lkaStatus'
+
+export interface VehicleFunctionObservation {
+  functionId:string
+  status:'EXECUTED'|'OBSERVED_PARTIAL'
+  basis:'FUNCTION_EXECUTION'|'HOST_RUNTIME_OBSERVATION'
+  actual:Readonly<Record<string,number|string|boolean>>
+}
 
 export type VehicleStimulusProfile =
   | { kind:'CONSTANT'; value:number }
@@ -33,6 +44,17 @@ export interface VehicleScenarioDefinition {
   durationSeconds:number
   observationWindow:{ startSeconds:number; endSeconds:number }
   reset:{ resetVehicle:true; resetDriverInputs:true; replayable:true }
+  supportConditions?:{
+    confirmedFault?:boolean
+    energy?:{ availability:'AVAILABLE'|'UNAVAILABLE'|'INVALID'; maxDriveTorqueCandidateNm?:number }
+    stabilityInterventionEnabled?:boolean
+    occupantDemoEnabled?:boolean
+    adasDemoEnabled?:boolean
+  }
+  environment?:{
+    collisionObstacle?:{distanceAheadM:number;halfWidthM:number}
+    leadVehicle?:{distanceAheadM:number;speedMps:number;brakeAtSeconds?:number}
+  }
   verification?:{ hypothesisId?:string; method?:string; designTechnique?:string; executionMode:'VEHICLE_SCENARIO_TEST' }
   faultInjection?:FaultInjectionDefinition
 }
@@ -41,6 +63,7 @@ export interface VehicleScenarioSample {
   timeSeconds:number
   phase:Exclude<VehicleScenarioPhase,'RESULT'>
   values:Partial<Record<VehicleScenarioMonitorId,number|string>>
+  functionObservations:readonly VehicleFunctionObservation[]
   faultTelemetry?:FaultInjectionTelemetry
   interfaceTelemetry?:InterfaceEndpointTelemetry
 }
@@ -52,6 +75,7 @@ export interface VehicleScenarioRun {
   phase:'RESULT'
   fixedTimestepSeconds:number
   samples:VehicleScenarioSample[]
+  observedFunctionIds:string[]
   events:{ precondition:number; stimulusStart:number; faultStart?:number; faultEnd?:number; observationStart:number; end:number }
   faultTelemetry:FaultInjectionTelemetry[]
   interfaceTelemetry:InterfaceEndpointTelemetry[]
@@ -92,6 +116,12 @@ export function validateVehicleScenario(definition:VehicleScenarioDefinition){
     if(stimulus.profile.kind==='LINEAR_RAMP'&&(stimulus.profile.durationSeconds<=0||stimulus.profile.durationSeconds>stimulus.durationSeconds))throw new Error('Ramp 시간이 stimulus 구간을 벗어났습니다.')
   }
   if(definition.faultInjection)validateFaultInjection(definition.faultInjection,definition.durationSeconds)
+  const candidate=definition.supportConditions?.energy?.maxDriveTorqueCandidateNm
+  if(candidate!==undefined&&(!Number.isFinite(candidate)||candidate<0))throw new Error('Energy torque-limit candidate must be finite and non-negative')
+  const obstacle=definition.environment?.collisionObstacle
+  if(obstacle&&(!Number.isFinite(obstacle.distanceAheadM)||obstacle.distanceAheadM<4||!Number.isFinite(obstacle.halfWidthM)||obstacle.halfWidthM<=0))throw new Error('Scenario collision obstacle contract violated')
+  const lead=definition.environment?.leadVehicle
+  if(lead&&(!Number.isFinite(lead.distanceAheadM)||lead.distanceAheadM<6||!Number.isFinite(lead.speedMps)||lead.speedMps<0||lead.brakeAtSeconds!==undefined&&(!Number.isFinite(lead.brakeAtSeconds)||lead.brakeAtSeconds<0)))throw new Error('Scenario lead vehicle contract violated')
 }
 
 export function scenarioPhaseAt(definition:VehicleScenarioDefinition,timeSeconds:number):Exclude<VehicleScenarioPhase,'RESULT'>{
@@ -126,6 +156,24 @@ export const supportedVehicleScenarioMonitors:readonly {id:VehicleScenarioMonito
   {id:'longitudinalAcceleration',label:'Longitudinal Acceleration',unit:'m/s²',group:'PLANT'},
   {id:'positionX',label:'Position X',unit:'m',group:'PLANT'},
   {id:'positionZ',label:'Position Z',unit:'m',group:'PLANT'},
+  {id:'surfaceType',label:'Road Surface',group:'PLANT'},
+  {id:'surfaceFriction',label:'Surface Friction',group:'PLANT'},
+  {id:'vehicleMode',label:'Vehicle Mode',group:'SW'},
+  {id:'propulsionPermission',label:'Propulsion Permission',group:'SW'},
+  {id:'energyStatus',label:'Energy Status',group:'SW'},
+  {id:'maxDriveTorqueCandidate',label:'Torque-limit Candidate',unit:'Nm',group:'SW'},
+  {id:'wheelContactCount',label:'Wheel Contacts',group:'PLANT'},
+  {id:'maxWheelSlipEstimate',label:'Max Wheel Slip Estimate',unit:'ratio',group:'PLANT'},
+  {id:'yawRate',label:'Yaw Rate',unit:'rad/s',group:'PLANT'},
+  {id:'collisionActive',label:'Collision Active',group:'PLANT'},
+  {id:'collisionImpulse',label:'Collision Impulse',unit:'N·s',group:'PLANT'},
+  {id:'leadDistance',label:'Lead Vehicle Distance',unit:'m',group:'PLANT'},
+  {id:'leadClosingSpeed',label:'Lead Closing Speed',unit:'m/s',group:'PLANT'},
+  {id:'laneOffset',label:'Route/Lane Offset',unit:'m',group:'PLANT'},
+  {id:'headingError',label:'Route Heading Error',unit:'rad',group:'PLANT'},
+  {id:'accStatus',label:'Trackback ACC Status',group:'SW'},
+  {id:'aebStatus',label:'Trackback AEB Status',group:'SW'},
+  {id:'lkaStatus',label:'Trackback LKA Status',group:'SW'},
 ]
 
 export function techniqueCandidates(target:VehicleStimulusTargetId,technique:'EQUIVALENCE_CLASS_ANALYSIS'|'BOUNDARY_VALUE_ANALYSIS'){

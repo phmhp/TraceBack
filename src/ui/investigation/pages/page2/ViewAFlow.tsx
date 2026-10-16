@@ -131,7 +131,7 @@ export function ViewAFlow({
           <div>
             <p className="investigation-section-label">LEVEL 1 · VEHICLE FUNCTIONAL ARCHITECTURE</p>
             <h3 id="vehicle-architecture-title">차량 기능 아키텍처</h3>
-            <p>Reference Vehicle의 주행 기능을 동일한 형식으로 비교합니다. 현재 실행 범위와 Reference 설계 범위는 각 기능의 상태로 구분합니다.</p>
+            <p>Reference Vehicle의 주행 기능을 동일한 형식으로 비교합니다. 이 도식은 TRACKBACK 논리 교육 아키텍처이며 GV70 실제 ECU·CAN 내부 구조가 아닙니다. 현재 실행 범위와 설계 범위는 각 기능의 상태로 구분합니다.</p>
           </div>
           <div className="architecture-legend" aria-label="다이어그램 범례">
             <span><i className="legend-line case" />현재/부분 실행</span>

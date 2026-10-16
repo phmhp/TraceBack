@@ -11,7 +11,7 @@ import { Page1Phenomenon } from './pages/Page1Phenomenon'
 import { Page2Tracking } from './pages/Page2Tracking'
 import { Page3Verification } from './pages/Page3Verification'
 import { Page4Conclusion } from './pages/Page4Conclusion'
-import { defaultExperimentOptions } from '../../runtime/case/CaseExperiment'
+import { defaultExperimentOptions, type ComponentTestTarget } from '../../runtime/case/CaseExperiment'
 import type { RootCauseReport } from '../../runtime/investigation/Evidence'
 import { getRequirement, getRequirementsForComponent, getTestCase, getTestsForRequirement } from '../../registries/investigation/Trace'
 import { compareSignalAtFrame } from '../../runtime/investigation/SignalComparison'
@@ -277,14 +277,16 @@ export function InvestigationWorkspace() {
         speed: number,
         direction: 'FORWARD' | 'REVERSE',
         validity: 'VALID' | 'INVALID',
-        target: 'VMC' | 'eDrive',
-        verification: VerificationRunMetadata
+        target: ComponentTestTarget,
+        verification: VerificationRunMetadata,
+        gear?:{previous:'D'|'R';requested:'D'|'R'}
     ) => {
         controller.runExperiment(value, undefined, target, {
             ...defaultExperimentOptions(),
             speed,
             direction,
-            validity
+            validity,
+            ...(target==='GearLogic'?{variable:'speed' as const,previousGear:gear?.previous??'D',requestedGear:gear?.requested??'R'}:{})
         }, verification)
         ui.recordAction('RUN_EXPERIMENT', target)
         ui.recordAction('TEST_EXECUTED', target)
@@ -369,6 +371,8 @@ export function InvestigationWorkspace() {
                         active={gameplayInvestigation.active}
                         suspects={gameplayInvestigation.suspects}
                         incidentTimeLossSeconds={incidentTimeLossSeconds}
+                        score={gameplayInvestigation.score}
+                        recommendedTools={gameplayInvestigation.activeStep.recommendedTools}
                         hintLevel={ui.session.hintLevels[gameplayInvestigation.active]}
                         normalCandidates={gameplayInvestigation.normalCandidates}
                         abnormalCandidates={gameplayInvestigation.abnormalCandidates}

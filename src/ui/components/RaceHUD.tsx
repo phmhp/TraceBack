@@ -33,6 +33,7 @@ export function RaceDrivingHUD() {
   const brake = useRaceHud((s) => s.brake)
   const steering = useRaceHud((s) => s.steering)
   const gear = useRaceHud((s) => s.gear)
+  const vehicleReady=useRaceHud(s=>s.vehicleReady)
   const speedRatio = Math.min(speed, 180) / 180
   const speedAngle = -132 + speedRatio * 264
 
@@ -53,6 +54,7 @@ export function RaceDrivingHUD() {
       <strong className="cluster-speed-value">{speed.toFixed(0)}</strong>
       <span className="cluster-speed-unit">km/h</span>
       <div className="cluster-gear"><small>GEAR</small><b aria-label={`Actual gear ${gear}`}>{gear}</b></div>
+      <div className={`cluster-ready ${vehicleReady?'on':'off'}`} title="OWNER_MANUAL_FACT · GV70 취급설명서 p.143"><small>DRIVE</small><b>{vehicleReady?'READY':'NOT READY'}</b></div>
       <div className="cluster-pedals">
         <span className="cluster-accel">A <b>{Math.round(accelerator * 100)}</b></span>
         <span className="cluster-brake">B <b>{Math.round(brake * 100)}</b></span>

@@ -1,8 +1,9 @@
 import type { InvestigationTargetType, StructuredInvestigationContext } from './Verification.ts'
+import type { GameplayClueId } from './InvestigationRecipe.ts'
 
 export type InvestigationPage = 1 | 2 | 3 | 4
 export type InvestigationView = 'FLOW' | 'SIGNALS' | 'INTERFACES' | 'STANDARDS'
-export type GameplayClueId = 'PHENOMENON' | 'FAULT_BOUNDARY' | 'PROOF'
+export type { GameplayClueId } from './InvestigationRecipe.ts'
 
 export interface InvestigationSelection {
   componentId?: string

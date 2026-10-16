@@ -23,7 +23,7 @@ import { useIncidentRace } from '../ui/state/incidentRace.ts'
 export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssembly.Module }) {
   const [incident] = useState(() => new PropulsionCase(
     () => new WasmVehicleSw(vehicleSwModule, TRACKBACK_SIMULATION_CALIBRATION_V0_1), buildInfo.binaryHash,
-    { forward: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxForwardTorqueNm.value, reverse: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxReverseTorqueNm.value }))
+    { forward: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxForwardTorqueNm.value, reverse: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxReverseTorqueNm.value, gear:TRACKBACK_SIMULATION_CALIBRATION_V0_1.gearDirectionChangeMaxSpeedMps.value, torqueToForce:TRACKBACK_SIMULATION_CALIBRATION_V0_1.torqueToForce.value }))
   const [map] = useState(() => createLoadedMap(loadMapDefinition(PANGYO2_MAP_ID)))
   const [runtime] = useState(() => new SimulationRuntime(TRACKBACK_SIMULATION_CALIBRATION_V0_1, (telemetry) => {
     publishRaceHud(telemetry)

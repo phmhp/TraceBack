@@ -73,9 +73,9 @@ export interface VerificationRunMetadata {
 }
 
 export interface VerificationCapability {
-  runner: 'COMPONENT_C_WASM'
+  runner: 'COMPONENT_C_WASM'|'TRACKBACK_EXECUTION_MODEL'|'RUNTIME_ADAPTER'
   targetType: 'FUNCTION'
-  targetId: 'VMC'|'eDrive'
+  targetId: 'GearLogic'|'PropulsionFunction'|'VMC'|'eDrive'|'DriveAdapterExecution'|'BrakingExecution'|'SteeringExecution'
   methods: readonly VerificationMethod[]
   variableInput: { id:string; kind:'NUMBER'; min:number; max:number; step:number }
   conditionInputs: readonly ('DIRECTION'|'VALIDITY'|'SPEED')[]
@@ -131,8 +131,13 @@ export const testDesignTechniqueLabels:Record<TestDesignTechnique,{label:string;
 }
 
 export const verificationCapabilities:readonly VerificationCapability[] = [
+  {runner:'COMPONENT_C_WASM',targetType:'FUNCTION',targetId:'GearLogic',methods:['REQUIREMENTS_BASED_TEST','INPUT_VARIATION','BOUNDARY_VALUE_ANALYSIS','STATE_CONDITION_TEST'],variableInput:{id:'LongitudinalVelocity',kind:'NUMBER',min:0,max:2,step:.1},conditionInputs:['DIRECTION','VALIDITY','SPEED'],monitoredOutputIds:['GearState'],supportsRepeatedRuns:true,supportsExpectedOracle:true,supportsTimeProfile:false,supportsFaultInjection:false,supportsEndpointTelemetry:false,supportsStateOverride:true,supportsVehicleReplay:false,supportsComponentExecution:true,stimulusProfiles:['CONSTANT']},
+  {runner:'COMPONENT_C_WASM',targetType:'FUNCTION',targetId:'PropulsionFunction',methods:['REQUIREMENTS_BASED_TEST','INPUT_VARIATION','BOUNDARY_VALUE_ANALYSIS','STATE_CONDITION_TEST'],variableInput:{id:'AcceleratorPedalPosition',kind:'NUMBER',min:0,max:1,step:.05},conditionInputs:['DIRECTION','VALIDITY'],monitoredOutputIds:['PropulsionRequest'],supportsRepeatedRuns:true,supportsExpectedOracle:true,supportsTimeProfile:false,supportsFaultInjection:false,supportsEndpointTelemetry:false,supportsStateOverride:true,supportsVehicleReplay:false,supportsComponentExecution:true,stimulusProfiles:['CONSTANT']},
   {runner:'COMPONENT_C_WASM',targetType:'FUNCTION',targetId:'VMC',methods:['REQUIREMENTS_BASED_TEST','INPUT_VARIATION','BOUNDARY_VALUE_ANALYSIS','STATE_CONDITION_TEST'],variableInput:{id:'PropulsionRequest',kind:'NUMBER',min:0,max:1,step:.05},conditionInputs:['DIRECTION','VALIDITY','SPEED'],monitoredOutputIds:['DriveTorqueRequest'],supportsRepeatedRuns:true,supportsExpectedOracle:true,supportsTimeProfile:false,supportsFaultInjection:false,supportsEndpointTelemetry:false,supportsStateOverride:true,supportsVehicleReplay:false,supportsComponentExecution:true,stimulusProfiles:['CONSTANT']},
   {runner:'COMPONENT_C_WASM',targetType:'FUNCTION',targetId:'eDrive',methods:['REQUIREMENTS_BASED_TEST','INPUT_VARIATION','BOUNDARY_VALUE_ANALYSIS','STATE_CONDITION_TEST'],variableInput:{id:'DriveTorqueRequest',kind:'NUMBER',min:0,max:600,step:5},conditionInputs:['DIRECTION','VALIDITY'],monitoredOutputIds:['EDriveCommand'],supportsRepeatedRuns:true,supportsExpectedOracle:true,supportsTimeProfile:false,supportsFaultInjection:false,supportsEndpointTelemetry:false,supportsStateOverride:true,supportsVehicleReplay:false,supportsComponentExecution:true,stimulusProfiles:['CONSTANT']},
+  {runner:'RUNTIME_ADAPTER',targetType:'FUNCTION',targetId:'DriveAdapterExecution',methods:['REQUIREMENTS_BASED_TEST','INPUT_VARIATION','BOUNDARY_VALUE_ANALYSIS','STATE_CONDITION_TEST'],variableInput:{id:'EDriveCommand',kind:'NUMBER',min:0,max:180,step:5},conditionInputs:['DIRECTION','VALIDITY'],monitoredOutputIds:['driveForce'],supportsRepeatedRuns:true,supportsExpectedOracle:true,supportsTimeProfile:false,supportsFaultInjection:false,supportsEndpointTelemetry:false,supportsStateOverride:true,supportsVehicleReplay:false,supportsComponentExecution:true,stimulusProfiles:['CONSTANT']},
+  {runner:'TRACKBACK_EXECUTION_MODEL',targetType:'FUNCTION',targetId:'BrakingExecution',methods:['REQUIREMENTS_BASED_TEST','INPUT_VARIATION','BOUNDARY_VALUE_ANALYSIS','STATE_CONDITION_TEST'],variableInput:{id:'DriverBrakeRequest',kind:'NUMBER',min:0,max:1,step:.05},conditionInputs:['VALIDITY'],monitoredOutputIds:['brakeForce'],supportsRepeatedRuns:true,supportsExpectedOracle:true,supportsTimeProfile:false,supportsFaultInjection:false,supportsEndpointTelemetry:false,supportsStateOverride:true,supportsVehicleReplay:false,supportsComponentExecution:true,stimulusProfiles:['CONSTANT']},
+  {runner:'TRACKBACK_EXECUTION_MODEL',targetType:'FUNCTION',targetId:'SteeringExecution',methods:['REQUIREMENTS_BASED_TEST','INPUT_VARIATION','BOUNDARY_VALUE_ANALYSIS','STATE_CONDITION_TEST'],variableInput:{id:'DriverSteeringRequest',kind:'NUMBER',min:-1,max:1,step:.1},conditionInputs:['VALIDITY','SPEED'],monitoredOutputIds:['steering'],supportsRepeatedRuns:true,supportsExpectedOracle:true,supportsTimeProfile:false,supportsFaultInjection:false,supportsEndpointTelemetry:false,supportsStateOverride:true,supportsVehicleReplay:false,supportsComponentExecution:true,stimulusProfiles:['CONSTANT']},
 ]
 
 export const vehicleVerificationCapabilities:readonly VehicleVerificationCapability[] = [
@@ -163,10 +168,10 @@ export const getVehicleVerificationCapability = (target:InvestigationTarget|unde
 export const getAvailableVerificationMethods = (target:InvestigationTarget|undefined) =>
   getVerificationCapability(target)?.methods ?? getVehicleVerificationCapability(target)?.methods ?? []
 
-export function boundaryCandidates(capability:VerificationCapability,direction:'FORWARD'|'REVERSE',limits:{forward:number;reverse:number}){
+export function boundaryCandidates(capability:VerificationCapability,direction:'FORWARD'|'REVERSE',limits:{forward:number;reverse:number;gear?:number}){
   const {min,max}=capability.variableInput
   const nearMin=Math.min(max,min+capability.variableInput.step)
-  const limit=capability.targetId==='eDrive'?(direction==='REVERSE'?limits.reverse:limits.forward):undefined
+  const limit=capability.targetId==='eDrive'?(direction==='REVERSE'?limits.reverse:limits.forward):capability.targetId==='GearLogic'?(limits.gear??.5):undefined
   const candidates=limit===undefined
     ? [min,nearMin,(min+max)/2,Math.max(min,max-capability.variableInput.step),max]
     : [min,nearMin,Math.max(min,limit-capability.variableInput.step),limit,Math.min(max,limit+capability.variableInput.step),max]

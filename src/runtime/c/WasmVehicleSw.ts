@@ -1,6 +1,7 @@
 import type { SimulationPropulsionCalibration } from '../SimulationRuntime.ts'
 import { calibrationSlots, validateInput } from './VehicleSwPort.ts'
 import type { VehicleSwInput, VehicleSwOutput, VehicleSwPort } from './VehicleSwPort.ts'
+import type { Gear } from '../../domain/driver/DriverInputTypes.ts'
 
 const gears = ['P','R','N','D'] as const
 const directions = ['NONE','FORWARD','REVERSE'] as const
@@ -72,5 +73,18 @@ export class WasmVehicleSw implements VehicleSwPort {
   verifyEDrive(magnitude: number, direction: typeof directions[number], valid: typeof validity[number]) {
     this.exports.tb_test_edrive(magnitude, directions.indexOf(direction), validity.indexOf(valid))
     return this.readTorque(10)
+  }
+  /** Independent PropulsionFunction seam over the same C step used by the live runtime. */
+  verifyPropulsion(magnitude:number,direction:'FORWARD'|'REVERSE',valid:typeof validity[number]){
+    const gear:Gear=direction==='REVERSE'?'R':'D'
+    this.exports.tb_reset(gears.indexOf(gear))
+    const output=this.step({acceleratorPedalPosition:magnitude,acceleratorPedalValidity:valid,gearRequest:gear,gearRequestValidity:'VALID',vehicleReady:true,propulsionEnable:true,longitudinalVelocity:0,vehicleSpeed:0})
+    return {state:output.propulsionState,request:output.propulsionRequest}
+  }
+  /** Independent GearLogic test seam over the same C step used by the live runtime. */
+  verifyGear(previousGear:Gear,requestedGear:Gear,valid:typeof validity[number],longitudinalVelocity:number) {
+    this.exports.tb_reset(gears.indexOf(previousGear))
+    const output=this.step({acceleratorPedalPosition:0,acceleratorPedalValidity:'VALID',gearRequest:requestedGear,gearRequestValidity:valid,vehicleReady:true,propulsionEnable:true,longitudinalVelocity,vehicleSpeed:Math.abs(longitudinalVelocity)})
+    return {gearState:output.gearState,transitionAccepted:output.transitionAccepted,validity:output.gearStateValidity}
   }
 }
