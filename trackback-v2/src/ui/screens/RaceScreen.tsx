@@ -8,6 +8,7 @@ import { RaceFinishOverlay } from '../components/RaceFinishOverlay'
 import { useNavigation } from '../state/navigation'
 import { useCase } from '../state/CaseContext'
 import { PROPULSION_RESPONSE_MISSION as mission } from '../../data/gameplay/VerificationMissions'
+import { RepairReturnOverlay } from '../components/RepairReturnOverlay'
 
 export function RaceScreen() {
   const { state } = useCase()
@@ -34,9 +35,10 @@ export function RaceScreen() {
     <DrivingEventHUD />
     {['PRE_RACE','NORMAL_DRIVE'].includes(phase)&&<aside className="initial-race-objective" aria-label="현재 시험 주행 목표"><small>{mission.caseId} · 가속 응답 재현</small><strong>CHECKPOINT 1 / {route?.checkpoints.length??0}</strong><span>직선 구간에서 조향을 안정시키고 가속 입력과 차량 반응을 비교하세요.</span><em>안전 주행 + 사건 기록 확보</em></aside>}
     <Minimap map={map.definition} readVehicleState={readVehicleState} />
-    {phase !== 'FAULT_EVENT' && <RacePauseOverlay onResume={resume} />}
+    {!['FAULT_EVENT','RECOVERY_COUNTDOWN'].includes(phase) && <RacePauseOverlay onResume={resume} />}
     <RaceFinishOverlay />
-    {(phase === 'PRE_RACE'||phase==='RECOVERY_COUNTDOWN') && <div className="race-countdown" role="status" aria-live="assertive">
+    {phase==='RECOVERY_COUNTDOWN'&&<RepairReturnOverlay/>}
+    {(phase === 'PRE_RACE'||phase==='RECOVERY_COUNTDOWN') && <div className={`race-countdown ${phase==='RECOVERY_COUNTDOWN'?'recovery-countdown':''}`} role="status" aria-live="assertive">
       <span className="sr-only">3, 2, 1, 출발</span>
       <div aria-hidden="true"><strong>3</strong><strong>2</strong><strong>1</strong><strong>GO!</strong></div>
     </div>}

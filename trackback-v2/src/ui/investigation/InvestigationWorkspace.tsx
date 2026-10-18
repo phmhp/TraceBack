@@ -171,7 +171,7 @@ export function InvestigationWorkspace() {
     // stacking context authoritative, so the WebGL surface cannot cover
     // investigation controls, dialogs, or guided-review overlays.
     useLayoutEffect(() => {
-        const projectionSlot=ui.page===3?scenarioVideoSlot:videoSlot
+        const projectionSlot=focusMode?videoSlot:ui.page===3?scenarioVideoSlot:videoSlot
         if (!projectionSlot) return
         const viewport=document.querySelector<HTMLElement>('.game-viewport')
         if(!viewport)return
@@ -186,7 +186,7 @@ export function InvestigationWorkspace() {
                 else originalParent.appendChild(viewport)
             }
         }
-    }, [videoSlot,scenarioVideoSlot,ui.page])
+    }, [focusMode,videoSlot,scenarioVideoSlot,ui.page])
 
     // Playback timer loop
     useEffect(() => {
@@ -253,13 +253,22 @@ export function InvestigationWorkspace() {
     const handleCompareSignal=(subjectId:string)=>{compareAndDiscoverSignal(subjectId)}
 
     const handleCollectBoundary=(componentId:string,signalId:string,kind:'LAST_NORMAL'|'FIRST_ABNORMAL')=>{
-        const comparison=compareAndDiscoverSignal(signalId,componentId)
-        if(!comparison)return
+        const expectedStatus=kind==='LAST_NORMAL'?'MATCH':'MISMATCH'
+        let matchingIndex=-1
+        for(let index=state.frames.length-1;index>=0;index--){
+            const comparison=compareSignalAtFrame(signalId,componentId,state.frames[index]!,state.frames[index-1])
+            if(comparison?.status===expectedStatus){matchingIndex=index;break}
+        }
+        if(matchingIndex<0)return {ok:false,message:kind==='LAST_NORMAL'?'현재 기록에서 기준과 일치하는 정상 경계를 찾지 못했습니다. 사건 시점을 다시 확인하세요.':'현재 기록에서 기준과 다른 첫 이상 경계를 찾지 못했습니다. 사건 시점을 다시 확인하세요.'}
+        controller.select(matchingIndex)
+        ui.setSelectedFrameIndex(matchingIndex)
         const saved=controller.saveSignalEvidence(componentId,signalId)
-        if(!saved)return
+        if(!saved)return {ok:false,message:'비교 결과를 근거로 저장하지 못했습니다. 다시 시도하세요.'}
+        if(saved.comparison.status!==expectedStatus)return {ok:false,status:saved.comparison.status,message:`이 시점은 ${saved.comparison.status}로 판정되어 ${kind==='LAST_NORMAL'?'마지막 정상':'첫 이상'} 근거로 사용할 수 없습니다.`}
         ui.collectEvidence(saved.id)
         ui.recordAction('COLLECT_EVIDENCE',saved.id)
         ui.markBoundary(kind,saved.id)
+        return {ok:true,status:saved.comparison.status,message:kind==='LAST_NORMAL'?`VMC 출력 ${saved.comparison.actual}이 ${saved.comparison.criterionValue}와 일치합니다. 마지막 정상 경계를 확보했습니다.`:`eDrive 출력 ${saved.comparison.actual}이 ${saved.comparison.criterionValue}와 다릅니다. 첫 이상 경계를 확보해 다음 단계로 이동합니다.`}
     }
 
     const handleInspectInterfaceCapability=(interfaceId:string)=>{
@@ -319,6 +328,16 @@ export function InvestigationWorkspace() {
         controller.runExperiment(plan.first,plan.second,plan.target,plan.options)
         ui.recordAction('RUN_EXPERIMENT',plan.target)
         ui.recordAction('TEST_EXECUTED',plan.target)
+    }
+
+    const handleFocusSimulationExperiment=(input:{first:number;second:number;direction:'FORWARD'|'REVERSE';validity:'VALID'|'INVALID'})=>{
+        controller.runExperiment(input.first,input.second,'eDrive',{
+            ...defaultExperimentOptions(),
+            direction:input.direction,
+            validity:input.validity,
+        })
+        ui.recordAction('RUN_EXPERIMENT','eDrive')
+        ui.recordAction('TEST_EXECUTED','eDrive')
     }
 
     const handleRunExperiment = (
@@ -449,11 +468,13 @@ export function InvestigationWorkspace() {
                     onCollectBoundary={handleCollectBoundary}
                     onSetHypothesis={handleFocusHypothesis}
                     onRunExperiment={handleFocusExperiment}
+                    onRunSimulationExperiment={handleFocusSimulationExperiment}
                     onCollectExperiment={handleCollectTest}
                     onSubmitReport={handleSubmitReport}
                     onRetryDiagnosis={()=>{controller.retryDiagnosis();resumeInvestigation()}}
                     onRunRepair={handleRunRepair}
                     onOpenExpert={()=>setFocusMode(false)}
+                    videoSlotRef={setVideoSlot}
                 />:<>
                 <button type="button" className="focus-expert-return" onClick={()=>setFocusMode(true)}>← 카드 조사로 돌아가기</button>
                 <InvestigationSidebar

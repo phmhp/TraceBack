@@ -77,7 +77,7 @@ export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssem
     }
     if (phase === 'RECOVERY_COUNTDOWN') {
       runtime.pause()
-      const countdown=window.setTimeout(()=>{runtime.startRecoveryChallenge();completeRecoveryCountdown();runtime.resume()},3200)
+      const countdown=window.setTimeout(()=>{runtime.startRecoveryChallenge();completeRecoveryCountdown();runtime.resume()},6500)
       return()=>window.clearTimeout(countdown)
     }
     if (phase === 'NORMAL_DRIVE' || phase === 'RECOVERY_DRIVE') {

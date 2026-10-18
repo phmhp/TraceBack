@@ -78,7 +78,8 @@ test('fault event stops the vehicle without exposing the generic pause menu', ()
   const runtime=readFileSync(new URL('../src/runtime/SimulationRuntime.ts',import.meta.url),'utf8')
   assert.match(runtime,/phase === 'CAPTURED' \|\| phase === 'SUBMITTED'/)
   const race=readFileSync(new URL('../src/ui/screens/RaceScreen.tsx',import.meta.url),'utf8')
-  assert.match(race,/phase !== 'FAULT_EVENT' && <RacePauseOverlay/)
+  assert.match(race,/!\['FAULT_EVENT','RECOVERY_COUNTDOWN'\]\.includes\(phase\) && <RacePauseOverlay/)
+  assert.match(race,/RepairReturnOverlay/)
 })
 
 test('fault transition shows cockpit facts without revealing a hidden cause', () => {
