@@ -1,0 +1,671 @@
+{
+  "kind": "REFERENCE_SW_VERIFICATION",
+  "binaryHash": "e1d5c153524ce4850757bb4971831878c770a74cd23c7ba07717fa05f6178aff",
+  "evidence": [
+    {
+      "testCaseId": "TC-PROP-NORMAL-001",
+      "requirementIds": [
+        "SYSR-PROP-001",
+        "SWR-PROP-001"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "D",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": false,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_DISABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "VALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_DISABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "VALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-001",
+      "requirementIds": [
+        "SYSR-PROP-001",
+        "SWR-PROP-001"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "D",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": false,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_DISABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "VALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_DISABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "VALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-002",
+      "requirementIds": [
+        "SYSR-PROP-001",
+        "SWR-PROP-001"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "D",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0.5,
+          "direction": "FORWARD",
+          "validity": "VALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0.5,
+          "direction": "FORWARD",
+          "validity": "VALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-003",
+      "requirementIds": [
+        "SYSR-PROP-002",
+        "SWR-PROP-002"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "INVALID",
+        "gearRequest": "D",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "INVALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "INVALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-003",
+      "requirementIds": [
+        "SYSR-PROP-002",
+        "SWR-PROP-002"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "D",
+        "gearRequestValidity": "INVALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "INVALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "INVALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-004",
+      "requirementIds": [
+        "SYSR-PROP-004",
+        "SWR-PROP-003",
+        "SWR-PROP-004"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "D",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "VALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "VALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-005",
+      "requirementIds": [
+        "SYSR-PROP-003",
+        "SWR-PROP-003"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0.37,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "D",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0.37,
+          "direction": "FORWARD",
+          "validity": "VALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0.37,
+          "direction": "FORWARD",
+          "validity": "VALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-006A",
+      "requirementIds": [
+        "SYSR-PROP-005",
+        "SWR-PROP-004"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "P",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "VALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "VALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-006B",
+      "requirementIds": [
+        "SYSR-PROP-006",
+        "SWR-PROP-004"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "N",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "VALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0,
+          "direction": "NONE",
+          "validity": "VALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-007",
+      "requirementIds": [
+        "SYSR-PROP-007",
+        "SWR-PROP-004"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "D",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0.5,
+          "direction": "FORWARD",
+          "validity": "VALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0.5,
+          "direction": "FORWARD",
+          "validity": "VALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-008",
+      "requirementIds": [
+        "SYSR-PROP-008",
+        "SWR-PROP-004"
+      ],
+      "testObject": "C normal flow",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "R",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0.5,
+          "direction": "REVERSE",
+          "validity": "VALID"
+        }
+      },
+      "actual": {
+        "state": "PROP_ENABLED",
+        "request": {
+          "magnitude": 0.5,
+          "direction": "REVERSE",
+          "validity": "VALID"
+        }
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-009",
+      "requirementIds": [
+        "SYSR-PROP-009",
+        "SWR-VMC-001"
+      ],
+      "testObject": "C Propulsion Function → VMC integration",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "D",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0,
+        "vehicleSpeed": 0
+      },
+      "expected": {
+        "magnitudeNm": 90,
+        "direction": "FORWARD",
+        "validity": "VALID"
+      },
+      "actual": {
+        "magnitudeNm": 90,
+        "direction": "FORWARD",
+        "validity": "VALID"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-009",
+      "requirementIds": [
+        "SYSR-PROP-009",
+        "SWR-VMC-001"
+      ],
+      "testObject": "C VMC",
+      "input": {
+        "magnitude": 0.5,
+        "direction": "FORWARD",
+        "speed": 0
+      },
+      "expected": {
+        "magnitudeNm": 90,
+        "direction": "FORWARD",
+        "validity": "VALID"
+      },
+      "actual": {
+        "magnitudeNm": 90,
+        "direction": "FORWARD",
+        "validity": "VALID"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-009",
+      "requirementIds": [
+        "SYSR-PROP-009",
+        "SWR-VMC-001"
+      ],
+      "testObject": "C VMC",
+      "input": {
+        "magnitude": 0.5,
+        "direction": "FORWARD",
+        "speed": 12
+      },
+      "expected": {
+        "magnitudeNm": 45,
+        "direction": "FORWARD",
+        "validity": "VALID"
+      },
+      "actual": {
+        "magnitudeNm": 45,
+        "direction": "FORWARD",
+        "validity": "VALID"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-009",
+      "requirementIds": [
+        "SYSR-PROP-009",
+        "SWR-VMC-001"
+      ],
+      "testObject": "C VMC",
+      "input": {
+        "magnitude": 0.5,
+        "direction": "REVERSE",
+        "speed": 0
+      },
+      "expected": {
+        "magnitudeNm": 65,
+        "direction": "REVERSE",
+        "validity": "VALID"
+      },
+      "actual": {
+        "magnitudeNm": 65,
+        "direction": "REVERSE",
+        "validity": "VALID"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-009",
+      "requirementIds": [
+        "SYSR-PROP-009",
+        "SWR-VMC-001"
+      ],
+      "testObject": "C VMC",
+      "input": {
+        "magnitude": 0.5,
+        "direction": "REVERSE",
+        "speed": 6
+      },
+      "expected": {
+        "magnitudeNm": 32.5,
+        "direction": "REVERSE",
+        "validity": "VALID"
+      },
+      "actual": {
+        "magnitudeNm": 32.5,
+        "direction": "REVERSE",
+        "validity": "VALID"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-010A",
+      "requirementIds": [
+        "SYSR-PROP-009",
+        "SWR-EDR-001"
+      ],
+      "testObject": "C eDrive",
+      "input": {
+        "magnitudeNm": 999,
+        "direction": "FORWARD"
+      },
+      "expected": {
+        "magnitudeNm": 180,
+        "direction": "FORWARD",
+        "validity": "VALID"
+      },
+      "actual": {
+        "magnitudeNm": 180,
+        "direction": "FORWARD",
+        "validity": "VALID"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-010B",
+      "requirementIds": [
+        "SYSR-PROP-009",
+        "SWR-EDR-001"
+      ],
+      "testObject": "C eDrive",
+      "input": {
+        "magnitudeNm": 999,
+        "direction": "REVERSE"
+      },
+      "expected": {
+        "magnitudeNm": 130,
+        "direction": "REVERSE",
+        "validity": "VALID"
+      },
+      "actual": {
+        "magnitudeNm": 130,
+        "direction": "REVERSE",
+        "validity": "VALID"
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-014",
+      "requirementIds": [
+        "SYSR-GEAR-001",
+        "SWR-GEAR-001"
+      ],
+      "testObject": "C Gear Logic",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "R",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": -0.51,
+        "vehicleSpeed": 0.51
+      },
+      "expected": {
+        "gearState": "D",
+        "transitionAccepted": false
+      },
+      "actual": {
+        "gearState": "D",
+        "transitionAccepted": false
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-013",
+      "requirementIds": [
+        "SYSR-GEAR-001",
+        "SWR-GEAR-001"
+      ],
+      "testObject": "C Gear Logic",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "R",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": -0.5,
+        "vehicleSpeed": 0.5
+      },
+      "expected": {
+        "gearState": "R",
+        "transitionAccepted": true
+      },
+      "actual": {
+        "gearState": "R",
+        "transitionAccepted": true
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-014",
+      "requirementIds": [
+        "SYSR-GEAR-001",
+        "SWR-GEAR-001"
+      ],
+      "testObject": "C Gear Logic",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "R",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0.51,
+        "vehicleSpeed": 0.51
+      },
+      "expected": {
+        "gearState": "D",
+        "transitionAccepted": false
+      },
+      "actual": {
+        "gearState": "D",
+        "transitionAccepted": false
+      },
+      "verdict": "PASS"
+    },
+    {
+      "testCaseId": "TC-PROP-NORMAL-013",
+      "requirementIds": [
+        "SYSR-GEAR-001",
+        "SWR-GEAR-001"
+      ],
+      "testObject": "C Gear Logic",
+      "input": {
+        "acceleratorPedalPosition": 0.5,
+        "acceleratorPedalValidity": "VALID",
+        "gearRequest": "R",
+        "gearRequestValidity": "VALID",
+        "vehicleReady": true,
+        "propulsionEnable": true,
+        "longitudinalVelocity": 0.5,
+        "vehicleSpeed": 0.5
+      },
+      "expected": {
+        "gearState": "R",
+        "transitionAccepted": true
+      },
+      "actual": {
+        "gearState": "R",
+        "transitionAccepted": true
+      },
+      "verdict": "PASS"
+    }
+  ]
+}
