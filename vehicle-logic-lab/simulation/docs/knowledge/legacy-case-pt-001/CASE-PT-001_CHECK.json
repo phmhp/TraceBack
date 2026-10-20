@@ -1,0 +1,334 @@
+{
+  "kind": "CASE_SPECIFICATION_AND_NORMAL_BASELINE_CHECK",
+  "caseId": "CASE-PT-001",
+  "specVersion": "0.2.0",
+  "binaryHash": "e1d5c153524ce4850757bb4971831878c770a74cd23c7ba07717fa05f6178aff",
+  "verdict": "PASS",
+  "normalCResults": [
+    {
+      "id": "PAIR-45",
+      "inputNm": 45,
+      "direction": "FORWARD",
+      "expectedNm": 45,
+      "actualNm": 45,
+      "verdict": "PASS"
+    },
+    {
+      "id": "PAIR-90",
+      "inputNm": 90,
+      "direction": "FORWARD",
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "PAIR-120",
+      "inputNm": 120,
+      "direction": "FORWARD",
+      "expectedNm": 120,
+      "actualNm": 120,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-BELOW",
+      "inputNm": 179,
+      "direction": "FORWARD",
+      "expectedNm": 179,
+      "actualNm": 179,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-AT",
+      "inputNm": 180,
+      "direction": "FORWARD",
+      "expectedNm": 180,
+      "actualNm": 180,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-ABOVE",
+      "inputNm": 181,
+      "direction": "FORWARD",
+      "expectedNm": 180,
+      "actualNm": 180,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-HIGH",
+      "inputNm": 600,
+      "direction": "FORWARD",
+      "expectedNm": 180,
+      "actualNm": 180,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-BELOW",
+      "inputNm": 129,
+      "direction": "REVERSE",
+      "expectedNm": 129,
+      "actualNm": 129,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-AT",
+      "inputNm": 130,
+      "direction": "REVERSE",
+      "expectedNm": 130,
+      "actualNm": 130,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-ABOVE",
+      "inputNm": 131,
+      "direction": "REVERSE",
+      "expectedNm": 130,
+      "actualNm": 130,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-HIGH",
+      "inputNm": 400,
+      "direction": "REVERSE",
+      "expectedNm": 130,
+      "actualNm": 130,
+      "verdict": "PASS"
+    }
+  ],
+  "variantCResults": [
+    {
+      "id": "PAIR-45",
+      "variant": 1,
+      "expectedNm": 22.5,
+      "actualNm": 22.5,
+      "verdict": "PASS"
+    },
+    {
+      "id": "PAIR-45",
+      "variant": 2,
+      "expectedNm": 45,
+      "actualNm": 45,
+      "verdict": "PASS"
+    },
+    {
+      "id": "PAIR-45",
+      "variant": 3,
+      "expectedNm": 22.5,
+      "actualNm": 22.5,
+      "verdict": "PASS"
+    },
+    {
+      "id": "PAIR-90",
+      "variant": 1,
+      "expectedNm": 45,
+      "actualNm": 45,
+      "verdict": "PASS"
+    },
+    {
+      "id": "PAIR-90",
+      "variant": 2,
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "PAIR-90",
+      "variant": 3,
+      "expectedNm": 45,
+      "actualNm": 45,
+      "verdict": "PASS"
+    },
+    {
+      "id": "PAIR-120",
+      "variant": 1,
+      "expectedNm": 60,
+      "actualNm": 60,
+      "verdict": "PASS"
+    },
+    {
+      "id": "PAIR-120",
+      "variant": 2,
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "PAIR-120",
+      "variant": 3,
+      "expectedNm": 60,
+      "actualNm": 60,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-BELOW",
+      "variant": 1,
+      "expectedNm": 89.5,
+      "actualNm": 89.5,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-BELOW",
+      "variant": 2,
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-BELOW",
+      "variant": 3,
+      "expectedNm": 89.5,
+      "actualNm": 89.5,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-AT",
+      "variant": 1,
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-AT",
+      "variant": 2,
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-AT",
+      "variant": 3,
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-ABOVE",
+      "variant": 1,
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-ABOVE",
+      "variant": 2,
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-ABOVE",
+      "variant": 3,
+      "expectedNm": 90.5,
+      "actualNm": 90.5,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-HIGH",
+      "variant": 1,
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-HIGH",
+      "variant": 2,
+      "expectedNm": 90,
+      "actualNm": 90,
+      "verdict": "PASS"
+    },
+    {
+      "id": "FWD-HIGH",
+      "variant": 3,
+      "expectedNm": 300,
+      "actualNm": 300,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-BELOW",
+      "variant": 1,
+      "expectedNm": 64.5,
+      "actualNm": 64.5,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-BELOW",
+      "variant": 2,
+      "expectedNm": 65,
+      "actualNm": 65,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-BELOW",
+      "variant": 3,
+      "expectedNm": 64.5,
+      "actualNm": 64.5,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-AT",
+      "variant": 1,
+      "expectedNm": 65,
+      "actualNm": 65,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-AT",
+      "variant": 2,
+      "expectedNm": 65,
+      "actualNm": 65,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-AT",
+      "variant": 3,
+      "expectedNm": 65,
+      "actualNm": 65,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-ABOVE",
+      "variant": 1,
+      "expectedNm": 65,
+      "actualNm": 65,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-ABOVE",
+      "variant": 2,
+      "expectedNm": 65,
+      "actualNm": 65,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-ABOVE",
+      "variant": 3,
+      "expectedNm": 65.5,
+      "actualNm": 65.5,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-HIGH",
+      "variant": 1,
+      "expectedNm": 65,
+      "actualNm": 65,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-HIGH",
+      "variant": 2,
+      "expectedNm": 65,
+      "actualNm": 65,
+      "verdict": "PASS"
+    },
+    {
+      "id": "REV-HIGH",
+      "variant": 3,
+      "expectedNm": 200,
+      "actualNm": 200,
+      "verdict": "PASS"
+    }
+  ],
+  "referencesValidated": true,
+  "designArithmeticValidated": true,
+  "faultAndRepairRuntimeExecuted": true,
+  "note": "PASS validates references and actual normal/fault/repair C component samples. Gameplay lifecycle is verified separately in tests/case-gameplay.test.mjs; this script does not test the browser UI."
+}

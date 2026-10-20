@@ -1,0 +1,58 @@
+import { Component, lazy, Suspense, useCallback, useRef } from 'react'
+import type { ReactNode } from 'react'
+import { createVehiclePose } from '../domain/vehicle/VehicleState'
+import type { SimulationRuntime } from '../runtime/SimulationRuntime'
+import type { Screen } from '../ui/state/navigation'
+import { FollowCamera } from '../graphics/FollowCamera'
+import { VehicleRenderer } from '../graphics/VehicleRenderer'
+import { MapRenderer } from '../graphics/world/MapRenderer'
+import { phase2Physics } from '../physics/rapier/phase2Config'
+import type { LoadedMap } from '../world/MapLoader'
+import { VehicleShadowLight } from '../graphics/VehicleShadowLight'
+import { ScenarioLeadVehicleRenderer } from '../graphics/ScenarioLeadVehicleRenderer'
+import { useRaceHud } from '../ui/state/raceHud'
+import { useCase } from '../ui/state/CaseContext'
+import { useSyncExternalStore } from 'react'
+
+const RaceViewport = lazy(() => import('../graphics/RaceViewport'))
+const RapierWorld = lazy(() => import('../physics/RapierWorld').then((m) => ({ default: m.RapierWorld })))
+
+class PhysicsBoundary extends Component<{ runtime: SimulationRuntime; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() { return { failed: true } }
+  componentDidCatch(error: Error) { this.props.runtime.fail(error.message) }
+  render() { return this.state.failed ? null : this.props.children }
+}
+export function GameViewport({ screen, runtime, map }: { screen: Screen; runtime: SimulationRuntime; map: LoadedMap }) {
+  const { state } = useCase()
+  const scenario=useSyncExternalStore(runtime.subscribeScenario,runtime.getScenarioSnapshot)
+  const scenarioView=screen==='xray'&&scenario.status!=='IDLE'
+  const recorded = screen === 'xray'&&!scenarioView ? state.frames[state.selected] : undefined
+  const readState = useCallback(() => recorded?.plant ?? runtime.readVehicleState(), [recorded, runtime])
+  const readPrevious = useCallback(() => recorded?.plant ?? runtime.readPreviousPose(), [recorded, runtime])
+  const readAlpha = useCallback(() => recorded?.plant ? 1 : runtime.readInterpolationAlpha(), [recorded, runtime])
+  const celebrating = useRaceHud((state) => state.raceFinished)
+  const presentedPose = useRef(createVehiclePose())
+  const readPresentedPose = useCallback(() => presentedPose.current, [])
+  const racing = screen === 'race'
+  const liveMonitor = screen === 'xray'
+  const drivingView = racing || liveMonitor
+  const hasSession = drivingView || screen === 'debrief'
+  const mode = drivingView ? 'chase' : 'menu'
+  return <Suspense fallback={<div className="viewport-fallback">3D 장면 불러오는 중…</div>}>
+    <RaceViewport mode={mode} active={drivingView}>
+      {hasSession && <PhysicsBoundary runtime={runtime}>
+        <Suspense fallback={null}><RapierWorld runtime={runtime} map={map} /></Suspense>
+      </PhysicsBoundary>}
+      {drivingView && <>
+        <MapRenderer map={map.definition} />
+        <ScenarioLeadVehicleRenderer readPose={runtime.readScenarioLeadVehiclePose}/>
+        <VehicleRenderer readState={readState} readPreviousPose={readPrevious}
+          readAlpha={readAlpha} presentedPose={presentedPose.current}
+          originOffsetY={phase2Physics.visualOriginOffsetY} readSteering={() => recorded?.steering ?? runtime.driverInput.getState().steering} celebrating={celebrating} />
+        <FollowCamera readPose={readPresentedPose} readState={readState} />
+        <VehicleShadowLight readPose={readPresentedPose} />
+      </>}
+    </RaceViewport>
+  </Suspense>
+}
