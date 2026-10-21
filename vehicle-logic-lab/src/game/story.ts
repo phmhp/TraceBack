@@ -4,7 +4,7 @@ import { verify, rating } from '../engine/verification.ts'
 import type { Save, StoragePort } from '../progress/storage.ts'
 import type { TestResult } from '../engine/types.ts'
 export const STORY_KEY = 'vehicle-logic-lab.story.v3'
-export const SCENES = ['title','intro','arrival','garage','observe','inside','build','test','reward','map'] as const
+export const SCENES = ['title','intro','arrival','garage','observe','inside','build','test','reward','map','powertrain','workshop','campaign'] as const
 export type Scene = typeof SCENES[number]
 export interface Story {
   version: 3; lab: Save; scene: Scene; mission: number; lesson: number;

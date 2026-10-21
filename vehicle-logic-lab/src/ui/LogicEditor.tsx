@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react'
+import { useEffect,useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
 import { BLOCKS, valueKey } from '../engine/registry.ts'
 import { connect } from '../engine/graph.ts'
 import type { Block, BlockKind, Graph, Snapshot } from '../engine/types.ts'
 import { INPUTS, OUTPUTS, STATES } from '../content/ready.ts'
 import { BlockSymbol } from '../game/GuidedBoard'
+import {anchoredZoom,clampZoom,routedWire,signalCone} from '../engineering/workspace'
 
 const WIDTH = 192
 const portY = (i: number) => 67 + i * 30
@@ -20,6 +21,8 @@ export function LogicEditor({ graph, snapshot, allowed, onChange, failedNodes }:
   const history = useRef<{ past: Graph[]; future: Graph[] }>({ past: [], future: [] })
   const viewport = useRef<HTMLDivElement>(null)
   const pan = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
+  const zoomRef=useRef(zoom);zoomRef.current=zoom
+  useEffect(()=>{const el=viewport.current;if(!el)return;const wheel=(e:WheelEvent)=>{e.preventDefault();const r=el.getBoundingClientRect(),old=zoomRef.current,next=clampZoom(old*Math.exp(-e.deltaY*.0015)),scroll=anchoredZoom(old,next,{x:el.scrollLeft,y:el.scrollTop},{x:e.clientX-r.left,y:e.clientY-r.top});zoomRef.current=next;setZoom(next);requestAnimationFrame(()=>{el.scrollLeft=scroll.x;el.scrollTop=scroll.y})};el.addEventListener('wheel',wheel,{passive:false});return()=>el.removeEventListener('wheel',wheel)},[])
   const maxX = Math.max(1200, ...graph.nodes.map(n => n.x + WIDTH + 60))
   const maxY = Math.max(700, ...graph.nodes.map(n => n.y + 210))
   const position = (node: Block) => drag?.id === node.id ? { x: drag.left, y: drag.top } : node
@@ -57,11 +60,12 @@ export function LogicEditor({ graph, snapshot, allowed, onChange, failedNodes }:
     } catch (error) { setMessage(error instanceof Error ? error.message : '연결할 수 없습니다.'); setPending(undefined) }
   }
   const dragStart = (e: PointerEvent, node: Block) => {
-    if (e.button !== 0) return
-    e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId)
+    if (e.button !== 0 && e.button !== 2) return
+    e.preventDefault(); e.stopPropagation(); e.currentTarget.setPointerCapture(e.pointerId)
     setSelected(node.id); setDrag({ id: node.id, mouseX: e.clientX, mouseY: e.clientY, x: node.x, y: node.y, left: node.x, top: node.y })
   }
   const selectedNode = graph.nodes.find(n => n.id === selected)
+  const focused=selected?signalCone(graph.edges,selected):failedNodes.length?signalCone(graph.edges,failedNodes[0]):undefined
   return <div className="editor-shell">
     <aside className="toolbox"><div className="panel-label">블록 라이브러리</div><p>클릭해서 추가</p>
       {allowed.map(kind => <button className={`tool tool-${kind}`} key={kind} onClick={() => add(kind)}><span className="tool-icon">{({ input: '↗', and: '&', or: '≥1', not: '!', state: '◉', transition: '⇢', output: '↘' })[kind]}</span><span><b>{BLOCKS[kind].name}</b><small>{BLOCKS[kind].help}</small></span><i>+</i></button>)}
@@ -77,7 +81,7 @@ export function LogicEditor({ graph, snapshot, allowed, onChange, failedNodes }:
       <header className="canvas-toolbar"><span><i className="status-dot"/> LOGIC CANVAS</span><div><button onClick={undo} disabled={!history.current.past.length} title="되돌리기 Ctrl+Z" aria-label="되돌리기">↶</button><button onClick={redo} disabled={!history.current.future.length} title="다시 실행 Ctrl+Shift+Z" aria-label="다시 실행">↷</button><em/>
         <button onClick={() => setZoom(z => Math.max(.25, z - .1))} aria-label="축소">−</button><output>{Math.round(zoom * 100)}%</output><button onClick={() => setZoom(z => Math.min(1.5, z + .1))} aria-label="확대">+</button>
         <button onClick={() => { const el = viewport.current!; setZoom(Math.max(.25, Math.min(1, (el.clientWidth - 30) / maxX, (el.clientHeight - 30) / maxY))); el.scrollTo(0, 0) }}>화면 맞춤</button></div></header>
-      <div className="logic-viewport" ref={viewport} tabIndex={0} aria-label="블록 작업 공간. 빈 공간 드래그로 이동" onPointerDown={e => {
+      <div className="logic-viewport" onContextMenu={e=>e.preventDefault()} ref={viewport} tabIndex={0} aria-label="블록 작업 공간. 빈 공간 드래그로 이동" onPointerDown={e => {
         if ((e.target as Element).closest('.logic-node,.wire-hit')) return
         if (e.button !== 0) return
         const el = e.currentTarget; pan.current = { x: e.clientX, y: e.clientY, left: el.scrollLeft, top: el.scrollTop }; el.setPointerCapture(e.pointerId); setSelected(undefined)
@@ -90,9 +94,9 @@ export function LogicEditor({ graph, snapshot, allowed, onChange, failedNodes }:
               const a = position(from), b = position(to)
               const outIndex = BLOCKS[from.kind]?.outputs.findIndex(p => p.id === edge.out) ?? -1, inIndex = BLOCKS[to.kind]?.inputs.findIndex(p => p.id === edge.in) ?? -1
               const x = a.x + WIDTH, y = a.y + portY(outIndex), endY = b.y + portY(inIndex)
-              const d = `M ${x} ${y} C ${x + 100} ${y}, ${b.x - 100} ${endY}, ${b.x} ${endY}`
+              const d = routedWire({x,y},{x:b.x,y:endY},graph.edges.indexOf(edge),maxY)
               const active = snapshot.values[valueKey(from.id, edge.out)] === true
-              return <g key={edge.id} className={`${active ? 'energized' : ''} ${selected === edge.id ? 'selected-wire' : ''}`}>
+              return <g key={edge.id} className={`${active ? 'energized' : ''} ${selected === edge.id ? 'selected-wire' : ''} ${focused&&!focused.edges.has(edge.id)?'wire-muted':''}`}>
                 <path className="wire" d={d}/><path className="wire-hit" d={d} tabIndex={0} role="button" aria-label={`${from.label}에서 ${to.label} ${BLOCKS[to.kind].inputs[inIndex]?.label} 연결선 선택`} onClick={() => setSelected(edge.id)} onKeyDown={e => { if (e.key === 'Enter') setSelected(edge.id) }}/>
               </g>
             })}

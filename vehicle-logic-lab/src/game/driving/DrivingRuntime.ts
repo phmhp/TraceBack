@@ -10,9 +10,10 @@ export class LearnerVehicleSw extends WasmVehicleSw {
   constructor(module: WebAssembly.Module, allowed: () => boolean) { super(module, calibration); this.allowed = allowed }
   override step(input: VehicleSwInput) { const enabled = this.allowed(); return super.step({ ...input, vehicleReady: enabled, propulsionEnable: enabled }) }
 }
-export function createDrivingRuntime(module: WebAssembly.Module, allowed: () => boolean, publish: (t: RaceTelemetry) => void) {
+export function createDrivingRuntime(module: WebAssembly.Module, allowed: () => boolean, publish: (t: RaceTelemetry) => void,ceiling?:()=>number|undefined) {
   const runtime = new SimulationRuntime(calibration, publish, undefined, new LearnerVehicleSw(module, allowed))
   runtime.configureReadyGate(allowed)
+  if(ceiling)runtime.configureTeachingTorqueCeiling(ceiling)
   return runtime
 }
 export const drivingWorld: WorldPhysicsDefinition = {

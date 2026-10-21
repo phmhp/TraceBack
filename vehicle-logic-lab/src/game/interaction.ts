@@ -1,11 +1,13 @@
 import type { Graph, Mission, Snapshot, ValueType } from '../engine/types.ts'
 import { BLOCKS } from '../engine/registry.ts'
-import { LogicSimulation } from '../engine/simulation.ts'
+import {verify} from '../engine/verification.ts'
 
-export type Look = { yaw: number; pitch: number }
-export const lookPresets: Record<string, Look> = { road: { yaw: 0, pitch: -.08 }, pedals: { yaw: -.12, pitch: -.92 }, gear: { yaw: -.72, pitch: -.65 } }
+export type Look = { yaw: number; pitch: number; zone?:'pedals'|'gear' }
+export const lookPresets: Record<string, Look> = { road: { yaw: 0, pitch: -.08 }, pedals: { yaw: 0, pitch: -.44,zone:'pedals' }, gear: { yaw: -.72, pitch: -.65,zone:'gear' } }
+/** Footwell is a translated cutaway camera, not a steeper view blocked by the wheel. */
+export function cameraOffsetForLook(look:Look):[number,number,number]{return look.zone==='pedals'?[0,.92,.3]:[0,1.27,.52]}
 export function moveLook(look: Look, dx: number, dy: number): Look {
-  return { yaw: Math.max(-1.15, Math.min(1.15, look.yaw - dx * .004)), pitch: Math.max(-1.15, Math.min(.24, look.pitch - dy * .004)) }
+  return { ...look,yaw: Math.max(-1.15, Math.min(1.15, look.yaw - dx * .004)), pitch: Math.max(-1.15, Math.min(.24, look.pitch - dy * .004)) }
 }
 export type Socket = { node: string; port: string; direction: 'in' | 'out'; type: ValueType }
 export function matchingSockets(a: Socket, b: Socket) { return a.node !== b.node && a.direction !== b.direction && a.type === b.type }
@@ -19,13 +21,6 @@ export function socketsFor(graph: Graph): Socket[] {
 }
 /** Display playback uses the same evaluator as the verdict; no animation-based pass. */
 export function trialTrace(graph: Graph, mission: Mission, id: string) {
-  const scenario = mission.scenarios.find(s => s.id === id)
-  if (!scenario) return []
-  const sim = new LogicSimulation(scenario.initial, mission.mode)
-  return scenario.steps.map((expected, index) => {
-    const actual = sim.step(graph, expected.inputs)
-    const pass = !actual.issues.length && actual.state === expected.state && mission.requiredOutputs.every(key => key in actual.outputs) && Object.entries(expected.outputs).every(([key, value]) => actual.outputs[key] === value)
-    return { index, expected, actual, pass }
-  })
+  return verify(graph,mission).find(row=>row.id===id)?.trace??[]
 }
 export function driveGate(snapshot: Pick<Snapshot, 'state' | 'outputs' | 'issues'>) { return !snapshot.issues.length && snapshot.state === 'READY' && snapshot.outputs.drive === true }

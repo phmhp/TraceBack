@@ -64,6 +64,8 @@ export interface SimulationPropulsionCalibration {
 
 export type RaceStatus = 'idle' | 'loading' | 'running' | 'paused' | 'error'
 export interface RaceTelemetry {
+  physicsCommand?:{driveForceN:number;brakeForceN:number;frontWheelAngleRad:number}
+  appliedDriveForceN?:number
   vehicleSw: VehicleSwSnapshot | null
   kind: 'LIVE_SIMULATION'
   speedKmh: number
@@ -153,6 +155,8 @@ export class SimulationRuntime {
   private readyGate: (()=>boolean) | null = null
   /** Optional educational adapter. Defaults preserve the original runtime path. */
   configureReadyGate(reader: ()=>boolean) { this.readyGate = reader }
+  private teachingTorqueCeiling:(()=>number|undefined)|null=null
+  configureTeachingTorqueCeiling(reader:()=>number|undefined){this.teachingTorqueCeiling=reader}
   private finish: { x: number; z: number; heading: number } | null = null
   private route: readonly {x:number;z:number}[] = []
   configureRoute(points: readonly {x:number;z:number}[]) { this.route = points }
@@ -594,7 +598,7 @@ export class SimulationRuntime {
         source: this.vehicleSw.source, step: ++this.executionStep,
         executionTime: (this.executionStep - 1) * PHYSICS_TIMESTEP, periodSeconds: PHYSICS_TIMESTEP,
         input: swInput, output: swOutput,
-        calibrationReference: 'TRACKBACK_SIMULATION_CALIBRATION_V0_1', calibration: calibrationSlots(this.calibration),
+        calibrationReference: this.vehicleSw.calibrationReference ?? 'TRACKBACK_SIMULATION_CALIBRATION_V0_1', calibration: calibrationSlots(this.calibration),
       }
       this.platformExecutionOutput=this.platformExecution.step({releaseIndex:this.executionStep,scheduledTimeSeconds:this.swSnapshot.executionTime,actualTimeSeconds:tickTime,periodSeconds:PHYSICS_TIMESTEP,completed:true})
       this.gearReactionOutput=this.gearReactionExecution.step({requestedGear:input.gearRequest,actualGear:swOutput.gearState,requestValidity:input.gearRequestValidity,stateValidity:swOutput.gearStateValidity,transitionAccepted:swOutput.transitionAccepted})
@@ -634,6 +638,8 @@ export class SimulationRuntime {
         this.command.brakeForce = Math.min(4200, Math.max(0, this.finishElapsed - 0.75) * 1500)
       }
       this.copyPreviousPose()
+      const trainingCeiling=this.teachingTorqueCeiling?.()
+      if(trainingCeiling!==undefined){const cap=Number.isFinite(trainingCeiling)?Math.max(0,Math.min(180,trainingCeiling)):0;this.command.driveForce=Math.sign(this.command.driveForce)*Math.min(Math.abs(this.command.driveForce),cap*this.calibration.torqueToForce.value)}
       this.physics.step(this.command, PHYSICS_TIMESTEP)
       // Keep post-finish coast/braking physical, but freeze the official race time at the crossing tick.
       if (!this.raceFinished) this.clock.step()
@@ -685,6 +691,8 @@ export class SimulationRuntime {
     const input = this.driverInput.getState()
     this.publish({
       vehicleSw: this.swSnapshot ? structuredClone(this.swSnapshot) : null,
+      physicsCommand:{driveForceN:this.command.driveForce,brakeForceN:this.command.brakeForce,frontWheelAngleRad:this.command.steering},
+      ...(this.teachingTorqueCeiling?{appliedDriveForceN:this.command.driveForce}:{}),
       kind: 'LIVE_SIMULATION', speedKmh: this.vehicle.speed * 3.6,
       simulationTime: this.clock.currentTime,
       accelerator: input.accelerator, acceleratorValidity: input.acceleratorValidity, brake: input.brake, steering: input.steering,

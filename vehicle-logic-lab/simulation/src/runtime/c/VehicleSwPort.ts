@@ -22,7 +22,8 @@ export interface VehicleSwOutput {
   eDriveCommand: EDriveCommand
 }
 export interface VehicleSwPort {
-  readonly source: 'C_WASM' | 'TS_LEGACY_REFERENCE'
+  readonly source: 'C_WASM' | 'TS_LEGACY_REFERENCE' | 'TRAINING_COMPOSED'
+  readonly calibrationReference?: string
   reset(): void
   setCaseVariant?(variant: 0 | 1 | 2 | 3): void
   step(input: VehicleSwInput): VehicleSwOutput

@@ -25,7 +25,9 @@ export class RapierVehiclePhysics implements VehiclePhysicsPort {
   private disposed = false
 
   constructor(rapier: typeof Rapier, world: World, stepWorld: (delta: number) => void,
-    worldDefinition: Readonly<WorldPhysicsDefinition>, surfaces: SurfaceInfoProvider) {
+    worldDefinition: Readonly<WorldPhysicsDefinition>, surfaces: SurfaceInfoProvider, options: Readonly<{massKg?:number}> = {}) {
+    const massKg=options.massKg??config.massKg
+    if(!Number.isFinite(massKg)||massKg<=0)throw new Error('Invalid vehicle mass')
     this.rapier=rapier
     this.world = world
     this.stepWorld = stepWorld
@@ -50,7 +52,7 @@ export class RapierVehiclePhysics implements VehiclePhysicsPort {
     )
     world.createCollider(rapier.ColliderDesc.cuboid(
       config.chassisHalfExtents.x, config.chassisHalfExtents.y, config.chassisHalfExtents.z,
-    ).setMass(config.massKg).setFriction(0.2).setRestitution(0), this.chassis)
+    ).setMass(massKg).setFriction(0.2).setRestitution(0), this.chassis)
     // Explicit arcade stabilization: yaw is free, pitch/roll are locked. Gravity/Y translation remain real.
     this.chassis.setEnabledRotations(false, true, false, true)
     this.controller = this.createController()

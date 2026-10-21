@@ -1,22 +1,51 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
-import { lookPresets, moveLook, matchingSockets, socketWire, socketsFor, trialTrace, driveGate } from '../src/game/interaction.ts'
+import { lookPresets, moveLook, cameraOffsetForLook, matchingSockets, socketWire, socketsFor, trialTrace, driveGate } from '../src/game/interaction.ts'
 import { referenceGraph, MISSIONS, starter } from '../src/content/ready.ts'
 import { verify } from '../src/engine/verification.ts'
 import { connect } from '../src/engine/graph.ts'
 import { createDrivingRuntime, LearnerVehicleSw, drivingWorld, drivingSurfaces } from '../src/game/driving/DrivingRuntime.ts'
 import { RapierVehiclePhysics } from '../simulation/src/physics/rapier/RapierVehiclePhysics.ts'
 import Rapier from '@dimforge/rapier3d-compat'
+const wasm = await WebAssembly.compile(await readFile(new URL('../simulation/src/runtime/c/generated/vehicle-sw.wasm', import.meta.url)))
 
 test('look movement is clamped, independent of driving, with pedal/gear presets', () => {
-  assert.ok(lookPresets.pedals.pitch < -.7)
+  assert.equal(lookPresets.pedals.zone, 'pedals')
+  const footwell=cameraOffsetForLook(lookPresets.pedals)
+  assert.ok(footwell[1] < 1 && footwell[1] > .8)
+  const pedalCenterPitch=Math.atan2(.52-footwell[1],footwell[2]+.55)
+  assert.ok(Math.abs(pedalCenterPitch-lookPresets.pedals.pitch)<.03)
+  assert.ok(cameraOffsetForLook(lookPresets.road)[1] > 1)
+  assert.equal(moveLook(lookPresets.pedals, 10, 10).zone, 'pedals')
   assert.ok(Math.abs(lookPresets.gear.yaw) > .5)
   for (const [dx, dy] of [[1e6, 1e6], [-1e6, -1e6]]) {
     const look = moveLook(lookPresets.road, dx, dy)
     assert.ok(look.yaw >= -1.15 && look.yaw <= 1.15)
     assert.ok(look.pitch >= -1.15 && look.pitch <= .24)
   }
+})
+
+test('additional teaching torque ceiling clamps real physical force without rewriting C command telemetry', async () => {
+  await Rapier.init()
+  const world = new Rapier.World({ x: 0, y: -9.81, z: 0 })
+  const physics = new RapierVehiclePhysics(Rapier, world, dt => { world.timestep = dt; world.step() }, drivingWorld, drivingSurfaces)
+  let cap = 40, telemetry
+  const runtime = createDrivingRuntime(wasm, () => true, t => { telemetry = t }, () => cap)
+  const detach = runtime.attach(physics)
+  const advance = () => { for (let i = 0; i < 120; i++) runtime.advance(1 / 60) }
+  try {
+    runtime.start(); runtime.driverInput.setAccelerator(.8); advance()
+    assert.ok(telemetry.eDriveCommand.magnitudeNm > 40)
+    assert.ok(Math.abs(telemetry.appliedDriveForceN - 400) < 1e-6)
+    assert.ok(telemetry.speedKmh > 0)
+    cap = 0; advance()
+    assert.equal(telemetry.appliedDriveForceN, 0)
+    assert.ok(telemetry.eDriveCommand.magnitudeNm > 40)
+    cap = NaN; advance(); assert.equal(telemetry.appliedDriveForceN, 0)
+    cap = -20; advance(); assert.equal(telemetry.appliedDriveForceN, 0)
+    cap = undefined; advance(); assert.ok(telemetry.appliedDriveForceN > 400)
+  } finally { runtime.pause(); detach(); physics.dispose(); world.free() }
 })
 test('click-click supports either order, rejects same-side/type, and preserves graph validation', () => {
   const graph = starter(), sockets = socketsFor(graph)
@@ -39,7 +68,6 @@ test('replay samples use real evaluator and agree with independent official verd
   assert.equal(driveGate({ state: 'READY', outputs: { drive: true }, issues: [] }), true)
   assert.equal(driveGate({ state: 'READY', outputs: { drive: true }, issues: [{}] }), false)
 })
-const wasm = await WebAssembly.compile(await readFile(new URL('../simulation/src/runtime/c/generated/vehicle-sw.wasm', import.meta.url)))
 test('learner gate reaches C inputs before torque computation, not just a lamp', () => {
   let ready = false
   const sw = new LearnerVehicleSw(wasm, () => ready)
