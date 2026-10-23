@@ -1,7 +1,7 @@
 /** TRAINING-DRIVE-1: fictional EV specification. Not OEM calibration or AUTOSAR BSW. */
-export type Unit='%'|'ms'|'Nm'|'flag'
-export type Signal=number|boolean
-export type Kind='source'|'sensor'|'gain'|'limit'|'permit'|'rate'|'sink'
+export type Unit='%'|'ms'|'Nm'|'flag'|'gear'
+export type Signal=number|boolean|'P'|'R'|'N'|'D'
+export type Kind='source'|'sensor'|'gain'|'limit'|'permit'|'rate'|'sink'|'gearCompare'|'brakeCompare'|'all'
 export type EPort={id:string;label:string;unit:Unit}
 export type ENode={id:string;kind:Kind;label:string;parameters:Record<string,number>}
 export type EWire={id:string;from:string;out:string;to:string;in:string}
@@ -10,7 +10,10 @@ export type TorqueInput={pedalA:number;pedalB:number;ageMs:number;brakePct:numbe
 export type TorqueFrame={values:Record<string,Signal>;torqueNm:number;issues:{message:string;nodes:string[]}[];permitted:boolean;targetNm:number}
 const port=(id:string,label:string,unit:Unit):EPort=>({id,label,unit})
 export const E_BLOCKS:Record<Kind,{name:string;inputs:EPort[];outputs:EPort[];parameters:{key:string;label:string;unit:string;min:number;max:number;step:number}[]}>={
- source:{name:'입력·운전 조건',inputs:[],outputs:[port('a','페달 A','%'),port('b','페달 B','%'),port('age','신호 나이','ms'),port('ready','READY','flag'),port('forward','D 기어','flag'),port('brake','브레이크','%'),port('cap','가용 상한','Nm')],parameters:[]},
+ source:{name:'입력·운전 조건',inputs:[],outputs:[port('a','페달 A','%'),port('b','페달 B','%'),port('age','신호 나이','ms'),port('ready','READY','flag'),port('forward','D 기어','flag'),port('gear','GearState','gear'),port('brake','브레이크','%'),port('cap','가용 상한','Nm')],parameters:[]},
+ gearCompare:{name:'기어 비교',inputs:[port('gear','GearState','gear')],outputs:[port('forward','전진 조건','flag')],parameters:[{key:'equals',label:'비교 기어 (P=0 R=1 N=2 D=3)',unit:'enum',min:0,max:3,step:1}]},
+ brakeCompare:{name:'브레이크 비교',inputs:[port('brake','BrakePct','%')],outputs:[port('clear','제동 미개입','flag')],parameters:[{key:'brakeAt',label:'구동 차단 경계',unit:'%',min:0,max:100,step:1}]},
+ all:{name:'구동 허용 AND',inputs:[port('valid','센서 정상','flag'),port('ready','READY','flag'),port('forward','전진 조건','flag'),port('clear','제동 미개입','flag')],outputs:[port('allow','구동 허용','flag')],parameters:[]},
  sensor:{name:'신호 품질 검사',inputs:[port('a','채널 A','%'),port('b','채널 B','%'),port('age','신호 나이','ms')],outputs:[port('pedal','유효 페달','%'),port('valid','품질 정상','flag')],parameters:[{key:'delta',label:'채널 허용차',unit:'%p',min:0,max:50,step:1},{key:'maxAge',label:'유효 시간',unit:'ms',min:0,max:1000,step:10}]},
  gain:{name:'요청 토크 변환',inputs:[port('pedal','페달','%')],outputs:[port('torque','요청 토크','Nm')],parameters:[{key:'gain',label:'변환 이득',unit:'Nm/%',min:0,max:10,step:.1}]},
  limit:{name:'가용 토크 제한',inputs:[port('request','요청','Nm'),port('cap','가용 상한','Nm')],outputs:[port('torque','제한 토크','Nm')],parameters:[]},
@@ -53,11 +56,15 @@ export class TorqueModel {
   const issues=validateTorqueGraph(g),values:Record<string,Signal>={}
   if(!Number.isFinite(dt)||dt<=0||dt>.1)issues.push({message:'실행 간격은 0초 초과 0.1초 이하여야 합니다.',nodes:[]})
   if(!Number.isFinite(input.capNm)||input.capNm<0||input.capNm>180)issues.push({message:'가용 토크 상한은 0~180 Nm로 정의된 시험 전제예요.',nodes:[]})
-  if(issues.length){this.reset();return{values,torqueNm:0,issues,permitted:false,targetNm:0}}
+  // Incomplete designs still expose upstream signals for learning; never apply their torque.
+  if(issues.some(i=>!i.message.includes('미연결'))){this.reset();return{values,torqueNm:0,issues,permitted:false,targetNm:0}}
   const done=new Set<string>()
   const run=(id:string)=>{if(done.has(id))return;const n=g.nodes.find(n=>n.id===id)!,args:Record<string,Signal>={};for(const e of g.edges.filter(e=>e.to===id)){run(e.from);args[e.in]=values[`${e.from}.${e.out}`]}const put=(p:string,v:Signal)=>{values[`${id}.${p}`]=v}
    switch(n.kind){
-    case 'source':put('a',input.pedalA);put('b',input.pedalB);put('age',input.ageMs);put('ready',input.ready);put('forward',input.gear==='D');put('brake',input.brakePct);put('cap',input.capNm);break
+    case 'source':put('a',input.pedalA);put('b',input.pedalB);put('age',input.ageMs);put('ready',input.ready);put('forward',input.gear==='D');put('gear',input.gear);put('brake',input.brakePct);put('cap',input.capNm);break
+    case 'gearCompare':put('forward',args.gear===['P','R','N','D'][n.parameters.equals]);break
+    case 'brakeCompare':put('clear',typeof args.brake==='number'&&Number.isFinite(args.brake)&&args.brake>=0&&args.brake<n.parameters.brakeAt);break
+    case 'all':put('allow',['valid','ready','forward','clear'].every(p=>args[p]===true));break
     case 'sensor':{const a=Number(args.a),b=Number(args.b),age=Number(args.age);const valid=Number.isFinite(a)&&Number.isFinite(b)&&Number.isFinite(age)&&a>=0&&a<=100&&b>=0&&b<=100&&age>=0&&age<=n.parameters.maxAge&&Math.abs(a-b)<=n.parameters.delta;put('valid',valid);put('pedal',valid?a:0);break}
     case 'gain':put('torque',Number(args.pedal)*n.parameters.gain);break
     case 'limit':put('torque',Math.max(0,Math.min(Number(args.request),Number(args.cap))));break
@@ -65,7 +72,7 @@ export class TorqueModel {
     case 'rate':{const before=this.previous.get(id)??0,target=Number(args.target),cap=Number(args.cap),difference=target-before,rate=difference>=0?n.parameters.rise:n.parameters.fall;const next=args.allow===true?Math.max(0,Math.min(cap,before+Math.sign(difference)*Math.min(Math.abs(difference),rate*dt))):0;this.previous.set(id,next);put('torque',next);break}
     case 'sink':put('torque',Number(args.torque));break
    }done.add(id)}
-  g.nodes.forEach(n=>run(n.id));const sink=g.nodes.find(n=>n.kind==='sink')!,permission=g.nodes.find(n=>n.kind==='permit'),limit=g.nodes.find(n=>n.kind==='limit');const command=Number(values[`${sink.id}.torque`]);if(!Number.isFinite(command)){this.reset();issues.push({message:'명령 계산 결과가 유한한 수치가 아니에요. 구동을 차단합니다.',nodes:[sink.id]})}return{values,torqueNm:issues.length?0:command,issues,permitted:!issues.length&&!!permission&&values[`${permission.id}.allow`]===true,targetNm:limit&&Number.isFinite(Number(values[`${limit.id}.torque`]))?Number(values[`${limit.id}.torque`]):0}
+  g.nodes.forEach(n=>run(n.id));const sink=g.nodes.find(n=>n.kind==='sink')!,permission=g.nodes.find(n=>n.kind==='permit'||n.kind==='all'),limit=g.nodes.find(n=>n.kind==='limit');const command=Number(values[`${sink.id}.torque`]);if(!Number.isFinite(command)){this.reset();issues.push({message:'명령 계산 결과가 유한한 수치가 아니에요. 구동을 차단합니다.',nodes:[sink.id]})}if(issues.length)this.reset();return{values,torqueNm:issues.length?0:command,issues,permitted:!issues.length&&!!permission&&values[`${permission.id}.allow`]===true,targetNm:limit&&Number.isFinite(Number(values[`${limit.id}.torque`]))?Number(values[`${limit.id}.torque`]):0}
  }
 }
 export function torqueFingerprint(g:EGraph){const text=JSON.stringify({spec:'TRAINING-DRIVE-1.0',nodes:[...g.nodes].sort((a,b)=>a.id.localeCompare(b.id)),edges:[...g.edges].map(({from,out,to,in:input})=>({from,out,to,in:input})).sort((a,b)=>JSON.stringify(a).localeCompare(JSON.stringify(b)))});let h=2166136261;for(const c of text){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return(h>>>0).toString(16)}

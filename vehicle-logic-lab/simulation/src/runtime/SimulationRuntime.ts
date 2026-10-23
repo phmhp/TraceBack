@@ -157,6 +157,9 @@ export class SimulationRuntime {
   configureReadyGate(reader: ()=>boolean) { this.readyGate = reader }
   private teachingTorqueCeiling:(()=>number|undefined)|null=null
   configureTeachingTorqueCeiling(reader:()=>number|undefined){this.teachingTorqueCeiling=reader}
+  private trainingChassis:((input:{brake:number;steering:number})=>{brakeForceN:number;wheelAngleRad:number}|undefined)|null=null
+  /** Application-level educational adapter; absent means unchanged production-reference path. */
+  configureTrainingChassis(reader:(input:{brake:number;steering:number})=>{brakeForceN:number;wheelAngleRad:number}|undefined){this.trainingChassis=reader}
   private finish: { x: number; z: number; heading: number } | null = null
   private route: readonly {x:number;z:number}[] = []
   configureRoute(points: readonly {x:number;z:number}[]) { this.route = points }
@@ -617,7 +620,10 @@ export class SimulationRuntime {
         recoveryObserved:this.currentFaultTelemetry?.recoveryState==='RESTORED',
       })
       this.propulsionSupervisionOutput=this.propulsionSupervisionExecution.step({propulsionRequest:this.propulsionRequest,driveTorqueRequest:this.driveTorqueRequest,eDriveCommand:this.eDriveCommand,fault:this.faultManagementOutput})
-      writeEDrivePhysicsCommand(eDriveDelivery.deliveredValue, this.calibration.torqueToForce.value, input.brake > 0, this.command)
+      const training=this.trainingChassis?.({brake:input.brake,steering:input.steering})
+      // In the opt-in learner path the authored interlock owns torque inhibition.
+      // A second raw-pedal gate here would contradict the model's declared threshold.
+      writeEDrivePhysicsCommand(eDriveDelivery.deliveredValue, this.calibration.torqueToForce.value, training?false:input.brake > 0, this.command)
       this.command.driveForce*=this.adasOutput.acc.driveScale
       const effectiveBrakeRequest=Math.max(input.brake,this.adasOutput.aeb.brakeOverride)
       const effectiveSteeringRequest=Math.max(-1,Math.min(1,input.steering+this.adasOutput.lka.steeringCorrection))
@@ -625,6 +631,7 @@ export class SimulationRuntime {
       const steeringOutput=this.steeringExecution.step({driverSteeringRequest:effectiveSteeringRequest,vehicleSpeedMps:this.vehicle.speed,validity:'VALID'})
       this.command.brakeForce=brakeOutput.brakeForceN
       this.command.steering=steeringOutput.frontWheelAngleRad
+      if(training){this.command.brakeForce=Number.isFinite(training.brakeForceN)?Math.max(0,Math.min(4200,training.brakeForceN)):0;this.command.steering=Number.isFinite(training.wheelAngleRad)?Math.max(-.48,Math.min(.48,training.wheelAngleRad)):0}
       const previousWheelDynamics=this.physics.readWheelDynamicsState?.()??[]
       const previousContactWheels=previousWheelDynamics.filter(item=>item.inContact)
       const slipDenominator=Math.max(1,Math.abs(this.vehicle.longitudinalVelocity))

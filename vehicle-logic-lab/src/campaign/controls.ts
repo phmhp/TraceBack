@@ -8,9 +8,9 @@ export function startControls(c:SceneControls,moving:boolean):SceneControls{
 }
 export function stopReason(c:SceneControls,hardware:boolean,phase:string,torque:number){
  if(!hardware)return'부품·ECU·배선이 아직 준비되지 않았어요.'
- if(!c.ready)return'시동 OFF · 브레이크 유지 → START 순서로 눌러요.'
+ if(!c.ready)return'시동 OFF · 브레이크 ON → START 순서로 눌러요.'
  if(c.gear!=='D')return`${c.gear} 기어 · D를 선택하세요.`
- if(c.brake>0)return'브레이크 유지 중 · 브레이크 해제를 눌러야 출발해요.'
+ if(c.brake>0)return'브레이크 ON · 스위치를 OFF로 바꾸면 출발할 수 있어요.'
  if(phase==='grid')return'출발 준비 완료 · 오른쪽 대회 출발을 눌러요.'
  if(c.accelerator===0)return'가속 대기 · ↑ 또는 가속 페달을 누르고 있어요.'
  if(torque===0)return'구동 명령 0 · 미연결 로직이나 허용 조건을 확인해요.'

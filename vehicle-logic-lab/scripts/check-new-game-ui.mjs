@@ -10,13 +10,19 @@ import {renderToStaticMarkup} from 'react-dom/server'
 import TestRenderer from '@react-three/test-renderer'
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..')
 const server=await createServer({root,configFile:false,cacheDir:mkdtempSync(join(tmpdir(),'momo-v7-ui-')),plugins:[react()],optimizeDeps:{noDiscovery:true,include:[],entries:[]},server:{middlewareMode:true},appType:'custom'})
+globalThis.sessionStorage={getItem(){return null},setItem(){}}
 globalThis.IS_REACT_ACT_ENVIRONMENT=true
 globalThis.self={requestAnimationFrame(){return 0},cancelAnimationFrame(){}}
 globalThis.localStorage={getItem(){return null},setItem(){}}
 try {
   const {default:Game}=await server.ssrLoadModule('/src/game/Game.tsx')
   const title=renderToStaticMarkup(React.createElement(Game))
-  assert.ok(title.includes('모모의 첫 대회 시작')&&title.includes('READY 기초 모험')&&!title.includes('<iframe'))
+  assert.ok(title.includes('시작하기')&&!title.includes('이어하기')&&!title.includes('내보내기')&&!title.includes('<iframe'))
+  assert.equal((title.match(/<button/g)??[]).length,1,'the main page has only Start')
+  globalThis.localStorage={getItem(){return '{"version":1,"scene":"campaign"}'},setItem(){}}
+  const savedTitle=renderToStaticMarkup(React.createElement(Game))
+  assert.ok(savedTitle.includes('시작하기')&&!savedTitle.includes('이어하기'),'old navigation does not bypass the main page')
+  globalThis.localStorage={getItem(){return null},setItem(){}}
   const {GuidedBoard}=await server.ssrLoadModule('/src/game/BoardV7.tsx')
   const {starter,MISSIONS}=await server.ssrLoadModule('/src/content/ready.ts')
   const {LESSONS}=await server.ssrLoadModule('/src/game/lessons.ts')
@@ -44,7 +50,18 @@ try {
     assert.equal(cabin.scene.findByProps({name:'driver-wheel'}).instance.visible,false)
     assert.equal(cabin.scene.findByProps({name:'driver-brake'}).instance.visible,true)
   }finally{await cabin.unmount()}
-  const {default:SystemStudio}=await server.ssrLoadModule('/src/game/SystemStudio.tsx')
+  const {CockpitPaws}=await server.ssrLoadModule('/src/campaign/CockpitPaws.tsx')
+ const paws=await TestRenderer.create(React.createElement(CockpitPaws,{t:{...INITIAL_TELEMETRY,steering:0,gearRequest:'P'}}))
+ try{
+   await paws.advanceFrames(5,1/60)
+   const left=paws.scene.findByProps({name:'momo-left-driving-paw'}).instance
+   const right=paws.scene.findByProps({name:'momo-right-driving-paw'}).instance
+   assert.ok(left.position.x<-.45&&right.position.x<.08,'paws meet actual wheel rim, not empty air')
+   await paws.update(React.createElement(CockpitPaws,{t:{...INITIAL_TELEMETRY,steering:.5,gearRequest:'D'}}))
+   await paws.advanceFrames(12,1/60)
+   assert.ok(right.position.x>.35,'gear request animates hand towards selector')
+ }finally{await paws.unmount()}
+ const {default:SystemStudio}=await server.ssrLoadModule('/src/game/SystemStudio.tsx')
   const {newStory}=await server.ssrLoadModule('/src/game/story.ts')
   const atlas=renderToStaticMarkup(React.createElement(SystemStudio,{story:newStory(),onReady(){},onClose(){}}))
   for(const label of ['16개 영역','system-atlas-v7.png','심화 설계','참고 설계 · 미션 미구현','AUTOSAR','전체 차량 100% 구현을 뜻하지'])assert.ok(atlas.includes(label),label)

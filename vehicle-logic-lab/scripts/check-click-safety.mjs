@@ -10,7 +10,7 @@ import react from '@vitejs/plugin-react'
 import React,{act} from 'react'
 
 const dom=new JSDOM('<!doctype html><html><body><div id="root"></div></body></html>',{url:'http://unit.test/'})
-for(const key of ['window','document','localStorage','Element','HTMLElement','HTMLCanvasElement','Node','Event','MouseEvent'])globalThis[key]=dom.window[key]
+for(const key of ['window','document','localStorage','sessionStorage','Element','HTMLElement','HTMLCanvasElement','Node','Event','MouseEvent'])globalThis[key]=dom.window[key]
 globalThis.IS_REACT_ACT_ENVIRONMENT=true
 globalThis.self=dom.window
 globalThis.requestAnimationFrame=callback=>{callback(0);return 1}
@@ -27,7 +27,13 @@ const server=await createServer({root:rootPath,configFile:false,cacheDir:mkdtemp
  name:'dom-test-only-canvas-stub',enforce:'pre',
  resolveId(id){if(id==='/@unit/fiber')return '\0unit-fiber'},
  load(id){if(id==='\0unit-fiber')return "import React from 'react'; export {useFrame} from '@react-three/fiber'; export function Canvas(){return React.createElement('canvas',{'data-unit-canvas':true})}"},
- transform(code,id){if(/\/src\/(game\/(DriveExperience|SignalBench|TorqueAssembly|LearningVehicle)|workshop\/WorkshopScene)\.tsx$/.test(id.replaceAll('\\','/')))return code.replaceAll("from '@react-three/fiber'","from '/@unit/fiber'")},
+ transform(code,id){
+  const path=id.replaceAll('\\','/')
+  // Archived modules no longer have a title-menu entry. Mount their existing
+  // scene only in this regression harness; do not reintroduce a production menu.
+  if(path.endsWith('/src/game/Game.tsx')){assert.ok(code.includes("useState<Scene>(()=>readSessionPlay(sessionStorage,localStorage))"));return code.replace("useState<Scene>(()=>readSessionPlay(sessionStorage,localStorage))","useState<Scene>('workshop')")}
+  if(/\/src\/(game\/(DriveExperience|SignalBench|TorqueAssembly|LearningVehicle)|workshop\/WorkshopScene)\.tsx$/.test(path))return code.replaceAll("from '@react-three/fiber'","from '/@unit/fiber'")
+ },
 },react()],optimizeDeps:{noDiscovery:true,include:[],entries:[]},server:{middlewareMode:true},appType:'custom'})
 let root,errors=[]
 const host=document.getElementById('root')
@@ -56,9 +62,7 @@ try{
  console.log('PASS: real DriveExperience DOM handlers, rapid move/release under StrictMode (GPU mocked).')
  const {default:Game}=await server.ssrLoadModule('/src/game/Game.tsx')
  await mount(Game)
- await click(host.querySelector('.title-vignette'))
- await click(host.querySelector('.game-wordmark h1'))
- await click(button('자유 제작실 열기'))
+ console.log('Archived workshop mounted by test-only scene transform. Current Start-only title is covered by game-ui/campaign-ui.')
  await waitFor('.iw-mode-assembly')
  assert.ok(host.querySelector('.iw-mode-assembly'))
  const originalRaf=globalThis.requestAnimationFrame,originalCancel=globalThis.cancelAnimationFrame,callbacks=new Map();let rafId=0

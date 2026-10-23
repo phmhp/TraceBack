@@ -36,12 +36,12 @@ export function PartVisual({ id, ghost = false, spinning = false, cutaway=false,
       if (id.includes('Left') || id.includes('Right') || id === 'axle'||id==='brakes') spinner.current.rotation.x -= motorAngle / ratio
       else spinner.current.rotation.z += motorAngle
     }
-    if (shaft.current) shaft.current.rotation.z += motorAngle / ratio
+    if (shaft.current){if(id==='steeringRack')shaft.current.position.x=drive.current.steering*.45;else shaft.current.rotation.z += motorAngle / ratio}
   })
   const muted = ghost ? '#9bbd9c' : undefined
-  if(id==='vcu')return <group name="vehicle-control-ecu"><SoftBox size={[.62,.2,.48]} color={muted??'#8b80c6'} radius={.045}/>{[-.2,-.1,0,.1,.2].map(x=><Cuboid key={x} position={[x,.12,0]} size={[.035,.06,.42]} color={muted??'#c3b8e8'} ghost={ghost}/>)}<Cuboid position={[.34,0,0]} size={[.1,.12,.26]} color={muted??'#526a8e'} ghost={ghost}/>{!ghost&&<ChipBadge position={[0,.17,0]} small/>}</group>
+  if(id==='vcu')return <group name="vehicle-control-ecu">{cutaway&&<group position={[0,.24,0]}><Cuboid size={[.5,.035,.36]} color="#6e9d98"/>{[-.15,0,.15].map(x=><group key={x}><Cuboid position={[x,.04,0]} size={[.1,.055,.12]} color="#36596e"/>{[-.13,.13].map(z=><Cuboid key={z} position={[x,.035,z]} size={[.055,.04,.045]} color="#adc4ce"/>)}</group>)}</group>}<SoftBox size={[.62,.2,.48]} color={muted??'#8b80c6'} radius={.045}/>{[-.2,-.1,0,.1,.2].map(x=><Cuboid key={x} position={[x,.12,0]} size={[.035,.06,.42]} color={muted??'#c3b8e8'} ghost={ghost}/>)}<Cuboid position={[.34,0,0]} size={[.1,.12,.26]} color={muted??'#526a8e'} ghost={ghost}/>{!ghost&&<ChipBadge position={[0,.17,0]} small/>}</group>
   if (id === 'brakes') return <group><group ref={spinner}>{[-1,1].map(side=><group key={side} position={[side*1.05,0,0]}><Cylinder axis="x" radius={.27} length={.055} color={muted??'#b8c6c4'} ghost={ghost}/>{[0,1,2,3].map(n=><Cuboid key={n} position={[0,Math.sin(n*1.57)*.17,Math.cos(n*1.57)*.17]} size={[.065,.03,.03]} color="#758b9d"/>)}</group>)}</group><group ref={pads}>{[-1,1].map(side=><group key={side} position={[side*1.05,.14,.19]}><Cuboid size={[.17,.25,.19]} color={muted??'#d5819b'} ghost={ghost}/></group>)}</group><Cylinder axis="x" length={1.8} radius={.025} color={muted ?? '#c18b92'} ghost={ghost} /></group>
-  if (id === 'steeringRack') return <group><Cylinder axis="x" radius={.065} length={1.85} color={muted ?? '#a6bcb2'} ghost={ghost} /><Cuboid size={[.45, .22, .24]} color={muted ?? '#75a196'} ghost={ghost} />{[-1, 1].map(side => <Cylinder key={side} axis="z" position={[side * .97, -.05, -.1]} radius={.035} length={.35} color={muted ?? '#b9cbbb'} ghost={ghost} />)}{!ghost && <ChipBadge position={[0, 0, .13]} small />}</group>
+  if (id === 'steeringRack') return <group><group ref={shaft}><Cylinder axis="x" radius={.065} length={1.85} color={muted ?? '#a6bcb2'} ghost={ghost} /></group><Cuboid size={[.45, .22, .24]} color={muted ?? '#75a196'} ghost={ghost} />{[-1, 1].map(side => <Cylinder key={side} axis="z" position={[side * .97, -.05, -.1]} radius={.035} length={.35} color={muted ?? '#b9cbbb'} ghost={ghost} />)}{!ghost && <ChipBadge position={[0, 0, .13]} small />}</group>
   if (id === 'steeringWheel') return <group rotation={[-.5, 0, 0]}><mesh><torusGeometry args={[.25, .035, 10, 28]} /><PartMaterial color={muted ?? '#486e60'} ghost={ghost} /></mesh><Cuboid size={[.45, .04, .04]} color={muted ?? '#90a98c'} ghost={ghost} /><Cylinder position={[0, 0, .22]} radius={.045} length={.42} color={muted ?? '#b9cbbb'} ghost={ghost} /><Cuboid position={[.24, -.1, .15]} size={[.22, .17, .22]} color={muted ?? '#4788c2'} ghost={ghost} />{!ghost && <ChipBadge position={[.24, -.1, .27]} small />}</group>
   if (id === 'motor') return <group>
     {cutaway?<><mesh rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.31,.31,.61,40,1,true,0,Math.PI]}/><meshStandardMaterial color="#b9b7d2" side={2} metalness={.5} roughness={.3}/></mesh>{[-.2,0,.2].map(z=><mesh key={z} position={[0,0,z]}><torusGeometry args={[.25,.035,10,32]}/><meshStandardMaterial color="#db9369" metalness={.6} roughness={.3}/></mesh>)}</>:<Cylinder radius={.31} length={.61} color={muted ?? '#d39c58'} ghost={ghost} />}
@@ -69,14 +69,16 @@ export function PartVisual({ id, ghost = false, spinning = false, cutaway=false,
     {Array.from({ length: 5 }, (_, i) => <group key={i} rotation={[i * Math.PI * 2 / 5, 0, 0]}><Cuboid position={[0, .16, 0]} size={[.25, .2, .055]} color={muted ?? '#e3e6d8'} ghost={ghost} /></group>)}
     {!ghost && Array.from({ length: 20 }, (_, i) => <group key={i} rotation={[i * Math.PI / 10, 0, 0]}><Cuboid position={[0, .502, 0]} size={[.16, .018, .04]} color="#323e39" /></group>)}
   </group>
-  if (id === 'battery') return <group>
-    <Cuboid size={[1.03, .28, .84]} color={muted ?? '#89996e'} ghost={ghost} />
-    <Cuboid position={[0, .16, 0]} size={[1.07, .045, .88]} color={muted ?? '#a7b78c'} ghost={ghost} />
-    {[-.28, .28].map(x => <Cuboid key={x} position={[x, .19, 0]} size={[.055, .02, .86]} color={muted ?? '#6b7c55'} ghost={ghost} />)}
+  if (id === 'battery') return <group name="battery-pack-modules">
+    {cutaway&&<group position={[0,.19,0]}>{[-.33,-.11,.11,.33].flatMap(x=>[-.25,0,.25].map(z=><group key={x+','+z} position={[x,0,z]}><Cuboid size={[.17,.17,.2]} color="#7aaebf"/><Cuboid position={[0,.09,0]} size={[.11,.025,.16]} color="#cbe0ea"/></group>))}</group>}
+    <Cuboid size={[1.03, .28, .84]} color={muted ?? '#91aec5'} ghost={ghost} />
+    <Cuboid position={[0, cutaway?.53:.16, 0]} size={[1.07, .045, .88]} color={muted ?? '#c3d8e7'} ghost={ghost} />
+    {[-.28, .28].map(x => <Cuboid key={x} position={[x, .19, 0]} size={[.055, .02, .86]} color={muted ?? '#6f8fa9'} ghost={ghost} />)}
     <Cuboid position={[.4, .19, .28]} size={[.13, .12, .12]} color={muted ?? '#de9b4b'} ghost={ghost} />
-    <Cuboid position={[0, .185, 0]} size={[.2, .012, .18]} color={muted ?? '#e3d7a4'} ghost={ghost} />
+    <Cuboid position={[0, .185, 0]} size={[.2, .012, .18]} color={muted ?? '#ebf6ff'} ghost={ghost} />
   </group>
-  if (id === 'inverter') return <group>
+  if (id === 'inverter') return <group name="inverter-power-stage">
+    {[-.17,0,.17].map(z=><group key={z}><Cylinder position={[.37,0,z]} radius={.052} length={.15} axis="x" color={muted??'#dc9769'} ghost={ghost}/><Cylinder position={[-.35,-.05,z]} radius={.035} length={.12} axis="x" color={muted??'#8db5ca'} ghost={ghost}/></group>)}
     <Cuboid size={[.58, .3, .6]} color={muted ?? '#4788c2'} ghost={ghost} />
     {Array.from({ length: 7 }, (_, i) => <Cuboid key={i} position={[-.24 + i * .08, .19, 0]} size={[.025, .12, .5]} color={muted ?? '#83b4dc'} ghost={ghost} />)}
     <Cuboid position={[.32, 0, -.2]} size={[.12, .12, .14]} color={muted ?? '#e39c53'} ghost={ghost} />
@@ -95,7 +97,7 @@ export function Chassis({ paint = '#58766a' }: { paint?: string }) {
     {[-.72, .72].map(x => <SoftBox key={x} position={[x, .47, -.23]} size={[.16, .2, 3.16]} radius={.025} color={paint} metalness={.45} />)}
     {[-1.6, -.55, .5, 1.2].map(z => <SoftBox key={z} position={[0, .47, z]} size={[1.52, .14, .13]} radius={.025} color="#6f8c78" metalness={.4} />)}
     <Cuboid position={[0, .51, -1.25]} size={[1.3, .045, .95]} color="#9aa88a" />
-    {[-1, 1].map(sign => <group key={sign}>{[-1.3, .95].map(z => <group key={z}><Cylinder position={[sign * .91, .63, z]} axis="x" radius={.055} length={.54} color="#9fae9f" /><Cylinder position={[sign * .68, .72, z]} radius={.07} length={.35} axis="y" color="#c8ac6a" /></group>)}</group>)}
+    {[-1, 1].map(sign => <group key={sign}>{[-1.3, .95].map(z => <group key={z}><Cylinder position={[sign * .91, .63, z]} axis="x" radius={.055} length={.54} color="#9fae9f" /><group name="passive-suspension" position={[sign*.68,.72,z]}><Cylinder radius={.055} length={.4} axis="y" color="#93a7b8"/>{Array.from({length:6},(_,i)=><mesh key={i} position={[0,-.17+i*.065,0]} rotation={[Math.PI/2,0,0]} castShadow><torusGeometry args={[.105,.022,8,24]}/><meshStandardMaterial color="#d27675" metalness={.4} roughness={.3}/></mesh>)}</group></group>)}</group>)}
     <group position={[.15, .88, -1.05]} rotation={[0, 0, .1]}><Cuboid position={[0, 0, 0]} size={[.42, .12, .49]} color="#b99871" /><Cuboid position={[0, .2, .2]} size={[.42, .42, .1]} color="#b99871" /></group>
     <Cylinder position={[0, .55, -1.3]} axis="x" radius={.025} length={2.1} color="#b4c2b1" />
   </group>

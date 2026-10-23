@@ -14,6 +14,7 @@ import { compileDrivingSw } from './driving/DrivingAssets'
 import { lookPresets, moveLook,cameraOffsetForLook } from './interaction'
 import type { Look } from './interaction'
 import { motorSound, sound } from './audio'
+import {CockpitPaws} from '../campaign/CockpitPaws'
 import {LearningVehicle} from './LearningVehicle'
 
 export type DriveSample = { speedKmh: number; distance: number; torqueNm: number }
@@ -35,10 +36,10 @@ function Track() {
     <group position={[0, 0, -90]}><SoftBox size={[23, .6, .6]} position={[0, 5, 0]} color="#7e94df"/>{[-10, 10].map(x => <SoftBox key={x} size={[.5, 5, .5]} position={[x, 2.5, 0]} color="#eaf5ff"/>)}</group>
   </>
 }
-export function Cabin({ t, power, gear, onPedal,footwell=false }: { t: RaceTelemetry; power?: () => void; gear: () => void; onPedal: (kind:'brake'|'accelerator', value:boolean)=>void;footwell?:boolean }) {
-  const wheel = useRef<Group>(null), pedal = useRef<Group>(null), accelerator = useRef<Group>(null)
-  useFrame((_, dt) => { const k = Math.min(1, dt * 12); if (wheel.current) wheel.current.rotation.z += (-t.steering * .8 - wheel.current.rotation.z) * k; if (pedal.current) pedal.current.rotation.x += (-t.brake * .65 - pedal.current.rotation.x) * k; if (accelerator.current) accelerator.current.rotation.x += (-t.accelerator * .5 - accelerator.current.rotation.x) * k })
-  return <group position={[0, -.65, 0]}>
+export function Cabin({ t, power, gear, onPedal,footwell=false,paws=false }: { t: RaceTelemetry; power?: () => void; gear: () => void; onPedal: (kind:'brake'|'accelerator', value:boolean)=>void;footwell?:boolean;paws?:boolean }) {
+  const wheel = useRef<Group>(null), pedal = useRef<Group>(null), accelerator = useRef<Group>(null),selector=useRef<Group>(null)
+  useFrame((_, dt) => { const k = Math.min(1, dt * 12);if(selector.current)selector.current.rotation.x+=(({P:-.18,R:-.06,N:.06,D:.18}[t.gearRequest])-selector.current.rotation.x)*k; if (wheel.current) wheel.current.rotation.z += (-t.steering * .8 - wheel.current.rotation.z) * k; if (pedal.current) pedal.current.rotation.x += (-t.brake * .65 - pedal.current.rotation.x) * k; if (accelerator.current) accelerator.current.rotation.x += (-t.accelerator * .5 - accelerator.current.rotation.x) * k })
+  return <group position={[0, -.65, 0]}>{paws&&<><CockpitPaws t={t}/>{[-1,1].map(s=><group key={s}><SoftBox size={[.08,.9,.12]} position={[s*.97,1.3,-.65]} rotation={[.15,0,0]} color="#e4d8d1" radius={.03}/><SoftBox size={[.12,.5,1.8]} position={[s*1.05,.7,.25]} color="#9d7e85" radius={.08}/></group>)}</>}
     <SoftBox size={[1.7, .12, 1.5]} position={[0, .3, .05]} color="#46677b"/>
     <SoftBox size={[1.9, .35, .48]} position={[0, 1.08, -.6]} color="#cbe5ed" radius={.13}/>
     <SoftBox size={[.67, .26, .05]} position={[-.22, 1.18, -.33]} color="#2c5268" radius={.06}/>
@@ -46,7 +47,7 @@ export function Cabin({ t, power, gear, onPedal,footwell=false }: { t: RaceTelem
     <group name="driver-wheel" visible={!footwell} ref={wheel} position={[-.24, 1.01, -.18]} rotation={[.3, 0, 0]}><mesh><torusGeometry args={[.32, .045, 16, 48]}/><meshPhysicalMaterial color="#284e65" clearcoat={.8}/></mesh><SoftBox size={[.58, .045, .05]} color="#a9c6d5"/><Blob scale={[.11, .1, .04]} color="#7bd6cd"/></group>
     {[-.3,.3].map(x=><group key={x} position={[x,.34,-.64]}><mesh rotation={[Math.PI/2,0,0]}><cylinderGeometry args={[.06,.06,.32,20]}/><meshStandardMaterial color="#b7cedc" metalness={.85}/></mesh>{[-.12,0,.12].map(z=><mesh key={z} position={[0,0,z]} rotation={[Math.PI/2,0,0]}><torusGeometry args={[.07,.015,8,20]}/><meshStandardMaterial color="#718da3" metalness={.7}/></mesh>)}</group>)}
     {[-.3, .3].map((x, i) => <group name={i?'driver-accelerator':'driver-brake'} key={i} position={[x, .34, -.55]} ref={i ? accelerator : pedal} onPointerDown={e=>{e.stopPropagation();onPedal(i?'accelerator':'brake',true)}} onPointerUp={e=>{e.stopPropagation();onPedal(i?'accelerator':'brake',false)}}><SoftBox size={[i ? .18 : .3, .45, .1]} position={[0, .18, 0]} color={i ? '#7ed7c5' : '#8ca8bf'} radius={.04}/>{[0, 1, 2, 3].map(j => <SoftBox key={j} size={[i ? .12 : .24, .02, .02]} position={[0, .04 + j * .09, .06]} color="#e5f5ff" radius={.005}/>)}</group>)}
-    <group position={[.64, .65, .28]} onClick={e => { e.stopPropagation(); gear() }}><SoftBox size={[.27, .22, .5]} color="#dbeaf2"/><SoftBox size={[.04, .3, .04]} position={[0, .23, 0]} color="#657f94"/><Blob position={[0, .4, 0]} scale={[.12, .08, .12]} color="#2d5c78"/></group>
+    <group name="driver-gear-selector" ref={selector} position={[.64, .65, .28]} onClick={e => { e.stopPropagation(); gear() }}><SoftBox size={[.27, .22, .5]} color="#dbeaf2"/><SoftBox size={[.04, .3, .04]} position={[0, .23, 0]} color="#657f94"/><Blob position={[0, .4, 0]} scale={[.12, .08, .12]} color="#2d5c78"/></group>
     <group position={[.67, 1.16, -.27]} onClick={e => { e.stopPropagation(); power?.() }}><mesh rotation={[Math.PI / 2, 0, 0]}><cylinderGeometry args={[.09, .09, .045, 32]}/><meshStandardMaterial color="#31c7b5" metalness={.4}/></mesh></group>
   </group>
 }

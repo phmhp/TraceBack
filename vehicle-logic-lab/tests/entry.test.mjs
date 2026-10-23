@@ -6,9 +6,10 @@ const source = path => readFile(new URL(path, import.meta.url), 'utf8')
 
 test('new game is the primary entry, not a redirect into the legacy campaign', async () => {
   const game = await source('../src/game/Game.tsx')
-  assert.ok(game.includes("go('campaign')")&&game.includes('모모의 첫 대회 시작'))
-  assert.match(game, /onClick=\{start\}>READY 기초 모험 새로 시작/)
-  assert.match(game, /const start=\(\)=>\{[\s\S]*?setScene\('intro'\)/)
+  assert.match(game, /onClick=\{start\}>시작하기/)
+  assert.match(game, /const start=\(\)=>\{[\s\S]*?startNewCampaign\(localStorage\)[\s\S]*?setScene\('campaign'\)/)
+  assert.match(game, /useState<Scene>\(\(\)=>readSessionPlay\(sessionStorage,localStorage\)\)/)
+  assert.doesNotMatch(game, /hasCampaignSave|exportSave|importSave|모험 이어하기|진행 내보내기/)
   assert.doesNotMatch(game, /CampaignHost|setCampaign|<iframe|선택 학습|본편 시작/)
   for (const scene of ['campaign','intro', 'arrival', 'garage', 'observe', 'inside', 'build', 'test', 'reward']) {
     assert.ok(game.includes(`scene==='${scene}'`), scene)

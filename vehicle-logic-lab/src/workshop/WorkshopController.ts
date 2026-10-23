@@ -9,7 +9,9 @@ import type {TorqueFrame,TorqueInput} from '../engineering/torqueModel.ts'
 import {hardwareReady,MECHANICS} from './model.ts'
 import {ecuReady} from './assembly.ts'
 import type {WorkshopRecord} from './model.ts'
-export type WorkshopControls={ready:boolean;brake:number;channelOffset:number;ageMs:number;capNm:number;ecuRequired?:boolean}
+import {executeVehicle} from '../campaign/domainTraining.ts'
+import type {Designs} from '../campaign/domainTraining.ts'
+export type WorkshopControls={ready:boolean;brake:number;channelOffset:number;ageMs:number;capNm:number;ecuRequired?:boolean;injected?:TorqueInput;domainDesigns?:Designs}
 export class WorkshopController implements VehicleSwPort{
  readonly source='TRAINING_COMPOSED' as const
  readonly calibrationReference='TRAINING-DRIVE-1.0 / 7:1 / 0.9 / 0.425m'
@@ -25,16 +27,17 @@ export class WorkshopController implements VehicleSwPort{
   const baseline=this.c.step({...input,vehicleReady:allowed,propulsionEnable:allowed}),hash=torqueFingerprint(record.graph)+JSON.stringify(record.assembly)+[...record.cables].sort().join(',')
   if(this.hash!==hash){this.distance=0;this.brakeUsed=false;this.model.reset();this.accumulator=0;this.frame={values:{},issues:[],torqueNm:0,targetNm:0,permitted:false};this.hash=hash}
   const pedal=input.acceleratorPedalPosition*100
-  this.input={pedalA:pedal,pedalB:pedal+controls.channelOffset,ageMs:controls.ageMs,brakePct:controls.brake*100,ready:allowed,gear:baseline.gearState,capNm:controls.capNm}
+  this.input=controls.injected?{...controls.injected,ready:allowed&&controls.injected.ready}:{pedalA:pedal,pedalB:pedal+controls.channelOffset,ageMs:controls.ageMs,brakePct:controls.brake*100,ready:allowed,gear:baseline.gearState,capNm:controls.capNm}
   // One owner: the existing 60Hz physics clock schedules a 20ms sample/hold controller.
   this.accumulator+=PHYSICS_TIMESTEP
   while(this.accumulator+1e-10>=.02){this.frame=this.model.step(record.graph,this.input,.02);this.controlTicks++;this.accumulator-=.02}
   // Hardware/READY loss is an explicit interlock, never a post-physics cosmetic gate.
   if(!allowed){this.model.reset();this.frame={...this.frame,values:{...this.frame.values,'permission.allow':false,'dynamics.torque':0,'command.torque':0},torqueNm:0,permitted:false}}
+  if(controls.domainDesigns){const result=executeVehicle(controls.domainDesigns,{ready:allowed,pack:record.assembly.battery==='FIXED',pedal,brake:controls.brake*100,gear:baseline.gearState,steer:0,cap:controls.capNm}),command=result.integrated.output.torque;const value=allowed&&typeof command==='number'&&Number.isFinite(command)?Math.max(0,Math.min(controls.capNm,command)):0;this.frame={values:{'command.torque':value,'request.torque':Number(result.request.output.request)||0,'permission.allow':result.drive.output.allow===true},torqueNm:value,targetNm:Number(result.request.output.request)||0,permitted:result.drive.output.allow===true,issues:[]}}
   const torque=this.frame.torqueNm,direction=torque>0?'FORWARD':'NONE',validity=this.frame.issues.length?'INVALID':'VALID'
   if(allowed&&torque>0&&controls.brake===0)this.distance+=Math.abs(input.longitudinalVelocity)*PHYSICS_TIMESTEP
   if(controls.brake>=.05&&Math.abs(input.longitudinalVelocity)>.2)this.brakeUsed=true
-  return{...baseline,propulsionState:allowed?'PROP_ENABLED':'PROP_DISABLED',propulsionRequest:{magnitude:allowed?input.acceleratorPedalPosition:0,direction:allowed?'FORWARD':'NONE',validity},driveTorqueRequest:{magnitudeNm:Number(this.frame.values['request.torque']??0),direction,validity},eDriveCommand:{magnitudeNm:torque,direction,validity}}
+  return{...baseline,propulsionState:allowed?'PROP_ENABLED':'PROP_DISABLED',propulsionRequest:{magnitude:allowed?input.acceleratorPedalPosition:0,direction:allowed?'FORWARD':'NONE',validity},driveTorqueRequest:{magnitudeNm:Number(this.frame.values['request.torque']??0)||0,direction,validity},eDriveCommand:{magnitudeNm:torque,direction,validity}}
  }
 }
 export function createWorkshopRuntime(module:WebAssembly.Module,read:()=>{record:WorkshopRecord;controls:WorkshopControls},publish:(t:RaceTelemetry)=>void){
@@ -42,5 +45,6 @@ export function createWorkshopRuntime(module:WebAssembly.Module,read:()=>{record
  const controller=new WorkshopController(new WasmVehicleSw(module,config),read)
  const runtime=new SimulationRuntime(config,publish,undefined,controller)
  runtime.configureReadyGate(()=>read().controls.ready&&hardwareReady(read().record))
+  runtime.configureTrainingChassis(input=>{const {record,controls}=read();if(!controls.domainDesigns)return undefined;const result=executeVehicle(controls.domainDesigns,{ready:controls.ready,pack:true,pedal:0,brake:input.brake*100,gear:'D',steer:input.steering,cap:controls.capNm}).integrated.output;return{brakeForceN:record.assembly.brakes==='FIXED'&&record.cables.includes('brakeControl')?Number(result.brakeForce)||0:0,wheelAngleRad:record.assembly.steeringRack==='FIXED'&&record.cables.includes('steeringControl')?Number(result.wheelAngle)||0:0}})
  return{runtime,controller}
 }
