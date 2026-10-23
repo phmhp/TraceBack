@@ -14,7 +14,7 @@ export function CaseScope({ frame, onRequirement }: { frame?: IncidentFrame; onR
     <CaseRequirementFlow frame={frame} onRequirement={onRequirement}/>
   </article>
 }
-export function RequirementConditions({ id, frame }: { id: string; frame?: IncidentFrame }) {
+export function RequirementConditions({ id, frame, inline = false }: { id: string; frame?: IncidentFrame; inline?: boolean }) {
   const req = propulsionRequirements.find(r=>r.id===id)
   const input=frame?.sw.input, out=frame?.sw.output
   const component=req?.allocatedComponent
@@ -36,5 +36,6 @@ export function RequirementConditions({ id, frame }: { id: string; frame?: Incid
     explanation=id.endsWith('001')?'Ready와 Enable 확인 → 추진 허용/억제 상태 결정 → 억제 상태의 추진 요청은 0.':id.endsWith('002')?'페달·기어 유효성 확인 → 하나라도 INVALID이면 0 / NONE / INVALID 요청.':'유효성 확인 → 추진 허용 확인 → 실제 기어 P/N이면 억제, D/R이면 방향 선택 → 페달을 0~1 요청으로 변환.'
     values=id.endsWith('001')?[['VehicleReady',input?.vehicleReady],['PropulsionEnable',input?.propulsionEnable],['PropulsionState',out?.propulsionState]]:id.endsWith('002')?[['AcceleratorPedalValidity',input?.acceleratorPedalValidity],['GearStateValidity',out?.gearStateValidity]]:[['GearState',out?.gearState],['AcceleratorPedalPosition',input?.acceleratorPedalPosition],['PropulsionState',out?.propulsionState]]
   }
-  return <details className="case-rule-conditions"><summary><b>적용 조건과 동작 순서</b> · <code>{id}</code></summary><p>{explanation}</p>{frame?<dl className="case-conditions">{values.map(([name,value])=><div key={name}><dt><code>{name}</code></dt><dd>{typeof value==='number'?value.toFixed(3):String(value??'—')}</dd></div>)}</dl>:<p>주행 데이터 확보 후 선택 시점의 값을 함께 확인할 수 있습니다.</p>}</details>
+  const content=<><p>{explanation}</p>{frame?<dl className="case-conditions">{values.map(([name,value])=><div key={name}><dt><code>{name}</code></dt><dd>{typeof value==='number'?value.toFixed(3):String(value??'—')}</dd></div>)}</dl>:<p>주행 데이터 확보 후 선택 시점의 값을 함께 확인할 수 있습니다.</p>}</>
+  return inline?<div className="case-rule-conditions inline">{content}</div>:<details className="case-rule-conditions"><summary><b>적용 조건과 동작 순서</b> · <code>{id}</code></summary>{content}</details>
 }

@@ -2,7 +2,7 @@ import { CatDriver } from './CatDriver'
 import { Blob, SoftBox } from './SoftShapes'
 
 /** Art-only toy roadster. No chassis, colliders, or vehicle domain state. */
-export function PlaceholderVehicle({ engineering = false, celebrating = false }: { engineering?: boolean; celebrating?: boolean }) {
+export function PlaceholderVehicle({ engineering = false, celebrating = false, showDriver = true }: { engineering?: boolean; celebrating?: boolean; showDriver?:boolean }) {
   const paint = engineering ? '#6dccd1' : '#76c9c1'
   return <group>
     <SoftBox size={[1.88, 0.58, 2.95]} position={[0, 0.64, 0]} radius={0.28} color={paint} wireframe={engineering} />
@@ -30,6 +30,6 @@ export function PlaceholderVehicle({ engineering = false, celebrating = false }:
     {!engineering && <mesh position={[0, 1.08, -0.43]} rotation={[0.55, 0, 0]} castShadow>
       <torusGeometry args={[0.3, 0.04, 12, 40]} /><meshStandardMaterial color="#6c9188" roughness={0.55} />
     </mesh>}
-    {!engineering && <CatDriver celebrating={celebrating} />}
+    {!engineering && showDriver && <CatDriver celebrating={celebrating} />}
   </group>
 }

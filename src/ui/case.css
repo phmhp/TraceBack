@@ -225,13 +225,16 @@
     top: var(--case-video-top, 0px) !important;
     width: var(--case-video-width, 0px) !important;
     height: var(--case-video-height, 0px) !important;
+    visibility: var(--case-video-visibility, visible) !important;
+
     z-index: 6 !important;
     border: 2px solid #729783 !important;
     border-radius: 14px !important;
     pointer-events: none;
     overflow: hidden;
     box-shadow: none !important;
-    transform: none !important
+    transform: none !important;
+    clip-path: var(--case-video-clip, inset(0 round 10px)) !important;
 }
 
 .mode-xray .xray-pip-label,

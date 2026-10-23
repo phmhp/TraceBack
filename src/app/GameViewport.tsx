@@ -9,8 +9,10 @@ import { MapRenderer } from '../graphics/world/MapRenderer'
 import { phase2Physics } from '../physics/rapier/phase2Config'
 import type { LoadedMap } from '../world/MapLoader'
 import { VehicleShadowLight } from '../graphics/VehicleShadowLight'
+import { ScenarioLeadVehicleRenderer } from '../graphics/ScenarioLeadVehicleRenderer'
 import { useRaceHud } from '../ui/state/raceHud'
 import { useCase } from '../ui/state/CaseContext'
+import { useSyncExternalStore } from 'react'
 
 const RaceViewport = lazy(() => import('../graphics/RaceViewport'))
 const RapierWorld = lazy(() => import('../physics/RapierWorld').then((m) => ({ default: m.RapierWorld })))
@@ -23,10 +25,9 @@ class PhysicsBoundary extends Component<{ runtime: SimulationRuntime; children: 
 }
 export function GameViewport({ screen, runtime, map }: { screen: Screen; runtime: SimulationRuntime; map: LoadedMap }) {
   const { state } = useCase()
-  const recorded = screen === 'xray' ? state.frames[state.selected] : undefined
-  if (screen === 'xray') {
-    console.log('XRAY RECORDED', recorded?.plant)
-  }
+  const scenario=useSyncExternalStore(runtime.subscribeScenario,runtime.getScenarioSnapshot)
+  const scenarioView=screen==='xray'&&scenario.status!=='IDLE'
+  const recorded = screen === 'xray'&&!scenarioView ? state.frames[state.selected] : undefined
   const readState = useCallback(() => recorded?.plant ?? runtime.readVehicleState(), [recorded, runtime])
   const readPrevious = useCallback(() => recorded?.plant ?? runtime.readPreviousPose(), [recorded, runtime])
   const readAlpha = useCallback(() => recorded?.plant ? 1 : runtime.readInterpolationAlpha(), [recorded, runtime])
@@ -45,6 +46,7 @@ export function GameViewport({ screen, runtime, map }: { screen: Screen; runtime
       </PhysicsBoundary>}
       {drivingView && <>
         <MapRenderer map={map.definition} />
+        <ScenarioLeadVehicleRenderer readPose={runtime.readScenarioLeadVehiclePose}/>
         <VehicleRenderer readState={readState} readPreviousPose={readPrevious}
           readAlpha={readAlpha} presentedPose={presentedPose.current}
           originOffsetY={phase2Physics.visualOriginOffsetY} readSteering={() => recorded?.steering ?? runtime.driverInput.getState().steering} celebrating={celebrating} />

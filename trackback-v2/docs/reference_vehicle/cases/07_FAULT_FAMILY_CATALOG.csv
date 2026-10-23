@@ -1,0 +1,21 @@
+﻿faultId,faultClass,faultType,definition,injectionPointPattern,triggerPattern,observablePattern,possibleCorrectiveAction,runtimeCapability
+FLT-IN-INVALID,INPUT_STATE,Invalid,입력/상태 값이 유효성 계약을 만족하지 않음,source input/port boundary,invalid flag 또는 비정상 값 인가,값 자체와 validity를 분리 관찰,입력 검증/무효 처리 정책 수정,PARTIAL_CURRENT_RUNTIME
+FLT-IN-STUCK,INPUT_STATE,Stuck,입력이 특정 값에 고정됨,driver/sensor source boundary,정상 변화가 필요한 동안 동일 값 유지,source와 delivered 값의 시간 변화 비교,stuck 검출 또는 입력 처리 수정,PARTIAL_CURRENT_RUNTIME
+FLT-IN-OOR,INPUT_STATE,Out Of Range,정의 범위를 벗어난 값이 전달됨,source/port/component input,min/max 밖 값 인가,accept/reject/clamp 결과,범위 처리 정책 수정,PARTIAL_CURRENT_RUNTIME
+FLT-LOG-THR,FUNCTION_LOGIC,Wrong Threshold,판정 임계값이 잘못 설정됨,decision/calibration,경계 전후 자극,전이/출력 발생 시점,threshold/calibration 수정,REFERENCE_ONLY
+FLT-LOG-STATE,FUNCTION_LOGIC,Wrong State Transition,상태 전이 조건/대상이 잘못됨,state machine,특정 precondition+trigger,state before/after와 output,전이 조건/우선순위 수정,REFERENCE_ONLY
+FLT-LOG-MON,FUNCTION_LOGIC,Missing Monitoring,이상 관측 또는 검출 로직이 누락됨,monitoring boundary,관찰 가능한 mismatch 생성,deviation은 보이지만 detection 없음,monitor/detection 로직 추가,REFERENCE_ONLY
+FLT-MC-PRIO,MOTION_COORDINATION,Wrong Priority,동시 요청 간 우선순위가 잘못됨,authority/arbitration,상충 요청 동시 인가,선택된 request/command,priority policy 수정,PARTIAL_CURRENT_RUNTIME
+FLT-MC-ARB,MOTION_COORDINATION,Wrong Arbitration,여러 요구를 잘못 선택/병합함,arbitration,복수 source 요구,arbitrated result,arbitration logic 수정,REFERENCE_ONLY
+FLT-MC-ALLOC,MOTION_COORDINATION,Wrong Allocation,결정된 motion demand를 actuator에 잘못 배분,allocation,복합 motion demand,drive/brake/steer allocation,allocation policy 수정,REFERENCE_ONLY
+FLT-COM-MISS,COMMUNICATION,Missing Message,전달되어야 할 업데이트가 누락됨,interface transfer,drop update,source/destination/delivery 상태,전달/timeout 처리 수정,PARTIAL_CURRENT_RUNTIME
+FLT-COM-TIMEOUT,COMMUNICATION,Timeout,신호 age 초과에 대한 반응이 잘못됨,communication supervision,업데이트 중단 유지,lastRx/age/status/reaction,timeout reaction 수정,REFERENCE_ONLY
+FLT-COM-SCALE,COMMUNICATION,Scaling Mismatch,송수신 값의 scale/unit 해석이 다름,interface conversion,값 override/scale mismatch,source vs destination 값/단위,factor/offset/unit 계약 수정,PARTIAL_CURRENT_RUNTIME
+FLT-ACT-REACT,ACTUATOR_CONTROL,Incorrect Reaction,명령에 대한 제어기 반응이 잘못됨,actuator controller,정상 command 또는 abnormal condition,command vs actual/feedback,reaction logic 수정,REFERENCE_ONLY
+FLT-ACT-SAT,ACTUATOR_CONTROL,Saturation,제한값 또는 포화 처리 오류,limit/saturation,한계 전후 command,limited output,limit/calibration 수정,PARTIAL_CURRENT_RUNTIME
+FLT-ACT-REJECT,ACTUATOR_CONTROL,Command Rejection,유효 명령이 부적절하게 거부되거나 무효 명령이 수용됨,command acceptance,valid/invalid command,accept/reject status,acceptance policy 수정,REFERENCE_ONLY
+FLT-PLAT-STALL,PLATFORM,Task Stall,실행 주기/태스크가 정지함,execution/scheduler,task execution 중단,lastRun/age/output hold,scheduler/supervision 수정,REFERENCE_ONLY
+FLT-PLAT-WDG,PLATFORM,Watchdog Timeout,감시 timeout 및 반응이 잘못됨,platform supervision,watchdog event,timeout state/reset/reaction,watchdog policy 수정,REFERENCE_ONLY
+FLT-PLAT-RESET,PLATFORM,Reset,reset 전후 상태 복구가 잘못됨,platform/reset,reset trigger,retained/initialized state,reset/recovery 로직 수정,REFERENCE_ONLY
+FLT-PHY-FRIC,PHYSICAL,Low Friction,노면 마찰이 낮아짐,plant/environment,surface friction 저하,vehicle response,SW repair 대상 아님; scenario stimulus,SCENARIO_STIMULUS_ONLY
+FLT-PHY-DEG,PHYSICAL,Actuator Degradation,물리 actuator 성능이 저하됨,plant/actuator,actual effectiveness 저하,command vs plant response,SW repair 대상 아님; reaction 검증에 사용,SCENARIO_STIMULUS_ONLY

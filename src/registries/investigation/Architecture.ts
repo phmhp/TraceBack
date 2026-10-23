@@ -1,9 +1,42 @@
-import { propulsionRequirements } from '../../data/ground-truth/PropulsionGroundTruth.ts'
+import type { IncidentFrame } from '../../runtime/case/PropulsionCase.ts'
+import { inspectBoundary } from '../../runtime/investigation/Boundary.ts'
 
 export type RuntimeComponent = 'DriverInput' | 'GearLogic' | 'PropulsionFunction' | 'VMC' | 'eDrive' | 'VehiclePhysics'
 export interface ArchitectureNode {
   id: string; label: string; area: string; kind: 'DRIVER' | 'SW' | 'PLANT' | 'REFERENCE' | 'ADAPTER'
   implementation: 'IMPLEMENTED' | 'REFERENCE_ONLY'; role: string; inputs: string[]; outputs: string[]
+}
+export type SignalValue = number | string | boolean | Record<string, unknown> | null
+export type SignalComparisonBasis =
+  | { kind:'EXPECTED_TRAJECTORY' }
+  | { kind:'VALID_RANGE'; min:number; max:number }
+  | { kind:'ALLOWED_STATE'; allowed:readonly (string|boolean)[] }
+  | { kind:'REQUIREMENT_CONDITION'; requirementIds:readonly string[] }
+  | { kind:'OBSERVATION_ONLY' }
+export interface SignalDefinition {
+  id: string
+  label: string
+  description?: string
+  producerIds: string[]
+  consumerIds: string[]
+  interfaceIds: string[]
+  unit?: string
+  semanticRole?: 'STATE_OR_PRECONDITION' | 'VALUE'
+  comparisonBasis: SignalComparisonBasis
+  readIncidentActual?: (frame: IncidentFrame) => SignalValue
+  readOracleExpected?: (frame: IncidentFrame, previous?: IncidentFrame) => SignalValue
+}
+export type SignalTimelineCapability = 'SNAPSHOT_ONLY' | 'ACTUAL_TIMELINE' | 'COMPARE_TIMELINE' | 'STATE_TIMELINE'
+export interface InterfaceEdge {
+  id: string
+  sourceId: string
+  targetId: string
+  signalIds: string[]
+}
+export type SignalObservation = {
+  actual: { semantics: 'INCIDENT_ACTUAL'; value: SignalValue }
+  expected?: { semantics: 'ORACLE_EXPECTED'; value: SignalValue }
+  recordedReference?: { semantics: 'RECORDED_REFERENCE'; value: SignalValue }
 }
 export const architectureNodes: ArchitectureNode[] = [
   { id:'DriverInput',label:'Driver Demand',area:'Driver Boundary',kind:'DRIVER',implementation:'IMPLEMENTED',role:'페달·조향·기어 조작을 입력으로 전달합니다.',inputs:['Keyboard'],outputs:['AcceleratorPedalPosition','GearRequest','Brake','Steering'] },
@@ -12,23 +45,166 @@ export const architectureNodes: ArchitectureNode[] = [
   { id:'PropulsionFunction',label:'PropulsionFunction',area:'Propulsion',kind:'SW',implementation:'IMPLEMENTED',role:'유효성·추진 허용·실제 기어를 확인하여 정규화 추진 요청을 만듭니다.',inputs:['AcceleratorPedalPosition','AcceleratorPedalValidity','GearState','GearStateValidity','VehicleReady','PropulsionEnable'],outputs:['PropulsionRequest','PropulsionState'] },
   { id:'VMC',label:'VMC',area:'Propulsion',kind:'SW',implementation:'IMPLEMENTED',role:'현재 C 함수는 추진 요청과 속력으로 토크를 계산합니다. 전체 Vehicle Motion coordination/arbitration 구현은 아닙니다.',inputs:['PropulsionRequest','VehicleSpeed'],outputs:['DriveTorqueRequest'] },
   { id:'eDrive',label:'eDrive',area:'Propulsion',kind:'SW',implementation:'IMPLEMENTED',role:'요청 토크를 전진·후진 한계로 제한합니다. 모터·인버터의 전기 모델은 포함하지 않습니다.',inputs:['DriveTorqueRequest'],outputs:['EDriveCommand'] },
-  { id:'Brake',label:'Brake',area:'Brake',kind:'REFERENCE',implementation:'REFERENCE_ONLY',role:'제동 제어 SW의 참조 영역입니다. 현재 주행 제동은 임시 TS adapter로 처리됩니다.',inputs:['Brake demand'],outputs:['Brake command (reference)'] },
-  { id:'Steering',label:'Steering',area:'Steering',kind:'REFERENCE',implementation:'REFERENCE_ONLY',role:'조향 제어 SW의 참조 영역입니다. 현재 조향은 임시 TS adapter로 처리됩니다.',inputs:['Steering demand'],outputs:['Steering command (reference)'] },
+  { id:'BrakingExecution',label:'Service Brake Execution',area:'Braking',kind:'SW',implementation:'IMPLEMENTED',role:'정규화 운전자 제동 요청의 유효성을 확인하고 Vehicle Physics용 제동력 명령을 계산하는 TRACKBACK 실행 모델입니다. ABS·EBD·ESC·유압계는 포함하지 않습니다.',inputs:['DriverBrakeRequest','Validity'],outputs:['SelectedBrakingRequest','brakeForce'] },
+  { id:'SteeringExecution',label:'Manual Steering Execution',area:'Steering',kind:'SW',implementation:'IMPLEMENTED',role:'정규화 운전자 조향 요청과 차량 속도로 Vehicle Physics용 앞바퀴 조향각을 계산하는 TRACKBACK 실행 모델입니다. EPS·LKA·ESC 보정은 포함하지 않습니다.',inputs:['DriverSteeringRequest','VehicleSpeed','Validity'],outputs:['SelectedSteeringRequest','steering'] },
+  { id:'Brake',label:'Brake',area:'Brake',kind:'REFERENCE',implementation:'REFERENCE_ONLY',role:'ABS·EBD·ESC·유압계를 포함할 수 있는 넓은 제동 참조 영역입니다. 현재 주행에는 범위가 더 좁은 BrakingExecution 모델만 연결되어 있습니다.',inputs:['Brake demand'],outputs:['Brake command (reference)'] },
+  { id:'Steering',label:'Steering',area:'Steering',kind:'REFERENCE',implementation:'REFERENCE_ONLY',role:'EPS·LKA·ESC 보정을 포함할 수 있는 넓은 조향 참조 영역입니다. 현재 주행에는 범위가 더 좁은 SteeringExecution 모델만 연결되어 있습니다.',inputs:['Steering demand'],outputs:['Steering command (reference)'] },
   { id:'VehicleMotion',label:'Vehicle Motion Control',area:'Vehicle Motion',kind:'REFERENCE',implementation:'REFERENCE_ONLY',role:'종·횡방향 요청 coordination/arbitration의 참조 영역입니다. 현재 실행 함수 VMC보다 넓은 개념입니다.',inputs:['Motion requests','Vehicle feedback'],outputs:['Coordinated actuation (reference)'] },
   { id:'DriveAdapter',label:'Drive Force Adapter',area:'Host / Plant boundary',kind:'ADAPTER',implementation:'IMPLEMENTED',role:'최종 토크와 논리 방향을 signed force로 변환합니다. 제동 입력이 있으면 추진력을 차단합니다.',inputs:['EDriveCommand','Brake'],outputs:['driveForce'] },
-  { id:'BrakeAdapter',label:'Temporary Brake Adapter',area:'Host / Plant boundary',kind:'ADAPTER',implementation:'IMPLEMENTED',role:'TS에서 brake ratio를 제동력으로 변환합니다.',inputs:['Brake'],outputs:['brakeForce'] },
-  { id:'SteeringAdapter',label:'Temporary Steering Adapter',area:'Host / Plant boundary',kind:'ADAPTER',implementation:'IMPLEMENTED',role:'TS에서 조향 입력과 속력으로 바퀴 조향각을 계산합니다.',inputs:['Steering','VehicleSpeed'],outputs:['steering radians'] },
+  { id:'BrakeAdapter',label:'Brake Model Compatibility Seam',area:'Host / Plant boundary',kind:'ADAPTER',implementation:'IMPLEMENTED',role:'기존 호출자를 BrakingExecution 모델에 연결하는 호환 경계입니다.',inputs:['Brake'],outputs:['brakeForce'] },
+  { id:'SteeringAdapter',label:'Steering Model Compatibility Seam',area:'Host / Plant boundary',kind:'ADAPTER',implementation:'IMPLEMENTED',role:'기존 호출자를 SteeringExecution 모델에 연결하는 호환 경계입니다.',inputs:['Steering','VehicleSpeed'],outputs:['steering radians'] },
   { id:'VehiclePhysics',label:'Vehicle Dynamics',area:'Vehicle Dynamics',kind:'PLANT',implementation:'IMPLEMENTED',role:'Rapier가 힘·노면·충돌에 따른 차량 운동과 피드백을 계산합니다.',inputs:['driveForce','brakeForce','steering'],outputs:['VehicleSpeed','LongitudinalVelocity','LongitudinalAcceleration','Position'] },
 ]
 export const componentIds: RuntimeComponent[] = ['DriverInput','GearLogic','PropulsionFunction','VMC','eDrive','VehiclePhysics']
 export const architectureNode = (id:string) => architectureNodes.find(n=>n.id===id)!
-export const requirementsFor = (id:string) => propulsionRequirements.filter(r=>r.allocatedComponent===id)
-export const runtimeConnections = [
-  ['DriverInput','GearLogic','GearRequest'],['DriverInput','PropulsionFunction','Accelerator'],['GearLogic','PropulsionFunction','GearState'],
-  ['PropulsionFunction','VMC','PropulsionRequest'],['VMC','eDrive','DriveTorqueRequest'],['eDrive','DriveAdapter','EDriveCommand'],['DriveAdapter','VehiclePhysics','driveForce'],
-  ['DriverInput','BrakeAdapter','Brake'],['DriverInput','SteeringAdapter','Steering'],['BrakeAdapter','VehiclePhysics','brakeForce'],['SteeringAdapter','VehiclePhysics','steering'],
-  ['VehiclePhysics','GearLogic','↺ LongitudinalVelocity'],['VehiclePhysics','VMC','↺ VehicleSpeed'],['VehiclePhysics','SteeringAdapter','↺ VehicleSpeed'],
-] as const
+
+/** One authoritative source for currently supported runtime/reference interfaces. */
+export const interfaceEdges: InterfaceEdge[] = [
+  {id:'DriverInput->GearLogic',sourceId:'DriverInput',targetId:'GearLogic',signalIds:['GearRequest','GearRequestValidity']},
+  {id:'DriverInput->PropulsionFunction',sourceId:'DriverInput',targetId:'PropulsionFunction',signalIds:['AcceleratorPedalPosition','AcceleratorPedalValidity']},
+  {id:'GearLogic->PropulsionFunction',sourceId:'GearLogic',targetId:'PropulsionFunction',signalIds:['GearState','GearStateValidity','TransitionAccepted']},
+  {id:'PropulsionFunction->VMC',sourceId:'PropulsionFunction',targetId:'VMC',signalIds:['PropulsionRequest','PropulsionState']},
+  {id:'VMC->eDrive',sourceId:'VMC',targetId:'eDrive',signalIds:['DriveTorqueRequest']},
+  {id:'eDrive->DriveAdapter',sourceId:'eDrive',targetId:'DriveAdapter',signalIds:['EDriveCommand']},
+  {id:'DriveAdapter->VehiclePhysics',sourceId:'DriveAdapter',targetId:'VehiclePhysics',signalIds:['driveForce']},
+  {id:'DriverInput->BrakeAdapter',sourceId:'DriverInput',targetId:'BrakeAdapter',signalIds:['Brake']},
+  {id:'DriverInput->SteeringAdapter',sourceId:'DriverInput',targetId:'SteeringAdapter',signalIds:['Steering']},
+  {id:'BrakeAdapter->VehiclePhysics',sourceId:'BrakeAdapter',targetId:'VehiclePhysics',signalIds:['brakeForce']},
+  {id:'SteeringAdapter->VehiclePhysics',sourceId:'SteeringAdapter',targetId:'VehiclePhysics',signalIds:['steering']},
+  {id:'DriverInput->BrakingExecution',sourceId:'DriverInput',targetId:'BrakingExecution',signalIds:['Brake']},
+  {id:'BrakingExecution->VehiclePhysics',sourceId:'BrakingExecution',targetId:'VehiclePhysics',signalIds:['brakeForce']},
+  {id:'DriverInput->SteeringExecution',sourceId:'DriverInput',targetId:'SteeringExecution',signalIds:['Steering']},
+  {id:'SteeringExecution->VehiclePhysics',sourceId:'SteeringExecution',targetId:'VehiclePhysics',signalIds:['steering']},
+  {id:'VehiclePhysics->GearLogic',sourceId:'VehiclePhysics',targetId:'GearLogic',signalIds:['LongitudinalVelocity']},
+  {id:'VehiclePhysics->VMC',sourceId:'VehiclePhysics',targetId:'VMC',signalIds:['VehicleSpeed']},
+  {id:'VehiclePhysics->SteeringAdapter',sourceId:'VehiclePhysics',targetId:'SteeringAdapter',signalIds:['VehicleSpeed']},
+  {id:'VehiclePhysics->SteeringExecution',sourceId:'VehiclePhysics',targetId:'SteeringExecution',signalIds:['VehicleSpeed']},
+]
+
+const actualReaders: Record<string, (frame: IncidentFrame) => SignalValue> = {
+  AcceleratorPedalPosition: frame => frame.sw.input.acceleratorPedalPosition,
+  AcceleratorPedalValidity: frame => frame.sw.input.acceleratorPedalValidity,
+  GearRequest: frame => frame.sw.input.gearRequest,
+  GearRequestValidity: frame => frame.sw.input.gearRequestValidity,
+  VehicleReady: frame => frame.sw.input.vehicleReady,
+  PropulsionEnable: frame => frame.sw.input.propulsionEnable,
+  Brake: frame => frame.brake,
+  Steering: frame => frame.steering,
+  GearState: frame => frame.sw.output.gearState,
+  GearStateValidity: frame => frame.sw.output.gearStateValidity,
+  TransitionAccepted: frame => frame.sw.output.transitionAccepted,
+  PropulsionRequest: frame => frame.sw.output.propulsionRequest.magnitude,
+  PropulsionState: frame => frame.sw.output.propulsionState,
+  DriveTorqueRequest: frame => frame.sw.output.driveTorqueRequest.magnitudeNm,
+  EDriveCommand: frame => frame.sw.output.eDriveCommand.magnitudeNm,
+  VehicleSpeed: frame => frame.plant?.speed ?? frame.sw.input.vehicleSpeed,
+  LongitudinalVelocity: frame => frame.plant?.longitudinalVelocity ?? frame.sw.input.longitudinalVelocity,
+  LongitudinalAcceleration: frame => frame.plant?.longitudinalAcceleration ?? null,
+  driveForce: frame => frame.command?.driveForce ?? null,
+  brakeForce: frame => frame.command?.brakeForce ?? null,
+  steering: frame => frame.command?.steering ?? null,
+}
+
+const oracleReaders: Partial<Record<string, (frame: IncidentFrame, previous?: IncidentFrame) => SignalValue>> = {
+  GearState: (frame, previous) => (inspectBoundary(frame, 'GearLogic', previous).expected as {gearState?:string}|null)?.gearState ?? null,
+  PropulsionRequest: frame => (inspectBoundary(frame, 'PropulsionFunction').expected as {magnitude?:number}|null)?.magnitude ?? null,
+  DriveTorqueRequest: frame => inspectBoundary(frame, 'VMC').expected as SignalValue,
+  EDriveCommand: frame => inspectBoundary(frame, 'eDrive').expected as SignalValue,
+}
+
+const units: Partial<Record<string,string>> = {
+  AcceleratorPedalPosition:'ratio', Brake:'ratio', Steering:'ratio', PropulsionRequest:'ratio',
+  DriveTorqueRequest:'Nm', EDriveCommand:'Nm', VehicleSpeed:'m/s', LongitudinalVelocity:'m/s',
+  LongitudinalAcceleration:'m/s²', driveForce:'N', brakeForce:'N', steering:'rad',
+}
+
+const signalDescriptions: Partial<Record<string,string>> = {
+  AcceleratorPedalPosition:'운전자가 요구한 가속 페달 위치',
+  AcceleratorPedalValidity:'가속 페달 입력의 유효 상태',
+  GearRequest:'운전자가 요청한 기어',
+  GearRequestValidity:'기어 요청 입력의 유효 상태',
+  VehicleReady:'차량이 추진 가능한 준비 상태인지 나타내는 조건',
+  PropulsionEnable:'추진 기능 허용 상태',
+  Brake:'운전자가 요구한 제동 입력',
+  Steering:'운전자가 요구한 조향 입력',
+  GearState:'기어 로직이 결정한 실제 기어 상태',
+  GearStateValidity:'결정된 기어 상태의 유효성',
+  TransitionAccepted:'요청한 기어 전환의 허용 여부',
+  PropulsionRequest:'차량 기능이 만든 정규화 추진 요청',
+  PropulsionState:'추진 기능의 현재 허용·억제 상태',
+  DriveTorqueRequest:'VMC가 eDrive에 요청하는 구동 토크',
+  EDriveCommand:'eDrive가 액추에이션 경계로 전달하는 토크 명령',
+  VehicleSpeed:'차량 운동에서 관측한 속력',
+  LongitudinalVelocity:'차량 전후 방향의 부호 있는 속도',
+  LongitudinalAcceleration:'차량 전후 방향 가속도',
+  driveForce:'구동 어댑터가 플랜트에 적용하는 힘',
+  brakeForce:'제동 어댑터가 플랜트에 적용하는 힘',
+  steering:'조향 어댑터가 플랜트에 전달하는 조향각',
+}
+
+// Bounds below come from the runtime input setters / propulsion clamp, not from UI guesses.
+const validRanges: Partial<Record<string,{min:number;max:number}>> = {
+  AcceleratorPedalPosition:{min:0,max:1}, Brake:{min:0,max:1}, Steering:{min:-1,max:1}, PropulsionRequest:{min:0,max:1},
+}
+const allowedStates:Partial<Record<string,readonly (string|boolean)[]>>={
+  AcceleratorPedalValidity:['VALID','INVALID'],GearRequest:['P','N','D','R'],GearRequestValidity:['VALID','INVALID'],
+  VehicleReady:[true,false],PropulsionEnable:[true,false],GearState:['P','N','D','R'],GearStateValidity:['VALID','INVALID'],
+  TransitionAccepted:[true,false],PropulsionState:['PROP_DISABLED','PROP_ENABLED'],
+}
+const stateOrPreconditionSignals = new Set([
+  'AcceleratorPedalValidity','GearRequestValidity','VehicleReady','PropulsionEnable',
+  'GearState','GearStateValidity','TransitionAccepted','PropulsionState',
+])
+
+const signalIds = [...new Set([
+  ...architectureNodes.flatMap(node => [...node.inputs, ...node.outputs]),
+  ...interfaceEdges.flatMap(edge => edge.signalIds),
+  'AcceleratorPedalValidity','GearRequestValidity','VehicleReady','PropulsionEnable','LongitudinalAcceleration',
+])].filter(id => id !== 'Keyboard' && !id.includes('reference') && !id.includes(' / ') && !id.includes(' feedback') && !id.includes(' requests') && !id.includes(' actuation') && id !== 'Previous GearState' && id !== 'Motion requests')
+
+export const signalDefinitions: SignalDefinition[] = signalIds.map(id => {
+  const carried = interfaceEdges.filter(edge => edge.signalIds.includes(id))
+  const declaredProducers=architectureNodes.filter(node => node.outputs.includes(id)).map(node => node.id)
+  const declaredConsumers=architectureNodes.filter(node => node.inputs.includes(id)).map(node => node.id)
+  return {
+    id, label:id, description:signalDescriptions[id],
+    producerIds:[...new Set([...declaredProducers,...carried.map(edge => edge.sourceId)])],
+    consumerIds:[...new Set([...declaredConsumers,...carried.map(edge => edge.targetId)])],
+    interfaceIds:carried.map(edge => edge.id), unit:units[id],
+    semanticRole:stateOrPreconditionSignals.has(id)?'STATE_OR_PRECONDITION':'VALUE',
+    comparisonBasis:oracleReaders[id]?{kind:'EXPECTED_TRAJECTORY'}:validRanges[id]?{kind:'VALID_RANGE',...validRanges[id]}:allowedStates[id]?{kind:'ALLOWED_STATE',allowed:allowedStates[id]}:{kind:'OBSERVATION_ONLY'},
+    readIncidentActual:actualReaders[id], readOracleExpected:oracleReaders[id],
+  }
+})
+
+export const getArchitectureNode = (id:string) => architectureNodes.find(node => node.id === id)
+export const getSignalDefinition = (id:string) => signalDefinitions.find(signal => signal.id === id)
+export const getInterface = (id:string) => interfaceEdges.find(edge => edge.id === id)
+export const getInputSignals = (nodeId:string) => signalDefinitions.filter(signal => signal.consumerIds.includes(nodeId))
+export const getOutputSignals = (nodeId:string) => signalDefinitions.filter(signal => signal.producerIds.includes(nodeId))
+export const getIncomingInterfaces = (nodeId:string) => interfaceEdges.filter(edge => edge.targetId === nodeId)
+export const getOutgoingInterfaces = (nodeId:string) => interfaceEdges.filter(edge => edge.sourceId === nodeId)
+export const getSignalInterfaces = (signalId:string) => interfaceEdges.filter(edge => edge.signalIds.includes(signalId))
+export const getSignalValue = (signalId:string, frame:IncidentFrame) => getSignalDefinition(signalId)?.readIncidentActual?.(frame) ?? null
+export const getSignalObservation = (signalId:string, frame:IncidentFrame, previous?:IncidentFrame): SignalObservation => {
+  const signal=getSignalDefinition(signalId)
+  const observation:SignalObservation={actual:{semantics:'INCIDENT_ACTUAL',value:signal?.readIncidentActual?.(frame)??null}}
+  if(signal?.readOracleExpected)observation.expected={semantics:'ORACLE_EXPECTED',value:signal.readOracleExpected(frame,previous)}
+  // No recorded normal/reference run exists in the repository; do not synthesize one.
+  return observation
+}
+/** Capability is derived from registered incident/oracle readers, never from a UI allow-list. */
+export const getSignalTimelineCapability = (signalId:string, frames:readonly IncidentFrame[] = []): SignalTimelineCapability => {
+  const signal=getSignalDefinition(signalId)
+  if (!signal?.readIncidentActual) return 'SNAPSHOT_ONLY'
+  if (signal.readOracleExpected) return 'COMPARE_TIMELINE'
+  const observed=frames.map(frame=>signal.readIncidentActual?.(frame)).find(value=>value!==null&&value!==undefined)
+  if (typeof observed === 'boolean' || typeof observed === 'string') return 'STATE_TIMELINE'
+  return 'ACTUAL_TIMELINE'
+}
+
+/** Read-only compatibility projection for legacy consumers. */
+export const runtimeConnections = interfaceEdges.flatMap(edge => edge.signalIds.map(signalId => [edge.sourceId,edge.targetId,signalId] as const))
 
 /** Readable normal-function flow, separate from physical deployment or task scheduling. */
 export const normalFunctionFlows: Record<string,string[]> = {

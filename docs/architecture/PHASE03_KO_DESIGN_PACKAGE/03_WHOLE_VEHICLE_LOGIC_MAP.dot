@@ -1,0 +1,49 @@
+digraph TRACKBACK {
+  graph [label="TRACKBACK · Phase 03 | Whole-Vehicle Logical Architecture (설계 초안)", labelloc=t, fontsize=22, fontname="Noto Sans CJK KR", ranksep=1.0, nodesep=.35, pad="0.22", splines=polyline, bgcolor="#fffefa", compound=true];
+  node [shape=box, style="rounded,filled", fontname="Noto Sans CJK KR", fontsize=13, color="#92aaa3", fillcolor="#eef2e9", fontcolor="#263e38", margin="0.16,0.1"];
+  edge [color="#64847a", penwidth=1.6, arrowsize=.7, fontname="Noto Sans CJK KR", fontsize=10];
+  DRV [label="Driver Input\n가속 · 제동 · 조향 · Gear", fillcolor="#d5e5d8"];
+  ENV [label="Environment / Traffic\n추상 입력 (미구현 부분)", fillcolor="#f1e4cf"];
+  VS [label="Vehicle State · Gear\nReady · Permission · Applied State", fillcolor="#dce9ee"];
+  ADAS [label="ADAS\nAEB · ACC · LKA", fillcolor="#eee6cf"];
+  PROP [label="Propulsion · VMC 일부\nDriveTorqueRequest", fillcolor="#c8dfcc", penwidth=2.4, color="#42785b"];
+  BRK [label="Braking\n요구 · 조정 · 명령", fillcolor="#eee6cf"];
+  STR [label="Steering\n요구 · 보조 · 명령", fillcolor="#eee6cf"];
+  STB [label="Stability\nABS · TCS · ESC", fillcolor="#eee6cf"];
+  MC [label="Motion Coordination\nAuthority · Longitudinal · Lateral\n기능 개념; 완전한 VMC 실행 아님", fillcolor="#e0e9e3"];
+  EN [label="Power · Energy\nDrive / Regen Limits", fillcolor="#eee6cf"];
+  FM [label="Fault / Diagnostics\nMonitor · Confirm · Reaction", fillcolor="#eee6cf"];
+  COMM [label="Communication / Interface\nSW Port · Network(미구현)", fillcolor="#e5e9ef"];
+  EDRV [label="eDrive SW\nEDriveCommand", fillcolor="#c8dfcc", penwidth=2.4, color="#42785b"];
+  ACT [label="Actuation / Adapters\nDrive · Brake · Steering", fillcolor="#d8e4ea"];
+  PLANT [label="Rapier Vehicle Plant\nForces · Motion", fillcolor="#c8dfcc", color="#42785b", penwidth=2.4];
+  SENS [label="Sensing / Estimation\n현재 Plant 실제 관측 + 미래 추정", fillcolor="#d8e4ea"];
+  OCC [label="Occupant Safety\nImpact · Deployment (미구현)", fillcolor="#eee6cf"];
+  EXEC [label="Execution Platform\nClock · Scheduler · Record", fillcolor="#e5e9ef"];
+  DRV -> VS;
+  DRV -> PROP; DRV -> BRK [style=dashed]; DRV -> STR [style=dashed];
+  ENV -> ADAS [style=dashed]; ENV -> PLANT [style=dashed];
+  VS -> PROP [style=dashed, constraint=false]; VS -> BRK [style=dashed]; VS -> STR [style=dashed];
+  PROP -> MC [style=dashed, label="future interface"];
+  BRK -> MC [style=dashed]; STR -> MC [style=dashed];
+  ADAS -> MC [style=dashed]; STB -> MC [style=dashed];
+  EN -> MC [style=dashed]; FM -> MC [style=dashed];
+  MC -> COMM [style=dashed];
+  COMM -> EDRV [style=dashed, label="not current CAN"];
+  PROP -> EDRV [label="currently reported C/WASM\nDriveTorqueRequest", color="#42785b", penwidth=2.5];
+  EDRV -> ACT [color="#42785b", penwidth=2.5];
+  BRK -> ACT [style=dashed, constraint=false]; STR -> ACT [style=dashed, constraint=false];
+  DRV -> ACT [label="Brake/Steer physics input\n(currently reported)", color="#42785b", constraint=false];
+  ACT -> PLANT [color="#42785b", penwidth=2.5];
+  PLANT -> SENS [color="#42785b", penwidth=2.5];
+  SENS -> STB [style=dashed]; SENS -> MC [style=dashed];
+  SENS -> VS [style=dashed, constraint=false];
+  PLANT -> OCC [style=dashed, label="not actual crash sensor"];
+  FM -> COMM [style=dashed, constraint=false]; EXEC -> COMM [style=dashed];
+  {rank=same; DRV; ENV}
+  {rank=same; PROP; BRK; STR; ADAS; VS}
+  {rank=same; STB; EN; FM; MC}
+  {rank=same; COMM; EDRV}
+  {rank=same; EXEC; ACT}
+  {rank=same; PLANT; OCC}
+}

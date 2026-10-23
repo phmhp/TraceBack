@@ -1,0 +1,8 @@
+{
+  "kind": "MIGRATION_REGRESSION_EQUIVALENCE",
+  "binaryHash": "e1d5c153524ce4850757bb4971831878c770a74cd23c7ba07717fa05f6178aff",
+  "comparisons": 2592,
+  "tolerance": 1e-10,
+  "verdict": "PASS",
+  "notModelCodeB2B": true
+}

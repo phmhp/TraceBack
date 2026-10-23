@@ -1,0 +1,19 @@
+decisionId,area,designQuestion,affectedEntities,currentEvidence,requiredDecision,severity,phase08Blocking
+VAL-DEC-001,Motion Coordination,What entity owns final longitudinal authority?,LF-MC-AUTH; LF-MC-LON; LF-MC-ALLOC,Only host brake suppression exists,Define authority/constraint/allocation boundaries,P0,YES
+VAL-DEC-002,Braking,Is ABS a request source constraint or actuator modulator?,LF-STB-ABS; LF-BRK-BLEND,Reference prose is ambiguous,Choose one role and interaction with AEB/regen,P0,YES
+VAL-DEC-003,Braking,Who owns brake blending and final brake command?,LF-BRK-BLEND; LF-BRK-CMD,Temporary adapter only,Define friction/regen composition and actuator owner,P0,YES
+VAL-DEC-004,Stability,How are TCS energy and eDrive limits ordered?,LF-STB-TCS; LF-EN-LIMIT; LF-PROP-LIM,No common constraint model,Define deterministic aggregation and provenance,P0,YES
+VAL-DEC-005,Steering,What is the common lateral request abstraction?,LF-STR-DEMAND; LF-MC-LAT; LF-ADAS-LKA,Ratio and wheel angle exist only in host path,Choose angle torque curvature or typed alternative,P0,YES
+VAL-DEC-006,Steering,Who resolves driver LKA and ESC conflict?,LF-STR-COORD; LF-ADAS-LKA; LF-STB-ESC,No arbitration path,Define authority and override evidence,P0,YES
+VAL-DEC-007,ADAS,Are ADAS outputs motion requests actuator requests or commands?,LF-ADAS-ACC; LF-ADAS-AEB; LF-ADAS-LKA,Outputs are design-only and mixed in prose,Freeze typed output contracts,P0,YES
+VAL-DEC-008,Vehicle State,Who owns real vehicle readiness and propulsion permission?,LF-VS-INIT; LF-VS-PERM,Only host assumptions exist,Keep host identities and define future owner separately,P1,NO
+VAL-DEC-009,Gear,How is physical engagement distinguished from accepted software state?,LF-GEAR-STATE,No gear actuator model,Add engaged feedback semantics or mark unavailable,P1,NO
+VAL-DEC-010,Diagnostics,What constitutes detection confirmation and recovery?,LF-FM-DETECT; LF-FM-REC,Only injection/restoration telemetry,Define debounce confirmation clear and rearm lifecycle,P0,YES
+VAL-DEC-011,Sensing,What quality/age model applies to estimated states?,LF-SEN-QUALITY; LF-SEN-MOTION,Plant truth only,Define sensor/estimate sources and freshness contract,P1,NO
+VAL-DEC-012,Energy,How do HV readiness and regen availability affect permission?,LF-EN-READY; LF-EN-LIMIT; LF-BRK-BLEND,No energy runtime,Define availability/permission/fallback without circular ownership,P0,YES
+VAL-DEC-013,Execution,What is the future multi-rate sample/hold model?,LF-EXE-SCHED; LF-COM-SUP,Only 60 Hz single loop,Define release order age delay and stale behavior,P1,NO
+VAL-DEC-014,Verification,Which candidate numerical calibrations may authorize verdicts?,Requirements and oracles,Simulation values remain REVIEW_REQUIRED,Approve game-reference values and tolerances individually,P1,NO
+VAL-DEC-015,Safety,What Item/HARA evidence will begin safety trace?,All safety-related candidates,None,Keep safety branch OPEN until formal analysis,P0,YES
+VAL-DEC-016,Requirements,Who owns the 62 SW_OWNER_TBD obligations?,62 SWR candidates,Owner intentionally unresolved,Assign only after architecture authority decisions,P1,YES
+VAL-DEC-017,Case Engineering,Which AI_DRAFT cases receive executable oracles?,33 AI_DRAFT cases,Only CASE-PT-001 canonical,Review independently; do not bulk promote,P2,NO
+VAL-DEC-018,Plant,What fidelity claims are allowed for Rapier?,LF-PLANT-MOTION; LF-PLANT-ENV,Game simulation behavior only,Define educational scope and external validation boundary,P1,NO

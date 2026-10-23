@@ -1,5 +1,6 @@
 import type { XRayNodeId } from '../../data/ground-truth/PropulsionGroundTruth'
-import { architectureNode, componentIds, requirementsFor } from '../../registries/investigation/Architecture'
+import { architectureNode, componentIds } from '../../registries/investigation/Architecture'
+import { getRequirementsForComponent } from '../../registries/investigation/Trace'
 export interface XRayNodeDefinition {
   id: XRayNodeId
   label: string
@@ -13,5 +14,5 @@ export interface XRayNodeDefinition {
 /** Legacy screen adapter; component metadata is owned by the architecture registry. */
 export const xrayNodeRegistry: XRayNodeDefinition[] = componentIds.map(id => {
   const node = architectureNode(id)
-  return { id, label: node.label, layer: 'FUNCTION_FLOW', domain: node.kind === 'DRIVER' ? 'DRIVER' : node.kind === 'PLANT' ? 'PLANT' : 'POWERTRAIN', domainLabel: node.area, inputs: node.inputs, outputs: node.outputs, requirementIds: requirementsFor(id).map(r => r.id) }
+  return { id, label: node.label, layer: 'FUNCTION_FLOW', domain: node.kind === 'DRIVER' ? 'DRIVER' : node.kind === 'PLANT' ? 'PLANT' : 'POWERTRAIN', domainLabel: node.area, inputs: node.inputs, outputs: node.outputs, requirementIds: getRequirementsForComponent(id).map(r => r.id) }
 })

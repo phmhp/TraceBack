@@ -14,30 +14,52 @@ import { WasmVehicleSw } from '../runtime/c/WasmVehicleSw'
 import { PropulsionCase } from '../runtime/case/PropulsionCase'
 import { CaseContext } from '../ui/state/CaseContext'
 import buildInfo from '../runtime/c/generated/build.json'
+import { SimulationRuntimeContext } from '../ui/state/SimulationRuntimeContext'
+import { RecoveryChallenge, createLocalBestTimeStore, createRecoveryTrack } from '../runtime/gameplay/RecoveryChallenge'
+import { publishRecoveryHud } from '../ui/state/recoveryHud'
+import { useIncidentRace } from '../ui/state/incidentRace.ts'
+import { STOPPED_VEHICLE_AVOIDANCE_EVENT } from '../data/gameplay/DrivingEvents.ts'
 
 /** Composition root: wires browser input, runtime, engine adapter and UI without reverse imports. */
 export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssembly.Module }) {
   const [incident] = useState(() => new PropulsionCase(
     () => new WasmVehicleSw(vehicleSwModule, TRACKBACK_SIMULATION_CALIBRATION_V0_1), buildInfo.binaryHash,
-    { forward: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxForwardTorqueNm.value, reverse: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxReverseTorqueNm.value }))
+    { forward: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxForwardTorqueNm.value, reverse: TRACKBACK_SIMULATION_CALIBRATION_V0_1.maxReverseTorqueNm.value, gear:TRACKBACK_SIMULATION_CALIBRATION_V0_1.gearDirectionChangeMaxSpeedMps.value, torqueToForce:TRACKBACK_SIMULATION_CALIBRATION_V0_1.torqueToForce.value }))
+  const [map] = useState(() => createLoadedMap(loadMapDefinition(PANGYO2_MAP_ID)))
   const [runtime] = useState(() => new SimulationRuntime(TRACKBACK_SIMULATION_CALIBRATION_V0_1, (telemetry) => {
     publishRaceHud(telemetry)
     if (telemetry.error) useNavigation.getState().pauseRace()
+    if (incident.getSnapshot().phase === 'CAPTURED') useNavigation.getState().markFaultEvent()
     if (telemetry.raceFinished) useNavigation.getState().finishRace()
   }, undefined, new WasmVehicleSw(vehicleSwModule, TRACKBACK_SIMULATION_CALIBRATION_V0_1)))
   useLayoutEffect(() => { runtime.configureCase(incident) }, [runtime, incident])
-  const [map] = useState(() => createLoadedMap(loadMapDefinition(PANGYO2_MAP_ID)))
+  const [recovery] = useState(() => {
+    const route=map.definition.routes.find(candidate=>candidate.routeId===map.definition.minimapConfig.routeId)!
+    const mission={id:'CASE-PT-001-RECOVERY',trackId:map.definition.mapId,version:'g1',title:'수리 확인 주행',rulesVersion:'g1-v1'}
+    return new RecoveryChallenge(createRecoveryTrack(map.definition.mapId,route,mission.id),mission,createLocalBestTimeStore(window.localStorage))
+  })
+  useLayoutEffect(()=>runtime.configureRecoveryChallenge(recovery,publishRecoveryHud),[recovery,runtime])
+  useLayoutEffect(()=>runtime.configureDrivingEvent(STOPPED_VEHICLE_AVOIDANCE_EVENT),[runtime])
   useEffect(() => { const route = map.definition.routes.find((candidate) => candidate.routeId === map.definition.minimapConfig.routeId)!; runtime.configureFinish(route.finishPoint, route.finishHeading ?? 0); runtime.configureRoute(route.orderedPoints) }, [map, runtime])
   const screen = useNavigation((s) => s.screen)
   const phase = useNavigation((s) => s.phase)
   const sessionConfig = useNavigation((s) => s.sessionConfig)
   const completeCountdown = useNavigation((s) => s.completeCountdown)
+  const completeRecoveryCountdown = useNavigation((s) => s.completeRecoveryCountdown)
   const pauseRace = useNavigation((s) => s.pauseRace)
   const resumeRace = useNavigation((s) => s.resumeRace)
   const restartRace = useNavigation((s) => s.restartRace)
   const enterDebugXRay = useNavigation((s) => s.enterDebugXRay)
   const openDebrief = useNavigation((s) => s.openDebrief)
   const quitToMain = useNavigation((s) => s.reset)
+  useEffect(()=>{
+    if(phase==='PRE_RACE')useIncidentRace.getState().reset()
+    if(phase==='FAULT_EVENT')useIncidentRace.getState().start(incident.getSnapshot().elapsed,performance.now())
+    const timed=['FAULT_EVENT','INVESTIGATION','DIAGNOSIS_RESULT','REPAIR_SELECTION','REPAIR_VERIFICATION','RETRY_REPAIR','ASSISTED_SOLUTION'].includes(phase)
+    if(!timed)return
+    const timer=window.setInterval(()=>{if(document.visibilityState==='visible')useIncidentRace.getState().tick(performance.now())},100)
+    return()=>window.clearInterval(timer)
+  },[incident,phase])
   const clearInput = useRef(() => {})
   const actions = useMemo(() => ({
     pause: () => { clearInput.current(); runtime.pause(); pauseRace() },
@@ -47,22 +69,27 @@ export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssem
   }), [pauseRace, quitToMain, restartRace, resumeRace, runtime])
 
   useLayoutEffect(() => {
-    if (phase === 'RACE_COUNTDOWN') {
+    if (phase === 'PRE_RACE') {
       if (sessionConfig) runtime.configureSession(sessionConfig)
       runtime.reset()
       const countdown = window.setTimeout(completeCountdown, 4000)
       return () => window.clearTimeout(countdown)
     }
-    if (phase === 'RACE_NORMAL') {
+    if (phase === 'RECOVERY_COUNTDOWN') {
+      runtime.pause()
+      const countdown=window.setTimeout(()=>{runtime.startRecoveryChallenge();completeRecoveryCountdown();runtime.resume()},3200)
+      return()=>window.clearTimeout(countdown)
+    }
+    if (phase === 'NORMAL_DRIVE' || phase === 'RECOVERY_DRIVE') {
       if (!runtime.clock.running) runtime.start()
       else if (runtime.clock.paused) runtime.resume()
-    } else if (phase === 'PAUSE_MENU' || phase === 'XRAY_MODE') runtime.pause()
-    else if (phase === 'DEBRIEF') runtime.pause()
+    } else if (phase === 'PAUSE_MENU' || phase === 'FAULT_EVENT' || phase === 'INVESTIGATION') runtime.pause()
+    else if (phase === 'MISSION_RESULT') runtime.pause()
     else if (phase === 'MAIN' || phase === 'SESSION_SETUP') runtime.reset()
-  }, [completeCountdown, phase, runtime, sessionConfig])
+  }, [completeCountdown,completeRecoveryCountdown, phase, runtime, sessionConfig])
 
   useEffect(() => {
-    if (phase !== 'FINISH') return
+    if (phase !== 'MISSION_FINISH') return
     const reportDelay = window.setTimeout(openDebrief, 4000)
     return () => window.clearTimeout(reportDelay)
   }, [openDebrief, phase])
@@ -94,7 +121,7 @@ export function GameApplication({ vehicleSwModule }: { vehicleSwModule: WebAssem
   }, [enterDebugXRay, screen, incident])
 
   const worldView = useMemo(() => ({ map, readVehicleState: runtime.readVehicleState }), [map, runtime])
-  return <CaseContext.Provider value={incident}><WorldViewContext.Provider value={worldView}><RaceActionsContext.Provider value={actions}>
+  return <SimulationRuntimeContext.Provider value={runtime}><CaseContext.Provider value={incident}><WorldViewContext.Provider value={worldView}><RaceActionsContext.Provider value={actions}>
     <App scene={<GameViewport screen={screen} runtime={runtime} map={map} />} />
-  </RaceActionsContext.Provider></WorldViewContext.Provider></CaseContext.Provider>
+  </RaceActionsContext.Provider></WorldViewContext.Provider></CaseContext.Provider></SimulationRuntimeContext.Provider>
 }

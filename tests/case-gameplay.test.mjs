@@ -61,7 +61,65 @@ test('player can test a normal upstream component without treating PASS as fault
   c.submit('eDrive','scaling','SWR-EDR-001')
   assert.equal(c.getSnapshot().diagnosis.correct,true);assert.equal(c.getSnapshot().diagnosis.evidenceSufficient,false)
 })
-for (const mapId of [PROVING_GROUND_MAP_ID, PANGYO2_MAP_ID]) test(`${mapId}: real C + Rapier captures and locks driving, preserves pose, then restores repaired drive`, async () => {
+test('GearLogic workbench executes the existing C interlock with an explicit simulation threshold',()=>{
+  const c=new PropulsionCase(factory,'test-build',{forward:180,reverse:130,gear:cal.gearDirectionChangeMaxSpeedMps.value})
+  c.reproduce();c.pin()
+  const options={variable:'speed',magnitude:0,speed:0,direction:'REVERSE',validity:'VALID',previousGear:'D',requestedGear:'R'}
+  c.runExperiment(.5,.51,'GearLogic',options)
+  const run=c.getSnapshot().experiment
+  assert.equal(run.testObject,'GearLogic')
+  assert.equal(run.assertionScope,'GEAR_STATE')
+  assert.deepEqual(run.rows.map(row=>[row.expected,row.actual,row.pass]),[['R','R',true],['D','D',true]])
+  c.collectTest(run.id)
+  assert.equal(c.getSnapshot().evidence.at(-1).relatedComponent,'GearLogic')
+  assert.deepEqual(c.getSnapshot().evidence.at(-1).details.monitoredOutputIds,['GearState'])
+})
+test('PropulsionFunction workbench executes the same C request path as live driving',()=>{
+  const c=makeCase();c.reproduce();c.pin()
+  const options={variable:'magnitude',magnitude:.4,speed:0,direction:'FORWARD',validity:'VALID'}
+  c.runExperiment(.4,undefined,'PropulsionFunction',options)
+  let run=c.getSnapshot().experiment
+  assert.equal(run.source,'C_WASM')
+  assert.deepEqual(run.rows.map(row=>[row.expected,row.actual,row.pass]),[[.4,.4,true]])
+  c.runExperiment(.7,undefined,'PropulsionFunction',{...options,direction:'REVERSE'})
+  run=c.getSnapshot().experiment
+  assert.deepEqual(run.rows.map(row=>[row.expected,row.actual,row.pass]),[[.7,.7,true]])
+  c.runExperiment(.7,undefined,'PropulsionFunction',{...options,validity:'INVALID'})
+  run=c.getSnapshot().experiment
+  assert.deepEqual(run.rows.map(row=>[row.expected,row.actual,row.pass]),[[0,0,true]])
+})
+test('DriveAdapter workbench executes the same signed force conversion as live driving',()=>{
+  const c=new PropulsionCase(factory,'test-build',{forward:180,reverse:130,torqueToForce:cal.torqueToForce.value})
+  c.reproduce();c.pin()
+  const options={variable:'magnitude',magnitude:90,speed:0,direction:'FORWARD',validity:'VALID'}
+  c.runExperiment(90,undefined,'DriveAdapterExecution',options)
+  let run=c.getSnapshot().experiment
+  assert.equal(run.source,'RUNTIME_ADAPTER')
+  assert.equal(run.assertionScope,'FORCE')
+  assert.deepEqual(run.rows.map(row=>[row.expected,row.actual,row.pass]),[[900,900,true]])
+  c.runExperiment(45,undefined,'DriveAdapterExecution',{...options,direction:'REVERSE'})
+  run=c.getSnapshot().experiment
+  assert.deepEqual(run.rows.map(row=>[row.expected,row.actual,row.pass]),[[-450,-450,true]])
+  c.runExperiment(45,undefined,'DriveAdapterExecution',{...options,validity:'INVALID'})
+  run=c.getSnapshot().experiment
+  assert.deepEqual(run.rows.map(row=>[row.expected,row.actual,row.pass]),[[0,0,true]])
+})
+test('braking and steering workbench runs use the same Trackback models as live driving',()=>{
+  const c=makeCase();c.reproduce();c.pin()
+  c.runExperiment(.4,undefined,'BrakingExecution',{variable:'magnitude',magnitude:.4,speed:0,direction:'FORWARD',validity:'VALID'})
+  let run=c.getSnapshot().experiment
+  assert.equal(run.source,'TRACKBACK_EXECUTION_MODEL')
+  assert.equal(run.assertionScope,'FORCE')
+  assert.deepEqual(run.rows.map(row=>[row.expected,row.actual,row.pass]),[[2600,2600,true]])
+  c.collectTest(run.id)
+  assert.equal(c.getSnapshot().evidence.at(-1).source,'TRACKBACK_EXECUTION_MODEL')
+  c.runExperiment(-.5,undefined,'SteeringExecution',{variable:'magnitude',magnitude:-.5,speed:10,direction:'FORWARD',validity:'VALID'})
+  run=c.getSnapshot().experiment
+  assert.equal(run.assertionScope,'ANGLE')
+  assert.equal(run.rows[0].pass,true)
+  assert.ok(run.rows[0].actual<0)
+})
+for (const mapId of [PROVING_GROUND_MAP_ID, PANGYO2_MAP_ID]) test(`${mapId}: real C + Rapier captures and stops, preserves evidence, then restores repaired drive`, async () => {
   await RAPIER.init()
   const map=createLoadedMap(loadMapDefinition(mapId))
   const world=new RAPIER.World({x:0,y:-9.81,z:0})
@@ -130,3 +188,13 @@ test('one editable request per run; separate runs can establish scaling evidence
  single.submit('eDrive','scaling','SWR-EDR-001');assert.equal(single.getSnapshot().diagnosis.correct,true);
  assert.equal(single.getSnapshot().diagnosis.evidenceSufficient,false);
 });
+
+test('assisted solution records executable evidence but still requires repair verification',()=>{
+ const c=makeCase();c.reproduce();c.pin();c.runExperiment(45,90);c.submit('VMC','limit','SWR-VMC-001');assert.equal(c.getSnapshot().diagnosis.correct,false)
+ c.completeGuidedResolution();const state=c.getSnapshot()
+ assert.equal(state.assisted,true);assert.equal(state.diagnosis.correct,true);assert.equal(state.diagnosis.evidenceSufficient,true)
+ assert.equal(state.diagnosisHistory.length,2);assert.equal(state.diagnosisHistory[0].correct,false)
+ assert.equal(state.phase,'SUBMITTED');assert.equal(state.repairs.length,0)
+ const failed=c.runRepair(2);assert.ok(failed.rows.some(row=>!row.pass));assert.equal(c.getSnapshot().phase,'SUBMITTED')
+ const passed=c.runRepair(0);assert.ok(passed.rows.every(row=>row.pass));assert.equal(c.getSnapshot().phase,'RESOLVED')
+})

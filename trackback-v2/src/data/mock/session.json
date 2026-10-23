@@ -1,0 +1,10 @@
+{
+  "kind": "PLACEHOLDER",
+  "value": {
+    "raceLength": "— km",
+    "incidentCount": "—",
+    "difficulty": "미설정",
+    "speed": "— km/h",
+    "raceTimer": "— : —"
+  }
+}

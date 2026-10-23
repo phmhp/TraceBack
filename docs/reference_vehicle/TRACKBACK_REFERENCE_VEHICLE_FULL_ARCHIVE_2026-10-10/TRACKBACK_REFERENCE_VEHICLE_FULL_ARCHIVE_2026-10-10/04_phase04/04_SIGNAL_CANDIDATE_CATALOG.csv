@@ -1,0 +1,112 @@
+﻿sourceStatus,signalName,meaningKO,unit,shape,producerCandidate,consumerCandidates,rangeOrStates,clockBasis,warning,catalogKind
+CODEX_REPORTED,DriverInputRuntime.accelerator,운전자의 정규화 가속 입력,ratio,float,LF-DRV-ACQ,LF-PROP-ACQ,"[0,1] 시나리오 입력 제약",SIM_FIXED_STEP,게임 입력. 실제 페달 센서와 구분,PHYSICAL_OR_LOGICAL_SIGNAL
+CODEX_REPORTED,DriverInputRuntime.brake,운전자의 정규화 제동 입력,ratio,float,LF-DRV-ACQ,LF-ACT-BRAKE,"[0,1] 시나리오 입력 제약",SIM_FIXED_STEP,독립 Brake SW 수신으로 해석 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+CODEX_REPORTED,DriverInputRuntime.steering,운전자의 정규화 조향 입력,ratio,float,LF-DRV-ACQ,LF-ACT-STEER,"[-1,1] 시나리오 입력 제약",SIM_FIXED_STEP,wheel angle(radian)이 아님,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,GearScenarioPrecondition,시나리오에서 보고된 D 기어 사전조건을 표현하기 위한 별도 후보,enum,enum,LF-DRV-ACQ,LF-GEAR-ACQ,D 사전조건 외 값 지원 미확인,SIM_FIXED_STEP,기어 적용 상태와 혼동 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+CODEX_REPORTED,PropulsionRequest,VMC가 입력받는 정규화된 구동 요구,ratio,float,OPEN,LF-PROP-GEN,"[0,1] 컴포넌트 검증 입력",C_WASM_STEP_OPEN,발생처는 실제 코드 확인 전 OPEN,PHYSICAL_OR_LOGICAL_SIGNAL
+CODEX_REPORTED,VehicleSpeed,VMC 입력 및 Plant 관측 속력,m/s,float,LF-PLANT-MOTION,"LF-PROP-GEN,LF-SEN-MOTION",0..60은 VMC 검증 입력 범위; 차량 일반 유효범위 아님,"SIM_FIXED_STEP,C_WASM_STEP_OPEN",방향 부호 없는 speed magnitude,PHYSICAL_OR_LOGICAL_SIGNAL
+CODEX_REPORTED,DriveTorqueRequest,"VMC 출력, eDrive 입력 토크 요구",Nm,float,LF-PROP-GEN,LF-PROP-EDRV,"eDrive 컴포넌트 검증 입력 [0,600]; 출력 전체 범위는 미확인",C_WASM_STEP_OPEN,"signedness, direction 인코딩 별도 확인",PHYSICAL_OR_LOGICAL_SIGNAL
+CODEX_REPORTED,EDriveCommand,eDrive SW에서 만든 명령,Nm로 보고되었으나 포트 단위 재확인,float,LF-PROP-EDRV,LF-ACT-DRIVE,출력 한계 OPEN,C_WASM_STEP_OPEN,실제 모터 토크 측정치 아님,PHYSICAL_OR_LOGICAL_SIGNAL
+CODEX_REPORTED,DriveForce,adapter가 Plant로 전달하는 구동력/물리 명령,N,float,LF-ACT-DRIVE,LF-PLANT-MOTION,signedness/limit OPEN,SIM_FIXED_STEP,EDriveCommand와 값이 같은지 비교 불가(변환경계),PHYSICAL_OR_LOGICAL_SIGNAL
+CODEX_REPORTED,BrakeForce,차량 물리 계층의 제동력/명령 관측,N,float,LF-ACT-BRAKE,LF-PLANT-MOTION,범위/부호 OPEN,SIM_FIXED_STEP,Brake ECU 실측 출력 아님,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,VehicleLongitudinalVelocity,차량 전진축 종방향 속도,m/s,float,LF-PLANT-MOTION,LF-SEN-MOTION,"signed, basis 확인 필요",SIM_FIXED_STEP,world X/Z 속도와 구분,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,VehicleLongitudinalAcceleration,차량 종방향 가속도 관측,m/s²,float,LF-PLANT-MOTION,LF-SEN-MOTION,"음수 가능, frame 계산 기준 확인 필요",SIM_FIXED_STEP,Expected curve 별도 부재,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,VehiclePositionXZ,차량 world X/Z position 관측,m,vector2,LF-PLANT-MOTION,LF-SEN-MOTION,좌표축 정의 OPEN,SIM_FIXED_STEP,도메인 축 전진거리와 다름,PHYSICAL_OR_LOGICAL_SIGNAL
+CODEX_REPORTED,Direction,VMC/eDrive 시험 방향 parameter,enum,enum,OPEN,"LF-PROP-GEN,LF-PROP-EDRV",FORWARD/REVERSE 컴포넌트 옵션,C_WASM_STEP_OPEN,GearState 동일시 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+CODEX_REPORTED,Validity,VMC/eDrive 시험 validity parameter,enum,enum,OPEN,"LF-PROP-GEN,LF-PROP-EDRV",VALID/INVALID 컴포넌트 옵션,C_WASM_STEP_OPEN,실제 sensor diagnostic/timeout 존재 증명 아님,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,VehicleReady,차량 준비 조건,boolean,bool,LF-VS-INIT,"LF-VS-PERM,LF-PROP-STA",TRUE/FALSE (생성식 OPEN),UNDEFINED,v0.1 STA 조건 원문,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,DriveEnable,구동 허용 상태,boolean,bool,LF-VS-PERM,LF-PROP-STA,TRUE/FALSE (생성식 OPEN),UNDEFINED,문서 요구 input. owner 제안,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,GearState,현재 적용/보고 기어 상태,enum,enum,LF-GEAR-STATE,"LF-VS-PERM,LF-PROP-STA",DRIVE 언급; full enum OPEN,UNDEFINED,D precondition과 applied D 다름,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,PropulsionOperatingState,구동 기능 내부 상태,enum,enum,LF-PROP-STA,"LF-PROP-GEN,LF-PROP-REACT",OFF/READY/ACTIVE/DEGRADED 초안,UNDEFINED,현재 코드 실제 상태머신 여부 OPEN,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,AcceleratorPedalPosition,페달 위치 기반 요구사항 입력,%,numeric,LF-PROP-ACQ,LF-PROP-INTERP,20% 예시; 전체 값 범위 미승인,UNDEFINED,DriverInputRuntime.accelerator와 alias 승인 전 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,AcceleratorPedalValid,가속페달 입력 유효성 요구조건,boolean,bool,OPEN,LF-PROP-ACQ,TRUE/FALSE,UNDEFINED,실제 유효성 감지 구현 확인 안 됨,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,DriverDriveRequestValid,해석된 운전자 요구 유효성,boolean,bool,LF-PROP-ACQ,"LF-PROP-INTERP,LF-PROP-STA",TRUE/FALSE,UNDEFINED,Validity parameter와 다른 계층,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,DriverDriveDemand,정규화 운전자 구동 의도,ratio,numeric,LF-PROP-INTERP,LF-PROP-GEN,"[0,1] v0.1 참조 요구",UNDEFINED,"v0.1 map 예시, PropulsionRequest와 별도",PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,DriveMode,운전 모드 상태,enum,enum,LF-VS-MODE,LF-PROP-GEN,실제 모드 enum OPEN,UNDEFINED,Eco/Sport 실제 구현 주장 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,RequestedDriveTorque,Motion Arbitration 이전 토크 요구,Nm,numeric,LF-PROP-GEN,LF-MC-REQ,전체 정상 범위 OPEN,UNDEFINED,DriveTorqueRequest와 별개,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,ArbitratedDriveTorque,Motion arbitration 결과 토크,Nm,numeric,LF-MC-LON,LF-PROP-LIM,부호/상한 OPEN,UNDEFINED,arbitration 구현 안 됨,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,MaxAllowedDriveTorque,토크 허용 상한 기준,Nm,numeric,OPEN,LF-PROP-LIM,300Nm는 예시 TC일 뿐,UNDEFINED,Energy가 실제 생산자라는 근거 없음,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,LimitedDriveTorque,토크 제한 후 요구,Nm,numeric,LF-PROP-LIM,"LF-PROP-OUT,LF-PROP-MON",범위/방향 OPEN,UNDEFINED,최종 eDrive SW입력과 alias 승인 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,PropulsionRequestValid,최종 Propulsion output 생성 전제,boolean,bool,OPEN,LF-PROP-OUT,TRUE/FALSE,UNDEFINED,DriverDriveRequestValid와 동일시 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,DriveTorqueCommand,구동계에 전송되는 토크 명령,Nm,numeric,LF-PROP-OUT,"LF-PROP-MON,LF-PROP-EDRV",적용방향/한계 OPEN,UNDEFINED,EDriveCommand와 의미 다른 단계,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,DriveTorqueCommandValid,구동 토크 명령 유효성,boolean,bool,LF-PROP-OUT,LF-PROP-EDRV,TRUE/FALSE,UNDEFINED,eDrive C 입력 구조 비교 필요,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,CommandTorqueTolerance,명령 일관성 판단 허용차,Nm,calibration,OPEN,LF-PROP-MON,값 OPEN,UNDEFINED,출처 승인 없이 PASS/FAIL 금지,CALIBRATION
+SRC_DRAFT,CommandTorqueDeviation,제한값과 명령의 편차,Nm,numeric,LF-PROP-MON,LF-FM-OBS,비음수 (계산식 문서에 있음),UNDEFINED,두 값을 독립 캡처한다는 근거는 없음,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,PropulsionFaultStatus,진단된 구동 고장 상태,enum,enum,LF-PROP-MON,"LF-PROP-REACT,LF-PROP-REC",NO_FAULT/FAULT_CONFIRMED 외 전이 OPEN,UNDEFINED,Injection active flag와 분리,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,DegradedTorqueLimit,고장시 토크 제한 보정,Nm,calibration,OPEN,LF-PROP-REACT,50Nm은 예시 TC,UNDEFINED,역방향 magnitude 정책 OPEN,CALIBRATION
+SRC_DRAFT,RecoveryConditionsSatisfied,복귀 가능한지 여부,boolean,bool,LF-FM-REC,LF-PROP-REC,TRUE/FALSE/계산식 OPEN,UNDEFINED,별도 복귀 절차 필요,PHYSICAL_OR_LOGICAL_SIGNAL
+SRC_DRAFT,ActualDriveTorque,실제 구동 토크 개념 신호,Nm,numeric,OPEN,LF-SEN-ACT,측정/추정 source OPEN,UNDEFINED,eDrive 출력에서 추정하거나 복제 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,DriverInputQuality,운전자 조작 입력의 타입·범위·유효성 메타데이터,quality,struct,LF-DRV-VALID,"LF-PROP-ACQ,LF-BRK-ACQ,LF-STR-ACQ",raw normalized input validity 정책 OPEN,SIM_FIXED_STEP,가상 운전자 입력에는 sensor redundancy 근거 없음,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,GearRequest,운전자 기어 선택 요구,enum,enum,LF-GEAR-ACQ,LF-GEAR-INTERLOCK,"P/R/N/D 후보, 실인코딩 OPEN",EVENT_OPEN,요청과 적용 분리,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,GearRequestValidity,기어 요청 표현·상태 유효성,quality,enum,LF-GEAR-ACQ,LF-GEAR-INTERLOCK,quality 기준 OPEN,EVENT_OPEN,값 형식/유효성 별도,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,GearTransitionStatus,변속 요청 처리 결과,enum,enum,LF-GEAR-INTERLOCK,LF-GEAR-STATE,PENDING/ACCEPT/REJECT 후보,EVENT_OPEN,적용 GearState와 다른 종류,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,GearApplyFeedback,실제 gear 전환 피드백,enum,enum,OPEN,LF-GEAR-STATE,실제 actuator 없음,EVENT_OPEN,가상 성공값 만들지 않음,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,GearFaultObservation,기어 전환 실패 후보 관측,event,event,LF-GEAR-REACT,LF-FM-OBS,timing criterion OPEN,EVENT_OPEN,timeout 단정 금지,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,VehicleInitializationStatus,차량 초기화 절차 상태,enum,enum,LF-VS-INIT,LF-VS-PERM,Init enum/조건 OPEN,EVENT_OPEN,차량 ECU init 코드를 의미하지 않음,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,VehicleModeRequest,운용 모드 선택 요구,enum,enum,LF-VS-MODE,LF-PROP-GEN,Mode enum OPEN,EVENT_OPEN,Game 난이도와 구분,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,DomainAvailability,기능별 사용 가능 상태/사유,enum,struct,LF-VS-FAULT,"LF-MC-REQ,LF-PROP-STA,LF-BRK-STATE",도메인·이유별 제약 OPEN,EVENT_OPEN,전기/물리 고장 별도,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,RequestedDeceleration,목표 감속 요구,m/s²,float,LF-BRK-DEMAND,"LF-BRK-COORD,LF-MC-LON",부호/상한/비례식 OPEN,LOGICAL_TASK_OPEN,BrakeForce(N)와 비교 불가,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,BrakeDemandValidity,제동 입력 품질/유효성,quality,enum,LF-BRK-ACQ,"LF-BRK-STATE,LF-BRK-DEMAND",판정 근거 OPEN,LOGICAL_TASK_OPEN,driver brake 0..1 자체는 invalid 센서 진단 아님,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,BrakeAvailability,제동 기능의 가용성,enum,enum,LF-BRK-STATE,"LF-BRK-DEMAND,LF-MC-LON",정확한 mode OPEN,LOGICAL_TASK_OPEN,DriveEnable과 독립,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,SelectedBrakingRequest,출처 중재된 제동 요구,typed request,struct,LF-BRK-COORD,"LF-MC-LON,LF-BRK-BLEND",priority OPEN,LOGICAL_TASK_OPEN,AEB/Driver/ESC 서로 달라 수치합 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,RegenTorqueRequested,회생제동 토크 요구,Nm,numeric,LF-BRK-BLEND,LF-MC-ALLOC,부호/가용성 OPEN,LOGICAL_TASK_OPEN,negative drive torque 자동 등치 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,FrictionBrakeTorqueRequest,마찰제동 토크 요구,Nm,numeric,LF-BRK-BLEND,LF-BRK-CMD,부호/축 기준 OPEN,LOGICAL_TASK_OPEN,Brake Controller 독립 구현 없음,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,BrakeCommand,제동 제어기 출력 명령,OPEN,numeric,LF-BRK-CMD,LF-ACT-BRAKE,unit/encoding OPEN,LOGICAL_TASK_OPEN,BrakeForce(N)와 별개,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,BrakeActuationFeedback,제동 실제 피드백,OPEN,numeric,OPEN,LF-BRK-FDBK,sensor 존재 OPEN,LOGICAL_TASK_OPEN,"BrakeForce 별개, 독립 관측 필요",PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,BrakeFaultObservation,제동 반응 이상 후보,event,event,LF-BRK-FDBK,LF-FM-OBS,판정 criterion OPEN,LOGICAL_TASK_OPEN,감속도만으로 원인 판정 금지,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,SteeringDemandNormalized,운전자 조향 요구,ratio,float,LF-STR-ACQ,LF-STR-DEMAND,"[-1,1] 후보; driver input과 alias 검증 필요",LOGICAL_TASK_OPEN,steering angle 미확정,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,SteeringAvailability,조향 기능 가용성,enum,enum,LF-STR-STATE,LF-STR-COORD,mode OPEN,LOGICAL_TASK_OPEN,DriveEnable과 다름,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,RequestedSteeringAction,요구 조향 동작,OPEN,typed,LF-STR-DEMAND,LF-STR-COORD,angle/torque/yaw request 중 하나 선택 OPEN,LOGICAL_TASK_OPEN,물리 차원을 섞으면 안 됨,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,SelectedSteeringRequest,운전자/LKA 조정 요청,typed request,struct,LF-STR-COORD,LF-MC-LAT,authority OPEN,LOGICAL_TASK_OPEN,운전자가 override하는 조건 OPEN,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,EPSCommand,EPS 동작 명령,OPEN,numeric,LF-STR-ACT,LF-ACT-STEER,assist torque vs angle OPEN,LOGICAL_TASK_OPEN,실제 EPS SW 미구현,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,SteeringActuationFeedback,조향 실제 응답,OPEN,numeric,OPEN,LF-STR-MON,센서·좌표계 OPEN,LOGICAL_TASK_OPEN,plant pose와 동일시 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,WheelAngularVelocity,차륜 회전속도 관측,rad/s,vector,OPEN,"LF-STB-ABS,LF-STB-TCS",wheel model OPEN,LOGICAL_TASK_OPEN,단일 VehicleSpeed로 대체 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,WheelSlipRatio,휠 slip 추정/판정,ratio,vector,OPEN,"LF-STB-ABS,LF-STB-TCS",zero speed handling OPEN,LOGICAL_TASK_OPEN,wheel speed source 필요,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,YawRateEstimate,차량 yaw 운동량 추정,rad/s,float,OPEN,LF-STB-ESC,관측 frame/model OPEN,LOGICAL_TASK_OPEN,body rotation과 센서 측정 분리,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,AbsBrakeIntervention,잠김방지 제동 개입 제약,typed request,struct,LF-STB-ABS,"LF-STB-COORD,LF-BRK-CMD",policy OPEN,LOGICAL_TASK_OPEN,ABS 자체를 일률적 torque 증대와 혼동 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,TractionTorqueConstraint,구동 미끄럼 제한 제약,Nm or typed limit,struct,LF-STB-TCS,"LF-STB-COORD,LF-MC-LON",constraint direction OPEN,LOGICAL_TASK_OPEN,TCS 개입 시점 OPEN,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,EscMotionCorrection,차량 자세 안정화 개입 후보,typed request,struct,LF-STB-ESC,"LF-STB-COORD,LF-MC-REQ",권한·차륜별 배분 OPEN,LOGICAL_TASK_OPEN,ESC wheel brake actuator 없음,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,StabilityConstraintRequest,합의된 안정화 제약,typed request,struct,LF-STB-COORD,"LF-MC-REQ,LF-BRK-COORD",우선순위 OPEN,LOGICAL_TASK_OPEN,같은 braking controller에 두 번 적용 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,ObjectRelativeDistance,전방 대상과의 상대 거리,m,float,LF-ENV-STATE,"LF-ADAS-AEB,LF-ADAS-ACC","reference environment truth, 실제 센서 미구현",EVENT_OPEN,객체 ID/경로 검증 필요,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,ObjectRelativeVelocity,대상 상대 속도,m/s,float,LF-ENV-STATE,"LF-ADAS-AEB,LF-ADAS-ACC",부호/closing convention OPEN,EVENT_OPEN,TTC 정상 오라클로 사용 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,ObjectInPath,대상이 진행 경로에 있는지,boolean,bool,LF-ENV-STATE,LF-ADAS-AEB,객체 유효성/경로 기준 OPEN,EVENT_OPEN,단순 visible object와 다름,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,LaneOffset,차로 중심 기준 상대 위치,m,float,LF-ENV-STATE,LF-ADAS-LKA,부호·좌표계 OPEN,EVENT_OPEN,Camera perception output이 아님,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,AebBrakeRequest,자동 긴급 제동 요구,typed brake/decel,struct,LF-ADAS-AEB,"LF-MC-REQ,LF-BRK-ACQ",AEB 개입 기준/해제 OPEN,LOGICAL_TASK_OPEN,운전자가 브레이크 밟음과 구분,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,AccLongitudinalRequest,순항 속도/차간거리 기반 종방향 요구,m/s² or typed,struct,LF-ADAS-ACC,LF-MC-REQ,요구 단위 선택 OPEN,LOGICAL_TASK_OPEN,torque 직접 출력 가정 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,LkaAssistRequest,차로 유지 조향 보조 요구,OPEN,struct,LF-ADAS-LKA,"LF-MC-REQ,LF-STR-COORD",assist torque/angle 정의 OPEN,LOGICAL_TASK_OPEN,EPS 직접 소유 아님,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,AebAvailability,AEB 기능 가용성,enum,enum,LF-ADAS-COMMON,LF-ADAS-AEB,guard OPEN,LOGICAL_TASK_OPEN,ACC/LKA와 독립,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,AccAvailability,ACC 기능 가용성,enum,enum,LF-ADAS-COMMON,LF-ADAS-ACC,guard OPEN,LOGICAL_TASK_OPEN,ACC mode vs availability 분리,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,LkaAvailability,LKA 기능 가용성,enum,enum,LF-ADAS-COMMON,LF-ADAS-LKA,guard OPEN,LOGICAL_TASK_OPEN,LKA mode vs availability 분리,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,MotionRequestEnvelope,출처/유형 보존 통합 요구 envelope,typed request,struct,LF-MC-REQ,LF-MC-AUTH,priority/timestamp OPEN,LOGICAL_TASK_OPEN,모든 요청을 Nm으로 변환하지 않음,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,ControlAuthority,현재 출처별 제어권 결과,enum/struct,struct,LF-MC-AUTH,"LF-MC-LON,LF-MC-LAT",owner/priority OPEN,LOGICAL_TASK_OPEN,운전자/ADAS/안정화 중재 계약,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,CoordinatedLongitudinalRequest,종방향 조정 결과,typed request,struct,LF-MC-LON,"LF-MC-ALLOC,LF-PROP-LIM",unit/authority OPEN,LOGICAL_TASK_OPEN,ArbitratedDriveTorque의 실제 생성 함수와 alias 미정,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,CoordinatedLateralRequest,횡방향 조정 결과,typed request,struct,LF-MC-LAT,LF-MC-ALLOC,unit/authority OPEN,LOGICAL_TASK_OPEN,동일 순간 두 소스 두 번 적용 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,AllocatedActuatorCommand,차량 구동/제동/조향으로 나눈 명령,typed bundle,struct,LF-MC-ALLOC,"LF-PROP-OUT,LF-BRK-CMD,LF-STR-ACT",physical actuator capability OPEN,LOGICAL_TASK_OPEN,현재 런타임 적용 경로 미확인,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,MotionCoordinationObservation,요구/결정/출력 일관성 확인,event,event,LF-MC-MON,LF-FM-OBS,oracle/criterion OPEN,LOGICAL_TASK_OPEN,Case ground truth로 판정 금지,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,VehicleMotionObservation,vehicle plant 관측 + provenance,typed snapshot,struct,LF-SEN-MOTION,"LF-MC-LON,LF-ADAS-AEB,LF-ADAS-ACC",source/copy time OPEN,SIM_FIXED_STEP,센서모델이 아니라 plant truth일 수 있음,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,ActuatorEndpointObservation,원출력/적용출력 지점별 관측,typed samples,struct,LF-SEN-ACT,LF-FM-OBS,실제 서로 다른 event인지 확인 필요,EVENT_OPEN,1개 변수를 2개 endpoint로 재사용 금지,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,SignalQuality,타입·freshness·validity 품질,enum/quality,struct,LF-SEN-QUALITY,"LF-FM-OBS,LF-MC-REQ",source timestamp/criterion OPEN,EVENT_OPEN,range valid != expected correct,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,DrivePowerAvailable,전기 구동 전력 가용성,boolean or enum,enum,LF-EN-READY,"LF-EN-LIMIT,LF-PROP-LIM",BMS/HV 모델 없음,LOGICAL_TASK_OPEN,VehicleReady 별도,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,RegenAvailable,회생제동 가용성,boolean or enum,enum,LF-EN-READY,LF-BRK-BLEND,전력 제한 policy OPEN,LOGICAL_TASK_OPEN,Battery SOC 수치 OPEN,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,EnergyDriveTorqueLimit,에너지/구동계 허용 토크,Nm,numeric,LF-EN-LIMIT,"LF-MC-ALLOC,LF-PROP-LIM",producer actual 미구현,LOGICAL_TASK_OPEN,MaxAllowedDriveTorque 별개,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,RegenTorqueLimit,회생 제동 허용 토크,Nm,numeric,LF-EN-LIMIT,LF-BRK-BLEND,부호·온도·charge acceptance OPEN,LOGICAL_TASK_OPEN,실제 차량값 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,EnergyLimitObservation,에너지 제한 초과 등 후보,event,event,LF-EN-MON,LF-FM-OBS,구현/criterion OPEN,LOGICAL_TASK_OPEN,자동 fault 확정 금지,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,CrashRelatedObservation,충돌 판단 입력 후보,OPEN,struct,LF-OCC-IMPACT,LF-OCC-DECIDE,Crash sensor 실제 구현 없음,EVENT_OPEN,Rapier collision과 구별,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,ProtectionDecision,탑승자 보호 장치 판단 후보,enum/struct,struct,LF-OCC-DECIDE,LF-OCC-DEPLOY,알고리즘/억제/ASIL 모두 OPEN,EVENT_OPEN,실차 보호 장치 작동 아님,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,ProtectionCommandEvent,보호 명령 사건 정보,event,event,LF-OCC-DEPLOY,LF-FM-DIAG,하드웨어 구현 없음,EVENT_OPEN,검증에 사용 금지,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,FaultMonitorObservation,도메인에서 등록한 이상 후보 관찰,typed obs,struct,LF-FM-OBS,LF-FM-DETECT,criterion별 provenance 필수,EVENT_OPEN,injected flag != detection,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,FaultDetectionStatus,실제 감시기로 판정된 오류 생명주기,enum,enum,LF-FM-DETECT,"LF-FM-REACT,LF-FM-REC",threshold/debounce/clear OPEN,EVENT_OPEN,PropulsionFaultStatus와 매핑 미정,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,FaultReactionConstraint,domain별 고장 대응 제약,typed request,struct,LF-FM-REACT,"LF-VS-FAULT,LF-MC-REQ",safe reaction 개별 승인 필요,EVENT_OPEN,전 기능 zero torque 강제 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,FaultRecoveryEligibility,복귀 승인 조건,enum/boolean,struct,LF-FM-REC,"LF-VS-FAULT,LF-PROP-REC",re-arm/hysteresis OPEN,EVENT_OPEN,Injection ended ≠ Recovery granted,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,DiagnosticEvent,고장/진단 이벤트 기록,event,struct,LF-FM-DIAG,LF-EXE-RECORD,DTC/UDS 사용 금지,EVENT_OPEN,진단 서비스 자체 구현 아님,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,PortSourceSample,생산자 경계에서 원본 캡처,typed sample,struct,LF-COM-PORT,LF-SEN-ACT,실제 source endpoint 이벤트 없으면 미지원,EVENT_OPEN,alias copied samples 사용 금지,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,PortDestinationSample,소비자 경계 직전 샘플,typed sample,struct,LF-COM-PORT,LF-SEN-ACT,실제 dest endpoint 이벤트 없으면 미지원,EVENT_OPEN,MATCH 판정 계약 필요,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,VirtualCanFrameEvent,가상 CAN frame 전송/수신 사건,event,struct,LF-COM-NET,LF-COM-SUP,모든 frame field OPEN,EVENT_OPEN,실제 CAN-ID 없음,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,TransferFreshnessStatus,소비 값의 최신성/누락/지연 관찰,enum,struct,LF-COM-SUP,LF-FM-OBS,expected update schedule OPEN,EVENT_OPEN,시간 기준 없으면 UNKNOWN,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,SimulationTick,시뮬레이션 기준 Tick,tick,integer,LF-EXE-CLOCK,"LF-EXE-SCHED,LF-PLANT-MOTION",1/60s reported physics,SIM_FIXED_STEP,ECU task 10ms가 아님,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,RunnableExecutionEvent,주기 작업 release/finish 이력,event,struct,LF-EXE-SCHED,LF-EXE-SUP,multi-rate implementation 없음,LOGICAL_TASK_OPEN,fake timestamp 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,ExecutionSupervisionStatus,alive/deadline/watchdog 상태,enum,enum,LF-EXE-SUP,LF-FM-OBS,실제 peripheral 없음,LOGICAL_TASK_OPEN,실제 hardware watchdog 주장 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,IncidentFrameRecord,사건 시점 주변 run 관측 기록,snapshot,struct,LF-EXE-RECORD,LF-FM-DIAG,기록 대상/시각 runtime 확인 필요,SIM_FIXED_STEP,Oracle_expected와 distinct,TELEMETRY_METADATA_OR_EVENT
+PROPOSED,PhysicsSteeringCommand,물리 조향 적용 값,normalized or rad,numeric,LF-ACT-STEER,LF-PLANT-MOTION,실제 adapter API 확인 전 단위 OPEN,SIM_FIXED_STEP,driver steering vs roadWheelAngle 다름,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,VehicleRoadContactState,타이어/노면 접촉 상태,struct,struct,LF-PLANT-MOTION,"LF-STB-ABS,LF-STB-TCS",현재 wheel slip 모델 확인 안 됨,SIM_FIXED_STEP,실측 wheel sensor 대용 금지,PHYSICAL_OR_LOGICAL_SIGNAL
+PROPOSED,ScenarioRoadState,도로 기하·마찰 및 Scenario 조건,struct,struct,LF-PLANT-ENV,"LF-ENV-STATE,LF-PLANT-MOTION",road friction runtime 연동 OPEN,SIM_FIXED_STEP,UI에서 비가 온다고 mu 바뀐 것 아님,PHYSICAL_OR_LOGICAL_SIGNAL
