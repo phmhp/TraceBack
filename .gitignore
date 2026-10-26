@@ -8,3 +8,4 @@ dist/
 .tools/
 .zig-cache/
 .tmp-*-audit*/
+*.zip

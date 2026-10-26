@@ -1,9 +1,0 @@
-﻿stimulusId,stimulusClass,name,injectionBoundary,runtimeCapability,note
-STIM-DRV-ACC-OVERRIDE,INPUT_OVERRIDE,Accelerator delivered override,DriverInput→Propulsion,CURRENT_RUNTIME,시험 자극. 그 자체가 software defect/root cause는 아님.
-STIM-IF-EDRIVE-OVERRIDE,INTERFACE_OVERRIDE,EDrive destination command override,eDrive→DriveAdapter,CURRENT_RUNTIME,source/destination mismatch를 만들 수 있으나 CAN/network 결함이라고 표현 금지.
-STIM-IF-EDRIVE-DROP,INTERFACE_DROP,EDrive update drop / previous delivered hold,eDrive→DriveAdapter,CURRENT_RUNTIME,실제 network receive buffer/timeout 모델이 아님.
-STIM-PHY-LOW-FRICTION,PHYSICAL_ENVIRONMENT,Low-friction surface,Plant/Environment,REFERENCE_ONLY,SW defect가 아니라 reaction을 검증하기 위한 scenario stimulus.
-STIM-PHY-ACT-DEG,PHYSICAL_ACTUATOR,Actuator effectiveness degradation,Actuation/Plant,REFERENCE_ONLY,repair 대상 SW defect와 분리.
-STIM-TRAFFIC-LEAD-BRAKE,ENVIRONMENT_EVENT,Lead vehicle emergency braking,Environment/ADAS,REFERENCE_ONLY,AEB/ACC case용; perception truth/actor contract 선행 필요.
-STIM-SIG-INVALID,SIGNAL_VALIDITY,Signal invalid state,Any typed input,REFERENCE_ONLY_OR_COMPONENT_HARNESS,value와 validity를 함께 정의해야 함.
-STIM-TASK-STALL,EXECUTION_EVENT,Task execution stall,Execution Platform,REFERENCE_ONLY,scheduler/last-run contract 선행 필요.
