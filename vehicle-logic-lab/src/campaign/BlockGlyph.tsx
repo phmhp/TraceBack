@@ -1,0 +1,6 @@
+export function BlockGlyph({id,rows=1}:{id:string;rows?:number}){
+ const h=rows*48+40,mid=h/2,shape={fill:'#f8fcff',stroke:'#527895',strokeWidth:2.2}
+ return <svg className="sl-glyph" viewBox={'0 0 222 '+h} style={{height:h}} aria-label={id+' 연산 기호'}>
+ {id==='request'?<><path d={'M43 12L180 '+mid+'L43 '+(h-12)+'Z'} {...shape}/><text x="112" y={mid+6}>K</text></>:id==='permission'?<><path d={'M43 12H106C204 12 204 '+(h-12)+' 106 '+(h-12)+'H43Z'} {...shape}/><text x="121" y={mid+6}>AND</text></>:id==='quality'?<><rect x="43" y="12" width="136" height={h-24} {...shape}/><path d={'M49 12V'+(h-12)+'M173 12V'+(h-12)} stroke="#527895"/><text x="111" y={mid+6}>Valid?</text></>:id==='input'?<>{Array.from({length:rows},(_,i)=><g key={i}><rect x="60" y={28+i*48} width="92" height="30" rx="15" {...shape}/><text x="106" y={49+i*48}>{i+1}</text></g>)}</>:id==='command'?<><path d={'M43 15H159L180 '+mid+'L159 '+(h-15)+'H43Z'} {...shape}/><text x="112" y={mid+6}>Out</text></>:<><rect x="43" y="12" width="136" height={h-24} {...shape}/>{id==='dynamics'||id==='ceiling'?<><path d={'M71 '+(mid+18)+'H90L135 '+(mid-18)+'H157'} fill="none" stroke="#527895" strokeWidth="3"/>{id==='dynamics'&&<path d={'M49 12V'+(h-12)+'M173 12V'+(h-12)} stroke="#527895"/>}</>:<text x="111" y={mid+6}>{id==='gearCheck'?'== D':'< B_rel'}</text>}</>}
+ </svg>
+}
