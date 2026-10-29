@@ -1,17 +1,9 @@
-# TRACKBACK repository guidance
+# Vehicle Logic Lab
 
-## Product direction source of truth
+This folder is an independently runnable deliverable. Keep all runtime sources and assets inside it. Do not import from the parent repository or rely on its node_modules, servers, filesystem aliases, or external asset URLs.
 
-Before planning or implementing investigation UX, gameplay, mission, clue/evidence, character reaction, repair, re-drive, reward, audio, or episode progression work, read and follow:
+Product direction: `docs/DEVELOPMENT_BRIEF_v3.md` and the user's latest UX direction supersede v2 here: a bright cozy game, title → driver-view opening → garage → one concept/action at a time → verification → reward. Keep the full graph optional. Preserve original TRACKBACK apps outside this folder. Use TRACKBACK's own art, not third-party identities.
 
-- `docs/TRACKBACK_GAMIFICATION_REDESIGN_v1.md`
+READY content is an explicitly fictional educational vehicle specification, not an OEM or safety-standard claim. Mission 1 computes a request without changing vehicle state. Mission 2 changes state once per rising button edge. Mission 3 validates behavior rather than graph shape. Never use unreviewed legacy data as an answer key.
 
-Treat that document as the current product-direction baseline. Preserve the existing vehicle investigation and verification structure while following its phased implementation order:
-
-1. Phase A — investigation semantics
-2. Phase B — Mission/Clue layer
-3. Phase C — character reactions
-4. Phase D — Repair/Re-drive loop
-5. Phase E — reward/cozy polish
-
-Do not copy third-party character designs, assets, or visual identity. The references in the design document describe pacing and emotional tone only; use TRACKBACK's own cat-driver, repair-shop, and vehicle-verification world.
+Keep engine, content, verification, and presentation separate. Run `npm test`, `npm run build`, and `npm run check:independence` after meaningful changes. Record deferred features and actionable follow-up prompts in docs.

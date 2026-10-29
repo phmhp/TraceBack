@@ -1,16 +1,13 @@
-import { StrictMode } from 'react'
+import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { GameApplication } from './app/GameApplication'
-import 'pretendard/dist/web/variable/pretendardvariable.css'
+import App from './game/Game'
+import {GameRecovery} from './game/GameRecovery'
+import 'pretendard/dist/web/static/pretendard.css'
 import './ui/styles.css'
-import vehicleSwUrl from './runtime/c/generated/vehicle-sw.wasm?url'
-
-const root = document.getElementById('root')!
-root.textContent = '차량 제어 소프트웨어를 준비하고 있습니다…'
-fetch(vehicleSwUrl).then(async response => {
-  if (!response.ok) throw new Error(`Vehicle SW load: ${response.status}`)
-  const module = await WebAssembly.compile(await response.arrayBuffer())
-  createRoot(root).render(<StrictMode><GameApplication vehicleSwModule={module} /></StrictMode>)
-}).catch(error => {
-  root.textContent = `차량 제어 소프트웨어를 불러오지 못했습니다. ${String(error)}`
-})
+import './game/game.css'
+import './game/polish.css'
+import './game/experience.css'
+import './game/systems.css'
+import './game/journey.css'
+createRoot(document.getElementById('root')!).render(<React.StrictMode><GameRecovery><App/></GameRecovery></React.StrictMode>)
+import './campaign/campaign.css'

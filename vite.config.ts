@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
-
-export default defineConfig({ plugins: [react(), tailwindcss()] })
+import { resolve } from 'node:path'
+export default defineConfig({ plugins: [react(),tailwindcss()], base: './', build:{rollupOptions:{input:{game:resolve(import.meta.dirname,'index.html'),simulation:resolve(import.meta.dirname,'simulation/index.html')}}} })

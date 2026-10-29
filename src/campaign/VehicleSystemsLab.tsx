@@ -1,0 +1,24 @@
+import {useState} from 'react'
+import {NEW_SYSTEM_STATE,NORMAL_SYSTEM_INPUT,stepVehicleSystems} from './vehicleSystems'
+import type {SystemInput,SystemOutput,SystemState} from './vehicleSystems'
+import './vehicleSystemsLab.css'
+type Preset={name:string;input:Partial<SystemInput>;state?:Partial<SystemState>}
+const PRESETS:Preset[]=[
+ {name:'전원 접속',input:{startEdge:true,brakePct:20}},
+ {name:'구동',input:{gear:'D',pedalPct:50,speedKmh:35},state:{hv:'READY'}},
+ {name:'제동 협조',input:{gear:'D',brakePct:35,speedKmh:45},state:{hv:'READY'}},
+ {name:'충전·12V',input:{plugged:true,chargerLimitA:20}},
+ {name:'열 제한',input:{gear:'D',pedalPct:100,motorTempC:78},state:{hv:'READY'}},
+ {name:'ABS·ESC',input:{gear:'D',brakePct:45,speedKmh:50,wheelSlip:[.32,0,0,0],yawError:.3},state:{hv:'READY'}},
+ {name:'조향 보조',input:{gear:'D',steer:.5,speedKmh:35},state:{hv:'READY'}},
+ {name:'고장 반응',input:{gear:'D',pedalPct:80,signalAgeMs:180},state:{hv:'READY'}},
+]
+const fmt=(v:number)=>Number(v.toFixed(2))
+export function VehicleSystemsLab(){
+ const [input,setInput]=useState<SystemInput>(NORMAL_SYSTEM_INPUT),[state,setState]=useState<SystemState>(NEW_SYSTEM_STATE),[output,setOutput]=useState<SystemOutput|null>(null),[scenario,setScenario]=useState(''),[tick,setTick]=useState(0)
+ const choose=(preset:Preset)=>{setScenario(preset.name);setInput({...NORMAL_SYSTEM_INPUT,...preset.input});setState({...NEW_SYSTEM_STATE,...preset.state});setOutput(null);setTick(0)}
+ const run=(count:number)=>{let current=state,last:SystemOutput|null=null;for(let i=0;i<count;i++){last=stepVehicleSystems(current,{...input,startEdge:i===0&&input.startEdge,stopEdge:i===0&&input.stopEdge},.02);current=last.state}setState(current);setOutput(last);setTick(n=>n+count);setInput(v=>({...v,startEdge:false,stopEdge:false,packSoc:current.soc}))}
+ const number=(key:keyof SystemInput,label:string,min:number,max:number,step=1)=><label>{label}<input type="number" min={min} max={max} step={step} value={input[key] as number} onChange={e=>setInput(v=>({...v,[key]:Number(e.target.value)}))}/></label>
+ return <details className="d16-systems-lab"><summary>차량 시스템 동작 실험실 · 전원·충전·열·구동·제동·조향·진단</summary><p>전원 상태와 각 장치의 출력이 한 차량에서 이어집니다. 시나리오를 고른 뒤 입력을 바꿔 한 틱씩 실행해보세요.</p><div className="d16-system-presets">{PRESETS.map(preset=><button key={preset.name} aria-pressed={scenario===preset.name} onClick={()=>choose(preset)}>{preset.name}</button>)}</div><div className="d16-systems-layout"><div className="d16-systems-input"><h4>현재 입력</h4><div className="d16-systems-form"><label>기어<select value={input.gear} onChange={e=>setInput(v=>({...v,gear:e.target.value as SystemInput['gear']}))}>{(['P','R','N','D'] as const).map(gear=><option key={gear}>{gear}</option>)}</select></label>{number('pedalPct','가속페달 %',0,100)}{number('brakePct','브레이크 %',0,100)}{number('speedKmh','속도 km/h',0,160)}{number('steer','핸들 입력',-1,1,.1)}{number('packSoc','배터리 잔량 %',0,100)}{number('motorTempC','모터 온도 °C',-20,120)}{number('signalAgeMs','신호 지연 ms',0,1000)}<label><input type="checkbox" checked={input.plugged} onChange={e=>setInput(v=>({...v,plugged:e.target.checked}))}/> 충전 케이블</label><label><input type="checkbox" checked={input.isolationOk} onChange={e=>setInput(v=>({...v,isolationOk:e.target.checked}))}/> 절연 정상</label><label><input type="checkbox" checked={input.startEdge} onChange={e=>setInput(v=>({...v,startEdge:e.target.checked}))}/> START 이벤트</label></div><div className="d16-system-presets"><button onClick={()=>run(1)}>한 틱 실행</button><button onClick={()=>run(20)}>0.4초 재생</button><button onClick={()=>{setInput(NORMAL_SYSTEM_INPUT);setState(NEW_SYSTEM_STATE);setOutput(null);setTick(0);setScenario('')}}>초기화</button></div></div><div className="d16-systems-output"><h4>시스템 → 장치 → 차량 반응 <small>{tick}틱</small></h4>{!output?<p>입력과 시나리오를 정한 뒤 실행하세요.</p>:<div className="d16-systems-flow"><p><b>고전압·BMS</b><span>{output.state.hv} · 접촉기 {output.contactors.main?'ON':'OFF'} · 가용 {fmt(output.availableTorqueNm)} Nm</span></p><p><b>충전·저전압</b><span>OBC {fmt(output.charging.currentA)} A · DC/DC {output.dcDc.active?'ON':'OFF'} · {fmt(output.dcDc.voltageV)} V</span></p><p><b>열관리</b><span>펌프 {output.thermal.pump?'ON':'OFF'} · 팬 {output.thermal.fan?'ON':'OFF'} · 출력 {fmt(output.thermal.derate*100)}%</span></p><p><b>후륜 구동</b><span>요청 {fmt(output.drive.requestNm)} → 명령 {fmt(output.drive.commandNm)} → 실제 {fmt(output.drive.actualNm)} Nm</span></p><p><b>제동 협조</b><span>회생 {fmt(output.brake.regenNm)} Nm · 마찰 {fmt(output.brake.frictionN)} N · ABS {output.brake.absActive?'ON':'OFF'} · ESC {output.brake.escActive?'ON':'OFF'}</span></p><p><b>전륜 조향·EPS</b><span>앞바퀴 {fmt(output.steering.frontAngleRad)} rad · 보조 {fmt(output.steering.assistNm)} Nm</span></p><p><b>진단</b><span>{output.diagnostics.length?output.diagnostics.join(' · '):'정상'}</span></p></div>}</div></div></details>
+}
+
