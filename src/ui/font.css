@@ -1,0 +1,5 @@
+@font-face{font-family:Pretendard;src:url('pretendard/dist/web/variable/woff2/PretendardVariable.woff2') format('woff2');font-style:normal;font-weight:100 900;font-display:swap}
+html,body,#root{font-family:Pretendard,sans-serif}
+*,*::before,*::after{word-break:keep-all}
+button,input,select,textarea{font-family:inherit}
+

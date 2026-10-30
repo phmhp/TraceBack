@@ -5,7 +5,7 @@ const stages=[
  {name:'배터리 상태',detail:'BMS가 배터리 상태와 사용 가능 전력을 확인합니다.',part:'battery'},
  {name:'고전압 연결',detail:'프리차지 뒤 접촉기가 닫히면 인버터까지 전력 경로가 이어집니다.',part:'contactors'},
  {name:'전류와 토크',detail:'인버터가 모터에 필요한 전류를 만들고 축 토크를 냅니다.',part:'motor'},
- {name:'바퀴로 전달',detail:'감속기·차동기어가 모터 회전을 좌우 뒤 바퀴로 보냅니다.',part:'wheel'},
+ {name:'바퀴로 전달',detail:'감속기·차동기어가 모터 회전을 좌우 뒷바퀴로 보냅니다.',part:'wheel'},
  {name:'제동·회생',detail:'감속 중 모터가 발전기로 작동할 수 있을 때 전력이 배터리로 돌아옵니다.',part:'regen'},
 ] as const
 const regenSample=stepVehicleSystems({...NEW_SYSTEM_STATE,hv:'READY'}, {...NORMAL_SYSTEM_INPUT,gear:'D',brakePct:60,speedKmh:35},.02)

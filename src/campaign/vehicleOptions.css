@@ -19,3 +19,63 @@
 @media(max-width:620px){.vla-motion-scene .vehicle .car-body{width:43px;left:3px}.vla-motion-scene .vehicle .car-body:before{width:26px;left:8px}.vla-motion-scene .vehicle .wheel.right{right:2px}}
 @media(prefers-reduced-motion:reduce){.vla-motion-scene .vehicle.lit .car-body{animation:none}}
 .vla-architecture-layout.tree-collapsed{grid-template-columns:1fr}.vla-architecture-layout.tree-collapsed .vla-tree{max-height:none;padding:7px}.vla-architecture-layout.tree-collapsed .vla-tree-toggle{display:flex!important;align-items:center;justify-content:space-between;gap:10px}.vla-architecture-layout.tree-collapsed .vla-architecture-detail{position:static}
+.vla-option-preview{display:grid;grid-template-columns:minmax(220px,.7fr) minmax(340px,1.3fr);gap:16px;align-items:center;padding:17px;border:1px solid #cde8e7;border-radius:22px;background:#f8fdfbdc;box-shadow:0 12px 30px #31576916}.vla-option-preview>div{display:grid;align-content:start;gap:8px}.vla-option-preview h3{font-size:21px}.vla-option-preview p{font-size:12px;line-height:1.5;color:#4f6f75}.vla-option-preview strong{font-size:11px;color:#14858a}.vla-option-card[aria-pressed=true]{outline:3px solid #e0a867;outline-offset:2px}.vla-option-list button.vla-option-card{text-align:left;min-height:134px;padding:12px}.vla-level-tabs,.vla-scenario-choices{display:flex;flex-wrap:wrap;gap:7px}.vla-level-tabs button[aria-pressed=true],.vla-scenario-choices button[aria-pressed=true]{background:#177f8a;color:#fff}.vla-scenario-map{display:grid;gap:10px;padding:16px;border:1px solid #cce6e4;border-radius:18px;background:linear-gradient(125deg,#f6fcfc,#eef8f2)}.vla-scenario-map>p{font-size:12px;color:#426b72}.vla-domain-flow{display:flex;align-items:stretch;gap:12px;overflow:auto}.vla-domain-flow button{position:relative;display:grid;align-content:start;gap:5px;flex:1;min-width:150px;text-align:left;padding:12px;background:#fff}.vla-domain-flow button:not(:last-child):after{content:'→';position:absolute;right:-15px;top:34%;font-size:20px;font-weight:900;color:#198b96;z-index:2}.vla-domain-flow button.current{border-color:#16909a;box-shadow:inset 0 0 0 1px #16909a}.vla-domain-flow span{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#d7eeea;color:#167786;font-size:11px;font-weight:900}.vla-domain-flow b{font-size:13px}.vla-domain-flow small{font-size:10px;line-height:1.4;word-break:keep-all}.vla-integrated-main>.vfi{max-width:700px;width:100%;justify-self:center}
+@media(max-width:750px){.vla-option-preview{grid-template-columns:1fr}.vla-option-preview .vfi{max-width:560px;width:100%;justify-self:center}}
+.vla-system-illustrations,.vla-domain-functions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.vla-system-illustrations>button,.vla-domain-functions>button{display:grid;gap:6px;align-content:start;min-width:0;text-align:left;background:#ffffffc9}.vla-system-illustrations .vfi,.vla-domain-functions .vfi{width:100%;pointer-events:none}.vla-system-illustrations b,.vla-domain-functions b{font-size:12px}.vla-domain-functions span{font-size:10px;color:#26818b}.vla-domain-inspection{display:grid;gap:14px;padding:17px;border:1px solid #cce6e4;border-radius:18px;background:#f8fcfa}.vla-domain-inspection header{display:grid;gap:6px}.vla-domain-inspection h3{font-size:18px}.vla-domain-inspection p{font-size:12px;color:#4d7077}.vla-domain-functions{grid-template-columns:repeat(3,minmax(0,1fr))}@media(max-width:850px){.vla-system-illustrations,.vla-domain-functions{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:550px){.vla-system-illustrations,.vla-domain-functions{grid-template-columns:1fr}}
+.vla-system-spine{display:grid;grid-template-columns:minmax(0,1fr) 20px minmax(0,1.5fr) 20px minmax(0,1fr);gap:8px;align-items:center}.vla-system-spine>div{display:grid;gap:5px;min-height:95px;align-content:center;padding:11px;border:1px solid #b8d8d9;border-radius:12px;background:#fff}.vla-system-spine .required{background:linear-gradient(145deg,#d6f1e9,#eaf9f8)}.vla-system-spine small{font-size:10px;color:#37838a}.vla-system-spine b{font-size:14px}.vla-system-spine span{font-size:10px}.vla-system-spine i{text-align:center;font-style:normal;font-size:20px;color:#1595a1;font-weight:900}.vla-system-spine .branches{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.vla-system-spine .branches small{flex-basis:100%}.vla-system-spine .branches button{flex:1;min-width:70px;padding:7px;font-size:11px}.vla-system-spine .branches button.lit{background:#caeee9;border-color:#47aba7;font-weight:800}@media(max-width:700px){.vla-system-spine{grid-template-columns:1fr}.vla-system-spine i{transform:rotate(90deg)}}
+
+.vla-category-tabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.vla-category-tabs button{min-height:39px;font-size:12px;font-weight:800}.vla-category-tabs button[aria-pressed=true]{background:#177f8a;color:#fff}
+.vla-choice-workspace{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(260px,.8fr);gap:12px;min-height:0}.vla-choice-workspace .vla-option-preview{display:grid;grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);align-content:start;gap:8px;min-height:0;padding:13px}.vla-choice-workspace .vla-option-preview>div{display:grid;grid-template-columns:1fr auto;gap:3px 8px}.vla-choice-workspace .vla-option-preview h3{grid-column:1/-1;font-size:17px}.vla-choice-workspace .vla-option-preview p{grid-column:1/-1}.vla-choice-workspace .vla-option-preview .vfi{width:100%;max-height:100%;align-self:center}.vla-choice-workspace .vla-option-column{gap:7px;padding:12px}.vla-choice-workspace .vla-option-column>header{min-height:0}.vla-choice-workspace .vla-option-list{gap:6px}.vla-choice-workspace .vla-option-card{min-height:0!important;padding:8px 10px!important;gap:3px}.vla-choice-workspace .vla-option-card p{font-size:10px;line-height:1.3}
+@media(min-width:800px){.vla-page:has(.vla-choice-workspace){overflow:hidden;padding:14px 20px}.vla-page:has(.vla-choice-workspace) .vla-shell{height:100%;grid-template-rows:auto auto auto auto minmax(0,1fr);gap:8px}.vla-page:has(.vla-choice-workspace) .vla-header h1{font-size:27px}.vla-page:has(.vla-choice-workspace) .vla-header p{display:none}.vla-page:has(.vla-choice-workspace) .vla-current-summary{padding:8px 14px;gap:10px}.vla-page:has(.vla-choice-workspace) .vla-car-mark{height:40px;width:70px}.vla-page:has(.vla-choice-workspace) .vla-current-summary h2{font-size:15px}.vla-page:has(.vla-choice-workspace) .vla-current-summary p{font-size:10px}}
+@media(max-width:799px){.vla-choice-workspace{grid-template-columns:1fr}.vla-category-tabs{grid-template-columns:repeat(2,1fr)}}
+
+@media(min-width:900px){
+.vla-page:has(.vla-integrated){overflow:hidden;padding:12px 18px}
+.vla-page:has(.vla-integrated) .vla-shell{height:100%;min-height:0;grid-template-rows:auto auto minmax(0,1fr);gap:7px}
+.vla-page:has(.vla-integrated) .vla-header h1{font-size:25px}
+.vla-page:has(.vla-integrated) .vla-header p{display:none}
+.vla-integrated{display:grid;grid-template-rows:auto auto minmax(0,1fr);gap:7px;min-height:0;overflow:hidden}
+.vla-integrated>header{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:0}
+.vla-integrated>header h2{font-size:17px}.vla-integrated>header p{display:none}
+.vla-integrated .vla-level-tabs button{padding:7px 9px;font-size:11px}
+.vla-integrated:has(.vla-slices){grid-template-columns:minmax(340px,.87fr) minmax(0,1.13fr);grid-template-rows:auto auto minmax(0,1fr)}
+.vla-integrated:has(.vla-slices)>header,.vla-integrated:has(.vla-slices)>.vla-level-tabs{grid-column:1/-1}
+.vla-integrated:has(.vla-slices)>.vla-slices{grid-column:1;grid-row:3;grid-template-columns:1fr;align-content:start;gap:7px;min-height:0;overflow:hidden;padding:10px}
+.vla-integrated:has(.vla-slices) .vla-slices header{display:none}
+.vla-integrated:has(.vla-slices) .vla-slice-stack{transform:none;gap:2px}
+.vla-integrated:has(.vla-slices) .vla-slice{min-height:34px;padding:4px 8px!important}
+.vla-integrated:has(.vla-slices) .vla-slice-readout{padding:7px;gap:3px}
+.vla-integrated:has(.vla-slices)>.vla-scenario-map{grid-column:2;grid-row:3;align-content:start;gap:7px;min-height:0;overflow:hidden;padding:10px}
+.vla-integrated:has(.vla-slices) .vla-scenario-choices button{padding:6px 8px;font-size:10px}
+.vla-integrated:has(.vla-slices) .vla-system-spine>div{min-height:68px;padding:7px}
+.vla-integrated:has(.vla-slices) .vla-system-spine b{font-size:11px}
+.vla-integrated:has(.vla-slices) .vla-system-spine .branches button{min-width:43px;padding:4px}
+.vla-integrated:has(.vla-slices) .vla-domain-flow{display:none}
+.vla-integrated:has(.vla-slices) .vla-system-illustrations{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}
+.vla-integrated:has(.vla-slices) .vla-system-illustrations>button{padding:4px;gap:3px}
+.vla-integrated:has(.vla-slices) .vla-system-illustrations .vfi{max-height:130px}
+.vla-integrated:has(.vla-slices) .vla-system-illustrations b{font-size:10px}
+.vla-integrated:has(.vla-domain-inspection)>.vla-domain-inspection{grid-template-rows:auto minmax(0,1fr);align-content:start;min-height:0;overflow:hidden;padding:9px;gap:7px}
+.vla-integrated:has(.vla-domain-inspection) .vla-domain-inspection header{gap:2px}
+.vla-integrated:has(.vla-domain-inspection) .vla-domain-inspection h3{font-size:14px}
+.vla-integrated:has(.vla-domain-inspection) .vla-domain-functions{grid-template-columns:repeat(4,minmax(0,1fr));align-content:start;gap:5px;min-height:0}
+.vla-integrated:has(.vla-domain-inspection) .vla-domain-functions>button{padding:5px;gap:2px;min-height:0;overflow:hidden}
+.vla-integrated:has(.vla-domain-inspection) .vla-domain-functions .vfi{height:105px;max-height:105px;overflow:hidden;margin:0}
+.vla-integrated:has(.vla-domain-inspection) .vla-domain-functions .vfi svg{height:100%;width:100%}
+.vla-integrated:has(.vla-domain-inspection) .vla-domain-functions .vfi-signal,.vla-integrated:has(.vla-domain-inspection) .vla-domain-functions .vfi figcaption{display:none}
+.vla-integrated:has(.vla-domain-inspection) .vla-domain-functions:not(:has(>button:nth-child(5))){grid-template-columns:repeat(2,minmax(0,1fr))}
+.vla-integrated:has(.vla-domain-inspection) .vla-domain-functions:not(:has(>button:nth-child(5))) .vfi{height:160px;max-height:160px}
+.vla-integrated:has(.vla-integrated-layout)>.vla-integrated-layout{min-height:0;overflow:hidden}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-main{min-height:0;overflow:hidden;gap:5px;padding:9px}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-main>.vfi{display:flex;align-items:center;width:100%;height:148px;max-height:148px;overflow:hidden;padding:5px}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-main>.vfi svg{width:52%;height:138px;max-height:138px}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-main>.vfi .vfi-signal{flex:1;grid-template-columns:1fr;gap:2px;padding:2px}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-main>.vfi .vfi-signal span{padding:3px 6px;font-size:10px}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-main>.vfi .vfi-signal i,.vla-integrated:has(.vla-integrated-layout) .vla-integrated-main>.vfi figcaption{display:none}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-flow{gap:4px}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-flow button{padding:4px;min-height:58px;gap:2px}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-flow button>span{font-size:16px}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-focus{padding:6px 9px}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-flow em{display:none}
+.vla-integrated:has(.vla-integrated-layout) .vla-integrated-computation,.vla-integrated:has(.vla-integrated-layout) .vla-integrated-allocation{display:none}
+}

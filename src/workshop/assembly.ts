@@ -31,7 +31,7 @@ export const assemblyParts: readonly AssemblyPart[] = [
 ]
 
 export const chassisParts: readonly AssemblyPart[] = [
-  { id: 'brakes', name: '디스크·캘리퍼 세트', english: 'BRAKE HARDWARE', stage: 3, position: [0, .68, .95], tray: [-3.25, .95, -.8], angle: 0, description: '좌우 뒤 바퀴 안쪽에 디스크와 캘리퍼를 장착해요. 제동 제어기의 요청을 마찰력으로 바꿔 바퀴를 감속합니다.', discovery: '브레이크는 구동 요청 0과 달라요. 회전하는 바퀴에 멈추는 힘을 가해요.', color: '#bc8069' },
+  { id: 'brakes', name: '디스크·캘리퍼 세트', english: 'BRAKE HARDWARE', stage: 3, position: [0, .68, .95], tray: [-3.25, .95, -.8], angle: 0, description: '좌우 뒷바퀴 안쪽에 디스크와 캘리퍼를 장착해요. 제동 제어기의 요청을 마찰력으로 바꿔 바퀴를 감속합니다.', discovery: '브레이크는 구동 요청 0과 달라요. 회전하는 바퀴에 멈추는 힘을 가해요.', color: '#bc8069' },
   { id: 'brakePedal', name: '브레이크 페달·제어기', english: 'BRAKE PEDAL & CONTROL', stage: 3, position: [-.18, 1.02, -1.02], tray: [-3.25, .95, 1], angle: 0, description: '페달·제어기를 고정하고 청록 단자를 제동 장치에 연결해요.', discovery: '제동 페달 입력 → 제동 요청 → 브레이크. 전진 기능과 다른 흐름이 자라요.', color: '#739db0' },
   { id: 'steeringRack', name: '조향 랙·보조장치', english: 'STEERING RACK', stage: 4, position: [0, .75, -1.3], tray: [-3.25, .95, -.8], angle: 0, description: '앞바퀴 사이에 랙과 타이로드를 끼워요. 이제 앞바퀴 방향을 바꿀 수 있어요.', discovery: '조향은 앞바퀴 방향을 바꿔요. 차체만 옆으로 움직이는 것과 달라요.', color: '#8caaa0' },
   { id: 'steeringWheel', name: '핸들·조향 제어기', english: 'STEERING INPUT & CONTROL', stage: 4, position: [-.35, 1.4, -.5], tray: [-3.25, .95, 1], angle: 0, description: '운전석에 핸들을 고정하고 조향 요청 케이블을 연결해요.', discovery: '핸들 입력 → 조향 요청 → 조향 장치 → 앞바퀴. 갈 수 있는 길이 늘었어요.', color: '#6b9988' },

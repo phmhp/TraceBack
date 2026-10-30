@@ -99,7 +99,6 @@ export function Chassis({ paint = '#58766a',damage=0,neutral=false }: { paint?: 
     {[-1.6, -.55, .5, 1.2].map((z,i) => <SoftBox key={z} position={[Math.sin(i*2.4)*damage*.7, .47+damage*(i%2)*.38, z+damage*(i%2?.58:-.46)]} rotation={[damage*(i%2?.4:-.32),damage*(i%2?.38:-.36),damage*(i%2?.3:-.26)]} size={[1.52, .14, .13]} radius={.025} color={neutral?'#b7bfc4':'#936e69'} metalness={.4} />)}
     <group position={[damage*.28,damage*.26,-damage*.2]} rotation={[damage*.25,0,damage*.2]}><Cuboid position={[0, .51, -1.25]} size={[1.3, .045, .95]} color="#9aa88a" /></group>
     {[-1, 1].map(sign => <group key={sign}>{[-1.3, .95].map(z => <group key={z}><Cylinder position={[sign * .91, .63, z]} axis="x" radius={.055} length={.54} color="#9fae9f" /><group name="passive-suspension" position={[sign*.68,.72,z]}><Cylinder radius={.055} length={.4} axis="y" color="#93a7b8"/>{Array.from({length:6},(_,i)=><mesh key={i} position={[0,-.17+i*.065,0]} rotation={[Math.PI/2,0,0]} castShadow><torusGeometry args={[.105,.022,8,24]}/><meshStandardMaterial color={neutral?'#b9c2c7':'#d27675'} metalness={.4} roughness={.3}/></mesh>)}</group></group>)}</group>)}
-    <group position={[.15, .88, -1.05]} rotation={[0, 0, .1]}><Cuboid position={[0, 0, 0]} size={[.42, .12, .49]} color="#b99871" /><Cuboid position={[0, .2, .2]} size={[.42, .42, .1]} color="#b99871" /></group>
     <Cylinder position={[0, .55, -1.3]} axis="x" radius={.025} length={2.1} color="#b4c2b1" />
   </group>
 }

@@ -27,7 +27,7 @@ export const PART_CLASS:Record<AssemblyPartId,{view:string;kind:string;ev:string
 }
 export const ASSEMBLY_KITS:Kit[]=[
  {id:'drive',name:'회전 전달 장치',domain:'파워트레인 - 구동 및 동력 전달',parts:['motor','gearbox','axle'],input:'전기 에너지',control:'모터의 회전',output:'감속기 → 구동축',principle:'모터가 만든 회전이 감속기와 축을 통해 바퀴까지 전달돼요. 감속기는 실제 기계이고, PRND는 운전자가 고르는 주행 상태 입력입니다.'},
- {id:'wheels',name:'앞·뒤 바퀴 두 쌍',domain:'섀시 · 접지 / 현가',parts:['frontLeft','frontRight','rearLeft','rearRight'],input:'구동축의 회전',control:'허브 · 수동 현가',output:'타이어 → 도로',principle:'앞바퀴 좌우 한 쌍과 뒷바퀴 좌우 한 쌍을 각각 장착해요. 뒤 바퀴는 구동력을, 앞 바퀴는 조향 방향을 도로에 전달합니다. 스프링·댐퍼는 차체를 지지하고 노면 충격을 줄입니다.'},
+ {id:'wheels',name:'앞·뒷바퀴 두 쌍',domain:'섀시 · 접지 / 현가',parts:['frontLeft','frontRight','rearLeft','rearRight'],input:'구동축의 회전',control:'허브 · 수동 현가',output:'타이어 → 도로',principle:'앞바퀴 좌우 한 쌍과 뒷바퀴 좌우 한 쌍을 각각 장착해요. 뒷바퀴는 구동력을, 앞 바퀴는 조향 방향을 도로에 전달합니다. 스프링·댐퍼는 차체를 지지하고 노면 충격을 줄입니다.'},
  {id:'power',name:'에너지와 전력 변환',domain:'전력 · 구동',parts:['battery','inverter'],input:'배터리 DC',control:'인버터의 전력 변환',output:'모터 AC 전력',principle:'전력을 공급하는 경로예요. 인버터는 나중에 VCU가 계산한 명령에 따라 모터 전력을 제어합니다.'},
  {id:'control',name:'운전자 입력과 ECU',domain:'E/E · 구동 제어',parts:['pedal','vcu'],input:'페달 위치 센서',control:'VCU · 이후 만들 SW',output:'인버터 토크 명령',principle:'센서는 발의 움직임을 신호로 바꾸고 ECU의 소프트웨어가 명령을 계산해요. 이 다음에 만드는 퍼즐이 VCU 안의 기능입니다.'},
  {id:'brake',name:'멈추는 장치',domain:'제동',parts:['brakes','brakePedal'],input:'브레이크 입력',control:'제동력 요청 계산',output:'캘리퍼 → 디스크',principle:'가속페달을 놓아 구동 토크를 낮추는 일과 브레이크로 마찰 제동력을 만드는 일은 달라요. 페달 센서·제동 제어기·캘리퍼의 역할을 분리해 살펴보세요.'},

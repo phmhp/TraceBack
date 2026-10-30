@@ -27,7 +27,7 @@ export const SUPPORT_ROUTES=[
  {id:'hv',domain:'에너지·전원',name:'접촉기·프리차지',input:'START · 절연 · DC 링크 전압',ecu:'BMS / 배터리 접속 장치',software:'고전압 접속 상태 전이',output:'프리차지 · 주 접촉기 명령',effect:'배터리와 인버터 사이 고전압 경로를 형성'},
  {id:'charge',domain:'에너지·전원',name:'충전·DC/DC·저전압',input:'충전 연결 · SOC · 저전압 부하',ecu:'OBC / DC-DC / BMS',software:'충전 허용 · 전압 변환 제어',output:'배터리 충전 전류 · 12V 공급',effect:'배터리를 다시 채우고 전장 부하에 전력을 공급'},
  {id:'inverter',domain:'구동',name:'인버터 전류·모터 토크',input:'MotorTorqueCmd · DC 전력',ecu:'인버터 제어기',software:'전류·토크 제어',output:'3상 모터 전류 · 축 토크',effect:'구동 모터가 회전력을 생성'},
- {id:'driveline',domain:'구동',name:'감속기·차동기어·후륜축',input:'모터 축 토크',ecu:'기계 전달 경로',software:'—',output:'좌우 뒤 바퀴 토크',effect:'타이어 접지력을 통해 차량 가속'},
+ {id:'driveline',domain:'구동',name:'감속기·차동기어·후륜축',input:'모터 축 토크',ecu:'기계 전달 경로',software:'—',output:'좌우 뒷바퀴 토크',effect:'타이어 접지력을 통해 차량 가속'},
  {id:'blend',domain:'제동',name:'회생·마찰 협조·ABS/ESC',input:'BrakeForceReq · 속도 · 휠 슬립',ecu:'제동 제어기 / VCU',software:'제동력 배분 · 휠별 제어',output:'회생 토크 · 캘리퍼 제동력',effect:'감속·에너지 회수·차체 안정'},
  {id:'eps',domain:'조향',name:'EPS 보조·조향 피드백',input:'운전자 토크 · 차속 · 조향각',ecu:'EPS 제어기',software:'보조 토크 제어',output:'EPS 모터 전류 · 보조 토크',effect:'기계식 랙에서 운전자 조향력을 보조'},
  {id:'chassis',domain:'섀시',name:'타이어·현가·차량 운동',input:'바퀴 토크 · 제동력 · 앞바퀴 각도',ecu:'물리·기계 경로',software:'—',output:'차속 · 자세 · 접지 상태',effect:'도로에 힘을 전달하고 차체를 지지'},
@@ -58,7 +58,7 @@ export const TOPOLOGY_PATHS:readonly TopologyPath[]=[
  {id:'driver-drive',view:'신호',title:'가속 명령',steps:['가속페달 센서','VCU','인버터 제어기','모터 토크']},
  {id:'driver-brake',view:'신호',title:'제동 협조',steps:['브레이크 페달','제동 제어기','VCU / 인버터','회생 + 캘리퍼']},
  {id:'driver-steer',view:'신호',title:'EPS 보조',steps:['운전대 토크 센서','EPS 제어기','EPS 모터','랙 보조 토크']},
- {id:'rear-drive',view:'기계',title:'후륜 구동',steps:['모터 축','감속·차동기어','좌우 구동축','뒤 바퀴·노면']},
+ {id:'rear-drive',view:'기계',title:'후륜 구동',steps:['모터 축','감속·차동기어','좌우 구동축','뒷바퀴·노면']},
  {id:'front-steer',view:'기계',title:'전륜 조향',steps:['운전대·조향축','기계식 랙','타이로드','앞 바퀴·노면']},
 ]
 

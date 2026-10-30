@@ -10,7 +10,7 @@ const paths:Record<DomainId,{kind:AtlasTrace['kind'];parts:AssemblyPartId[]}[]>=
  steer:[{kind:'input',parts:['steeringWheel']},{kind:'logic',parts:['steeringWheel','vcu']},{kind:'actuator',parts:['steeringRack']},{kind:'mechanical',parts:['steeringRack','frontLeft','frontRight']}],
 }
 
-export function makeAtlasTrace(domain:DomainId,step:number,part:AssemblyPartId,label:string,value:string,outputs:{torqueNm:number;brakeForceN:number;frontAngleRad:number}):AtlasTrace{
+export function makeAtlasTrace(domain:DomainId,step:number,part:AssemblyPartId,label:string,value:string,outputs:{torqueNm:number;brakeForceN:number;frontAngleRad:number},activeOverride?:AssemblyPartId[]):AtlasTrace{
  const path=paths[domain],index=Math.max(0,Math.min(path.length-1,Math.trunc(step))),node=path[index]
- return{domain,step:index,part,activeParts:node.parts,kind:node.kind,label,value,torqueNm:Number.isFinite(outputs.torqueNm)?Math.max(0,outputs.torqueNm):0,brakeForceN:Number.isFinite(outputs.brakeForceN)?Math.max(0,outputs.brakeForceN):0,frontAngleRad:Number.isFinite(outputs.frontAngleRad)?Math.max(-.48,Math.min(.48,outputs.frontAngleRad)):0}
+ return{domain,step:index,part,activeParts:activeOverride??node.parts,kind:node.kind,label,value,torqueNm:Number.isFinite(outputs.torqueNm)?Math.max(0,outputs.torqueNm):0,brakeForceN:Number.isFinite(outputs.brakeForceN)?Math.max(0,outputs.brakeForceN):0,frontAngleRad:Number.isFinite(outputs.frontAngleRad)?Math.max(-.48,Math.min(.48,outputs.frontAngleRad)):0}
 }

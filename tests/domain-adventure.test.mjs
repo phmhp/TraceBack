@@ -39,8 +39,8 @@ test('v16 OR instead of AND fails negative conditions; topology and port order d
  const g=referenceModel('power');g.nodes.find(n=>n.id==='b1').kind='or';assert.ok(verifyModel('power',g).some(c=>!c.pass));g.nodes.find(n=>n.id==='b1').kind='and';g.wires.filter(w=>w.to==='b1').forEach(w=>w.port=1-w.port);assert.ok(verifyModel('power',g).every(c=>c.pass))
 })
 test('v16 unconnected Inports still display their actual injected values without pretending the output is connected',()=>{const r=evaluateModel(emptyModel('power'),{ready:true,pack:true});assert.equal(r.values['in-ready'],true);assert.equal(r.values['in-pack'],true);assert.equal(r.output.enable,false);assert.ok(r.errors.length)})
-test('v16 typed connection rejects Nm→Boolean and algebraic cycles, and replaces one socket',()=>{
- let g=referenceModel('request');assert.match(connectModel(g,'b3','b1',0).error,/불일치/)
+test('v16 exploratory connections remain drawable; evaluation reports type mismatch and cycles stay blocked',()=>{
+ let g=referenceModel('request');const mismatch=connectModel(g,'in-cap','b1',0);assert.equal(mismatch.error,'');assert.equal(mismatch.graph.wires.find(w=>w.to==='b1'&&w.port===0)?.from,'in-cap');assert.ok(evaluateModel(mismatch.graph,{pedal:50,cap:180}).errors.length)
  assert.match(connectModel(g,'b1','b1',0).error,/순환/)
  const power=referenceModel('power'),changed=connectModel(power,'in-ready','b1',1).graph;assert.equal(changed.wires.filter(w=>w.to==='b1'&&w.port===1).length,1);assert.ok(verifyModel('power',changed).some(c=>!c.pass))
 })
