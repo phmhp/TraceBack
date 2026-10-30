@@ -1,5 +1,6 @@
 import {readSessionPlay,rememberSessionPlay} from '../campaign/navigation'
 import {startNewCampaign} from '../campaign/menu'
+import {CAMPAIGN_KEY} from '../campaign/model'
 import { lazy,Suspense,useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
 import { DEFAULT_INPUTS, MISSIONS, referenceGraph, withStates } from '../content/ready.ts'
@@ -36,6 +37,7 @@ const insideNotes = [
   '제어 프로그램은 입력을 읽고 조건을 판단해. 실제 ECU 회로를 재현한 건 아니야. 우리가 만드는 건 그 안에서 동작할 로직이야.',
   '판단 결과는 표시와 구동 허용으로 나와. READY가 켜져도 자동차가 이동하는 건 아니야. 가속 제어는 또 다른 기능이지!',
 ]
+function garageCarAdded(){try{const a=JSON.parse(localStorage.getItem(CAMPAIGN_KEY)??'null')?.adventure;return !!a?.lastRace&&a?.phase==='atlas'}catch{return false}}
 function initialSnapshot(mission=0) { const m=MISSIONS[mission]; return new LogicSimulation(m.initial,m.mode).step(referenceGraph(m.mode==='machine'),DEFAULT_INPUTS) }
 function openingSnapshot() { const sim=new LogicSimulation('OFF','machine'),g=referenceGraph(true);sim.step(g,{...DEFAULT_INPUTS,power:true});sim.step(g,DEFAULT_INPUTS);return sim.step(g,{...DEFAULT_INPUTS,power:true}) }
 export default function Game() {
@@ -115,7 +117,7 @@ export default function Game() {
     {scene!=='campaign'&&scene!=='title'&&<button className="systems-launch" onClick={()=>go('workshop')}>◈ 차량 제작 공방</button>}
     {scene==='reward'&&<section className="reward-drive-panel"><header>{story.mission===0?'진입 요청은 완성! 실제 구동은 다음 장에서.':'내가 만든 READY가 차량 구동을 허용해요. 방향키로 확인해 봐요.'}</header>{story.mission===0?<SignalBench snapshot={snapshot} brake={true} focus={-1} reduced={paused||story.reducedMotion}/>:<DriveExperience enabled={driveGate(snapshot)} cockpit={false} paused={paused} volume={story.volume}/>}</section>}
     {title?<>
-      <section className="title-menu"><div className="game-wordmark"><span>흰둥이의</span><h1>자동차<br/><em>정비소</em></h1><p>Vehicle Logic Lab</p><div className="wordmark-doodle">✦ ⚙ ✦</div></div><p className="title-tagline">흰둥이와 함께<br/>차량을 만들어보아요🚗</p><div className="title-buttons"><button className="big-button" onClick={start}>시작하기 <span aria-hidden="true">▶</span></button></div></section><div className="garage-sign">차량 정비소<small>엔지니어 흰둥</small></div><div className="title-version">운전석에서 시작하는 · 차량 로직 모험 · v0.16.0</div>
+      <section className="title-menu"><div className="game-wordmark"><span>흰둥이의</span><h1>자동차<br/><em>정비소</em></h1><p>Vehicle Logic Lab</p><div className="wordmark-doodle">✦ ⚙ ✦</div></div><p className="title-tagline">흰둥이와 함께<br/>차량을 만들어보아요🚗</p><div className="title-buttons"><button className="big-button" onClick={start}>시작하기 <span aria-hidden="true">▶</span></button></div></section><div className="garage-sign">차량 정비소<small>엔지니어 흰둥</small>{garageCarAdded()&&<strong className="garage-added-car"><svg viewBox="0 0 60 28" aria-hidden="true"><path d="M5 22V12L14 10L20 3H41L50 11L55 14V22Z" fill="#70c4c2" stroke="#2c6a71" strokeWidth="2"/><circle cx="17" cy="22" r="5" fill="#334b53"/><circle cx="45" cy="22" r="5" fill="#334b53"/></svg> 흰둥's EV Car · 1대</strong>}</div><div className="title-version">운전석에서 시작하는 · 차량 로직 모험 · v0.16.0</div>
     </>:<>
       {scene!=='campaign'&&<header className="game-hud"><button className="menu-button" aria-label="게임 메뉴" onClick={()=>setPaused(true)}>☰</button><div className="chapter-tag"><small>{scene==='intro'?'프롤로그':scene==='workshop'?'제작 01':`이야기 ${story.mission+1}`}</small><b>{scene==='intro'?'어느 맑은 날, 시험 주행':(scene==='workshop'?'내 EV · 통합 제작':scene==='powertrain'?'구동 제어 · 같은 차량의 다음 기능':CHAPTER_NAMES[story.mission])}</b></div><button className="journey-button" onClick={()=>go('map')}>READY 수첩 <span>{done}/3</span></button></header>}
       {scene==='intro'&&<>

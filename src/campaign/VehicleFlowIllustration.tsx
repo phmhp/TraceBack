@@ -46,7 +46,7 @@ export function VehicleFlowIllustration({domain,step=4,choice,focusId,compact=fa
    {active('power')&&energized(4)&&<path className="vfi-motion" d="M276 93l-10 20h12l-5 20 22-29h-13l8-11"/>}
    {active('brake')&&energized(4)&&<text className="vfi-motion-label" x="453" y="177">감속</text>}
   </svg>
-  {model&&<div className="vfi-signal" aria-label={`${model.function} 신호 경로`}><span className={step===0?'lit':''}><small>입력</small>{model.inputs.map(item=>item.name).join(' · ')}</span><i>→</i><span className={step===1?'lit':''}><small>SW 계산</small>{model.steps.slice(0,2).join(' → ')}</span><i>→</i><span className={step>=2?'lit':''}><small>출력</small>{model.outputs.map(item=>item.name).join(' · ')}</span></div>}
+  {model&&<div className="vfi-signal" aria-label={`${model.function} 신호 경로`}><span className={step===0?'lit':''}><small>입력</small>{model.inputs.map(item=>item.name).join(' · ')}</span><i>→</i><span className={step===1?'lit':''}><small>SW 계산</small>{compact?model.steps[0]:model.steps.slice(0,2).join(' → ')}</span><i>→</i><span className={step>=2?'lit':''}><small>출력</small>{model.outputs.map(item=>item.name).join(' · ')}</span></div>}
   <figcaption>{choice==='awd'?'앞·뒤 모터와 네 바퀴가 함께 구동':choice==='fwd'?'앞 모터가 앞바퀴 한 쌍을 구동':choice==='rwd'?'뒤 모터가 뒷바퀴 한 쌍을 구동':choice==='rws'?'앞·뒷바퀴 모두 조향':choice==='sbw'?'조향 센서와 전동 액추에이터 사이에 기계 축 없음':choice==='blend'?'회생 토크와 마찰 제동력을 함께 배분':domain==='power'?'센서 → BMS·VCU → 접촉기·인버터':domain==='drive'?'페달 → VCU 계산 → 인버터·모터 → 구동륜':domain==='brake'?'페달 → 제동 제어 → 캘리퍼 → 바퀴 감속':domain==='steer'?'운전대 → EPS·기계 연결 → 앞바퀴 조향':'입력 → 제어기 → 액추에이터 → 차량 반응'}</figcaption>
  </figure>
 }

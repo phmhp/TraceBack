@@ -31,6 +31,9 @@ export const ROUNDS:{id:DomainId;name:string;parts:AssemblyPartId[];models:Logic
  {id:'brake',name:'제동 단계',parts:['brakePedal','brakes'],models:['brake'],observe:'제동 조건 | 움직이는 상태에서 브레이크 페달을 밟아 제동력 요청 | 캘리퍼·디스크 마찰로 감속·정차',mechanical:'브레이크 페달 위치 → 제동 제어기의 힘 요청 → 제동 액추에이터 → 패드·디스크 마찰 → 감속.',conversion:'브레이크 페달 센서는 제동 요구를 보내고, 제동 제어기의 요청에 따라 마찰 제동 장치가 바퀴에 힘을 가합니다.'},
  {id:'steer',name:'조향 단계',parts:['steeringWheel','steeringRack'],models:['steer'],observe:'조향 조건 | 움직이는 상태에서 핸들을 좌·우로 조작 | 앞바퀴 두 개가 회전하고 차량 진행 방향이 바뀜',mechanical:'운전대·조향축 → 기계식 랙·타이로드 → 앞바퀴 두 개. EPS 모터가 조향력을 보조합니다.',conversion:'이 퍼즐은 운전자 조향을 전륜 각도로 나타냅니다. 실제 EPS 제어는 토크 센서와 보조모터 전류를 별도로 다룹니다.'}
 ]
+// The first garage cycle asks the player to build one representative function
+// per domain. Other functions remain visible in the hierarchy and executable.
+export const PLAY_MODELS:Record<DomainId,LogicId>={power:'power',drive:'request',brake:'brake',steer:'steer'}
 export type ModelContext={controller:string;softwareLevel:string;inputBoundary:string;outputBoundary:string;physicalEffect:string;logicFamily:string}
 // The function hierarchy and the E/E deployment are orthogonal: these fields make the allocation explicit.
 export const MODEL_CONTEXT:Record<LogicId,ModelContext>={

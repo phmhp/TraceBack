@@ -13,9 +13,9 @@ function stepsFor(domain:DomainId,a:Adventure):Step[]{
  const sample=executeVehicle(a.designs,{ready:true,pack:true,pedal:domain==='drive'?50:0,brake:domain==='power'?100:domain==='brake'?60:0,gear:domain==='power'?'P':'D',steer:domain==='steer'?.5:0,cap:180,startEdge:domain==='power'})
  switch(domain){
   case 'power':return[
-   {stage:'BMS 센서·SW',signal:`PackSafe = ${String(sample.bms.output.safe??'미연결')}`,meaning:'SOC·온도·절연을 내가 구성한 BMS 로직이 비교합니다.',part:'battery'},
+   {stage:'BMS 센서·SW',signal:`PackSafe = ${String(sample.bms.output.safe??'미연결')}`,meaning:'SOC·온도·절연을 BMS 판단 로직이 비교합니다.',part:'battery'},
    {stage:'운전자 START',signal:'START 상승 · P · 브레이크',meaning:'버튼의 새 입력과 현재 기어·브레이크·충전 플러그 상태를 읽습니다.',part:'vcu'},
-   {stage:'내 시작 판단',signal:`StartPermit = ${String(sample.start.output.startPermit??'미연결')}`,meaning:`${MODEL_ALLOCATION.start.swc}가 BMS PackSafe와 운전자 시작 조건을 결합합니다.`,part:'vcu'},
+   {stage:'START 판단',signal:`StartPermit = ${String(sample.start.output.startPermit??'미연결')}`,meaning:`${MODEL_ALLOCATION.start.swc}가 BMS PackSafe와 운전자 시작 조건을 결합합니다.`,part:'vcu'},
    {stage:'고전압 준비',signal:'프리차지 → 접촉기 → READY',meaning:'허용된 요청 뒤 DC 링크 전압과 시간을 확인해 주 접촉기를 닫습니다.',part:'battery'},
    {stage:'내 SW 계산',signal:`PowerEnable = ${String(sample.power.output.enable??'미연결')}`,meaning:`${MODEL_ALLOCATION.power.swc} / ${MODEL_ALLOCATION.power.runnable}이 두 조건을 결합합니다.`,part:'vcu'},
    {stage:'전력전자 경계',signal:'VCU → 인버터',meaning:'허용 신호가 전달됩니다. 실제 모터 토크는 구동 요청과 인터록을 더 거쳐야 합니다.',part:'inverter'},

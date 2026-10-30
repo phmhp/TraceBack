@@ -49,7 +49,7 @@ test('v16 wheels are front/rear pairs first; each domain includes physical and s
  for(let i=0;i<ROUNDS.length;i++){
   a.phase='assemble';const round=ROUNDS[i];for(const part of round.parts)a=assembleAdventurePart(a,part)
   assert.equal(assembleAdventurePart(a,'frontLeft').record.assembly.frontLeft,'FIXED')
-  for(let j=0;j<round.models.length;j++){a.phase='logic';a.model=j;const id=round.models[j];assert.equal(completeModel(a).completed.includes(id),false);a=editAdventure(a,id,referenceModel(id));a=completeModel(confirmModel(a));assert.ok(a.completed.includes(id))}
+  a.phase='logic';a.model=0;const id={power:'power',drive:'request',brake:'brake',steer:'steer'}[round.id];assert.equal(completeModel(a).completed.includes(id),false);a=editAdventure(a,id,referenceModel(id));a=completeModel(confirmModel(a));assert.ok(a.completed.includes(id));assert.equal(a.completed.filter(model=>round.models.includes(model)).length,1,'the first cycle asks for one authored function per domain')
   assert.equal(a.phase,'reward');assert.equal(a.record.cables.length,0,'final cross-domain harness is not silently installed early');a=nextRound(a)
   assert.equal(a.phase,i===3?'seal':'experience');assert.equal(a.round,Math.min(i+1,3))
  }
@@ -58,6 +58,14 @@ test('v16 wheels are front/rear pairs first; each domain includes physical and s
 })
 test('v16 guided wheel action installs both members of each pair in one operation',()=>{
  let a=initialAdventure();a.phase='base';a=assembleWheelPair(a);assert.equal(a.record.assembly.frontLeft,'FIXED');assert.equal(a.record.assembly.frontRight,'FIXED');assert.equal(a.record.assembly.rearLeft,'TRAY');a.wheelPairs=1;a=assembleWheelPair(a);assert.equal(a.record.assembly.rearLeft,'FIXED');assert.equal(a.record.assembly.rearRight,'FIXED')
+})
+test('first cycle exposes one authored function per domain while retaining executable support functions',()=>{
+ const a=initialAdventure()
+ for(const id of ['bms','start','drive']){assert.ok(verifyModel(id,a.designs[id]).every(c=>c.pass));assert.ok(a.assisted.includes(id));assert.ok(!a.completed.includes(id))}
+ for(const [round,id] of ROUNDS.map(round=>[round.id,{power:'power',drive:'request',brake:'brake',steer:'steer'}[round.id]])){assert.ok(id);assert.equal(ROUNDS.find(item=>item.id===round).models.includes(id),true)}
+ const old={...a,phase:'logic',round:1,model:1,completed:['request'],designs:{...a.designs,request:referenceModel('request')}}
+ const restored=loadAdventure(JSON.parse(JSON.stringify(old)))
+ assert.equal(restored.phase,'reward');assert.equal(restored.model,0);assert.ok(restored.completed.includes('request'))
 })
 test('v16 domain outputs compose into actual drive, brake force and steering requests, not decoration',()=>{
  const designs=providedDesigns(),normal={ready:true,pack:true,pedal:50,cap:180,brake:0,gear:'D',steer:.5}
@@ -78,6 +86,11 @@ test('older six-model finish keeps its car and gains a reviewed BMS graph on loa
  const save=initialAdventure();save.phase='atlas';save.round=3;save.designs=providedDesigns();delete save.designs.bms;delete save.designs.start;save.completed=['power','request','drive','brake','steer','integration'];save.bodyClosed=true;save.trialChecks=['accelerate','brake','steer'];save.lastRace={seconds:30,stars:2};save.record.cables=BUILD_LINKS.map(link=>link.id);for(const part of allAssemblyParts)save.record.assembly[part.id]='FIXED'
  const loaded=loadAdventure(JSON.parse(JSON.stringify(save)))
  assert.equal(loaded.phase,'atlas');assert.equal(loaded.lastRace.seconds,30);for(const id of ['bms','start']){assert.ok(loaded.completed.includes(id));assert.ok(loaded.assisted.includes(id),'migration must not claim the player authored the supplied graph');assert.ok(verifyModel(id,loaded.designs[id]).every(result=>result.pass))}assert.ok(canEnterCup(loaded))
+})
+test('completed cup save retains the one-hundred-million-nyang prize',()=>{
+ const save=initialAdventure();save.phase='atlas';save.round=3;save.designs=providedDesigns();save.completed=['power','request','brake','steer','integration'];save.bodyClosed=true;save.trialChecks=['accelerate','brake','steer'];save.lastRace={seconds:30,stars:2};save.rewarded=true;save.wallet=100000010;save.record.cables=BUILD_LINKS.map(link=>link.id);for(const part of allAssemblyParts)save.record.assembly[part.id]='FIXED'
+ const loaded=loadAdventure(JSON.parse(JSON.stringify(save)))
+ assert.equal(loaded.phase,'atlas');assert.equal(loaded.wallet,100000010)
 })
 test('v16 learner brake/steering/drive models change real C/Rapier commands; malformed graph cannot create force',async()=>{
  await Rapier.init();const wasm=await WebAssembly.compile(await readFile(new URL('../simulation/src/runtime/c/generated/vehicle-sw.wasm',import.meta.url))),record=assembledRecord();record.cables.push(...chassisCables.map(c=>c.id));for(const part of allAssemblyParts)record.assembly[part.id]='FIXED';const designs=providedDesigns(),controls={ready:true,brake:0,channelOffset:0,ageMs:20,capNm:180,ecuRequired:true,domainDesigns:designs};let telemetry

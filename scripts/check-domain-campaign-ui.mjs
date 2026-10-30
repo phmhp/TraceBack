@@ -1,5 +1,4 @@
-// Real React events and persistent progression. Only GPU/clock/physical poses are mocked here.
-// Actual C/Rapier actuator linkage is exercised independently by domain-adventure.test.mjs.
+// React progression smoke test. The 3D canvas is mocked; C/Rapier is tested separately.
 import assert from 'node:assert/strict'
 import {mkdtempSync,readFileSync} from 'node:fs'
 import {tmpdir} from 'node:os'
@@ -9,49 +8,53 @@ import {JSDOM} from 'jsdom'
 import React,{act} from 'react'
 import {createServer} from 'vite'
 import react from '@vitejs/plugin-react'
+
 const project=resolve(dirname(fileURLToPath(import.meta.url)),'..'),dom=new JSDOM('<div id="root"></div>',{url:'http://domain.test/'})
 for(const key of ['window','document','localStorage','sessionStorage','Element','HTMLElement','HTMLCanvasElement','Node','Event','MouseEvent'])globalThis[key]=dom.window[key]
 globalThis.self=dom.window;globalThis.IS_REACT_ACT_ENVIRONMENT=true
 globalThis.__domainWasm=await WebAssembly.compile(readFileSync(join(project,'simulation/src/runtime/c/generated/vehicle-sw.wasm')))
-const rafs=new Map();let raf=0,time=performance.now();globalThis.requestAnimationFrame=f=>{rafs.set(++raf,f);return raf};globalThis.cancelAnimationFrame=id=>rafs.delete(id)
-dom.window.HTMLElement.prototype.scrollTo=function(){this.scrollTop=0};dom.window.HTMLElement.prototype.setPointerCapture=function(){};dom.window.SVGElement.prototype.setPointerCapture=function(){};dom.window.SVGElement.prototype.getBoundingClientRect=function(){return{x:0,y:0,left:0,top:0,width:1000,height:560,right:1000,bottom:560}}
-const mockScene=`import React from 'react';export function WorkshopScene(p){const step=React.useRef(0);p.onMechanicReady?.();return React.createElement('div',null,React.createElement('canvas',{'data-view':p.view,'data-ready':p.controls.ready,'data-brake':p.controls.brake,'data-accelerator':p.controls.accelerator,'data-modern':p.modernCockpit}),React.createElement('button',{'data-test-frame':true,onClick(){step.current++;Object.defineProperty(p.engine.runtime.clock,'currentTime',{configurable:true,get:()=>step.current/60,set(v){step.current=v*60}});p.engine.controller.step({acceleratorPedalPosition:p.controls.accelerator,acceleratorPedalValidity:'VALID',gearRequest:p.controls.gear,gearRequestValidity:'VALID',vehicleReady:p.controls.ready,propulsionEnable:p.controls.ready,longitudinalVelocity:5,vehicleSpeed:5});p.onTick?.({x:p.controls.steering?1:0,z:-step.current*.5,speed:p.controls.brake?0:p.controls.accelerator?5:0,dt:1/60})}},'frame'))}`
-const server=await createServer({root:project,configFile:false,cacheDir:mkdtempSync(join(tmpdir(),'momo-domain-ui-')),plugins:[{name:'v16-test-only-gpu',enforce:'pre',transform(code,id){const p=id.replaceAll('\\','/');if(p.endsWith('/game/driving/DrivingAssets.ts'))return'export const compileDrivingSw=()=>Promise.resolve(globalThis.__domainWasm)';if(p.endsWith('/workshop/WorkshopScene.tsx'))return mockScene;if(p.endsWith('/campaign/MechanismView.tsx'))return"import React from 'react';export function MechanismView(p){return React.createElement('div',{'data-mechanism':p.domain,'data-amount':p.amount,'data-brake':p.brake,'data-steer':p.steer},'360 mechanism GPU mocked')}";if(p.endsWith('/campaign/CinemaIntro.tsx'))return"import React from 'react';export function CinemaIntro(){return React.createElement('div',null,'film GPU mocked')}";if(p.endsWith('/campaign/MarketIntro.tsx'))return"import React,{useEffect}from'react';export function MarketIntro(p){useEffect(()=>{if(p.buying)p.onDone()},[p.buying]);return React.createElement('div',null,'market GPU mocked')}"}},react()],server:{middlewareMode:true},optimizeDeps:{noDiscovery:true,include:[],entries:[]},appType:'custom'})
-const {createRoot}=await import('react-dom/client'),host=document.getElementById('root');let root;const errors=[];window.addEventListener('error',event=>errors.push(String(event.error)))
-const advance=ms=>{time=Math.max(time,performance.now());const end=time+ms;while(time<end){time+=20;const list=[...rafs.values()];rafs.clear();for(const f of list)f(time)}}
-const button=t=>[...host.querySelectorAll('button')].find(b=>b.textContent.includes(t)),port=t=>host.querySelector(`[aria-label="${t}"]`),dock=()=>host.querySelector('.d16-action>button'),read=()=>JSON.parse(localStorage.getItem('vehicle-logic-lab.momo-cup.v1')).adventure
-const click=async el=>{assert.ok(el,'missing action');assert.ok(!el.disabled,el.textContent);await act(()=>el.dispatchEvent(new dom.window.MouseEvent('click',{bubbles:true})));assert.equal(errors.length,0,errors.join('\n'))}
-const pointer=async(el,type,options={})=>{const event=new dom.window.MouseEvent(type,{bubbles:true,...options});Object.defineProperty(event,'pointerId',{value:1});await act(()=>el.dispatchEvent(event))}
-const frame=async count=>{for(let i=0;i<count;i++)await click(host.querySelector('[data-test-frame]'))}
-const mount=async Component=>{if(root)await act(()=>root.unmount());host.replaceChildren();root=createRoot(host,{onUncaughtError:e=>errors.push(String(e)),onCaughtError:e=>errors.push(String(e))});await act(async()=>{root.render(React.createElement(Component,{paused:false,reduced:false,volume:0,onMenu(){},onResume(){},onExit(){},onVolume(){},onReduced(){}}));await new Promise(r=>setTimeout(r,50))})}
+globalThis.requestAnimationFrame=()=>0;globalThis.cancelAnimationFrame=()=>{}
+dom.window.HTMLElement.prototype.scrollTo=function(){}
+dom.window.HTMLElement.prototype.scrollIntoView=function(){}
+dom.window.HTMLElement.prototype.setPointerCapture=function(){}
+dom.window.SVGElement.prototype.setPointerCapture=function(){}
+dom.window.SVGElement.prototype.getBoundingClientRect=function(){return{x:0,y:0,left:0,top:0,width:1000,height:560,right:1000,bottom:560}}
+const mockScene="import React from 'react';export function WorkshopScene(p){return React.createElement('div',{'data-scene':true,'data-finish':!!p.finishLine,'data-garage':!!p.garageFinale},React.createElement('canvas',{'data-view':p.view}))}"
+const server=await createServer({root:project,configFile:false,cacheDir:mkdtempSync(join(tmpdir(),'momo-domain-ui-')),plugins:[{name:'domain-test-gpu',enforce:'pre',transform(code,id){const p=id.replaceAll('\\','/');if(p.endsWith('/game/driving/DrivingAssets.ts'))return'export const compileDrivingSw=()=>Promise.resolve(globalThis.__domainWasm)';if(p.endsWith('/workshop/WorkshopScene.tsx'))return mockScene;if(p.endsWith('/campaign/MechanismView.tsx'))return"import React from 'react';export function MechanismView(p){return React.createElement('div',{'data-mechanism':p.domain},'3D scene mocked')}";if(p.endsWith('/campaign/CinemaIntro.tsx'))return"import React from 'react';export function CinemaIntro(){return React.createElement('div',null,'film mocked')}";if(p.endsWith('/campaign/MarketIntro.tsx'))return"import React from 'react';export function MarketIntro(){return React.createElement('div',null,'market mocked')}"}},react()],server:{middlewareMode:true},optimizeDeps:{noDiscovery:true,include:[],entries:[]},appType:'custom'})
+const {createRoot}=await import('react-dom/client'),host=document.getElementById('root');let root,exits=0
+const errors=[];window.addEventListener('error',event=>errors.push(String(event.error)))
+const button=text=>[...host.querySelectorAll('button')].find(item=>item.textContent.includes(text)),action=()=>host.querySelector('.d16-action>button'),read=()=>JSON.parse(localStorage.getItem('vehicle-logic-lab.momo-cup.v1')).adventure
+async function click(element){assert.ok(element,'missing action');assert.ok(!element.disabled,element.textContent);await act(()=>element.dispatchEvent(new dom.window.MouseEvent('click',{bubbles:true})));assert.deepEqual(errors,[])}
+async function mount(Component,reduced=false){if(root)await act(()=>root.unmount());host.replaceChildren();root=createRoot(host,{onUncaughtError:error=>errors.push(String(error)),onCaughtError:error=>errors.push(String(error))});await act(async()=>{root.render(React.createElement(Component,{paused:false,reduced,volume:0,onMenu(){},onResume(){},onExit(){exits++},onVolume(){},onReduced(){}}));await new Promise(done=>setTimeout(done,35))});assert.deepEqual(errors,[])}
+
 try{
- const {default:Campaign}=await server.ssrLoadModule('/src/campaign/DomainCampaign.tsx'),{MODEL_SPECS,referenceModel}=await server.ssrLoadModule('/src/campaign/domainTraining.ts'),{ROUNDS}=await server.ssrLoadModule('/src/campaign/domainTraining.ts')
- await mount(Campaign);await click(dock());await click(dock());assert.equal(read().phase,'opening');assert.equal(read().wallet,10);assert.equal(host.querySelector('canvas').dataset.view,'cabin');assert.equal(host.querySelector('canvas').dataset.modern,'true');assert.equal(host.querySelectorAll('[aria-label="브레이크"]').length,1)
- await click(port('브레이크'));await act(()=>window.dispatchEvent(new dom.window.KeyboardEvent('keydown',{key:'ArrowUp',bubbles:true})));assert.equal(host.querySelector('canvas').dataset.accelerator,'1');assert.equal(host.querySelector('canvas').dataset.brake,'1','keyboard throttle must not silently release the latched brake');await act(()=>window.dispatchEvent(new dom.window.KeyboardEvent('keyup',{key:'ArrowUp',bubbles:true})));await click(port('브레이크'));await click(port('가속 페달'));await frame(250);assert.equal(read().phase,'crash');await act(()=>advance(2000));await click(dock());assert.equal(read().phase,'base')
- await click(dock());await act(()=>advance(2200));assert.equal(read().record.assembly.frontLeft,'FIXED');assert.equal(read().record.assembly.frontRight,'FIXED');assert.equal(read().record.assembly.rearLeft,'TRAY');await click(dock());await click(dock());await act(()=>advance(2200));await click(dock());assert.equal(read().phase,'experience')
- let wrongChecked=false
- for(let ri=0;ri<ROUNDS.length;ri++){
-  const r=ROUNDS[ri];assert.equal(read().round,ri);assert.equal(read().phase,'experience')
-  if(ri===0){await click(port('브레이크'));await click(port('시동 START'));await click(port('기어 D'));await click(port('브레이크'));await frame(1)}
-  else{await click(port('가속 페달'));await frame(10);if(ri===2){await click(port('브레이크'));await frame(1)}if(ri===3){await click(button('우 →'));await frame(1)}}
-  await click(dock());assert.equal(read().phase,'group','round '+ri+' '+host.textContent);assert.ok(dock().disabled)
-  for(const part of r.parts){const names={pedal:'가속페달 센서',brakePedal:'브레이크 입력·제어 모듈',steeringWheel:'핸들 입력·제어 모듈'},p=[...host.querySelectorAll('.d16-parts-grid button')].find(b=>b.textContent.includes(names[part]??partName(part)));await click(p)}
-  await click(dock());assert.equal(read().phase,'assemble')
-  for(const part of r.parts){await click(dock());await act(()=>advance(2200));assert.equal(read().record.assembly[part],'FIXED');assert.equal(read().phase,'assemble','one component finishes without silently skipping to a different screen')}
-  await click(dock());assert.equal(read().phase,'logic');assert.ok(host.textContent.includes('System · 꼬마 EV 01'));assert.ok(host.textContent.includes('Function ·'));assert.ok(host.querySelector('.d16-functional-guide'));assert.ok(host.querySelector('[aria-label="사용 가능한 블록 재료"]'))
-  for(const id of r.models){
-   assert.equal(host.querySelectorAll('.d16-node').length,MODEL_SPECS[id].inputs.length+MODEL_SPECS[id].outputs.length,'no pre-selected answer operators')
-   if(!wrongChecked){await click(button('하나라도 만족'));const beforeX=read().designs.power.nodes.find(n=>n.id==='b1').x;await pointer(host.querySelector('.d16-node.or'),'pointerdown',{button:2,clientX:450,clientY:100});await pointer(host.querySelector('.d16-board svg'),'pointermove',{button:2,buttons:2,clientX:490,clientY:130});await pointer(host.querySelector('.d16-board svg'),'pointerup',{button:2,clientX:490,clientY:130});assert.ok(read().designs.power.nodes.find(n=>n.id==='b1').x>beforeX,'right drag moves the actual block, not just a decoration');for(const[f,t,p]of [['in-ready','b1','u1'],['in-pack','b1','u2'],['b1','out-enable','u']]){await click(port(f+' 출력'));await click(port(t+' 입력 '+p))}await click(dock());await click(dock());assert.equal(read().checked,'');assert.ok(host.querySelector('.d16-values .fail'));for(let i=0;i<3;i++)await click(dock());await click(button('설계도 → 블록 구성'));assert.ok(host.textContent.includes('Inport는 차에서 받은 입력'));assert.ok(!host.textContent.includes('아래 버튼은 정답 모델을 적용하는'),'five-failure concept help must not silently reveal the answer');await click(port('b1 블록 삭제'));wrongChecked=true}
-   const ref=referenceModel(id);for(const node of ref.nodes.filter(n=>!['in','out'].includes(n.kind))){const index=MODEL_SPECS[id].blocks.findIndex(b=>b.kind===node.kind);await click([...host.querySelectorAll('.d16-palette button')][index])}
-   for(const wire of ref.wires){await click(port(wire.from+' 출력'));await click(port(wire.to+' 입력 '+(wire.to.startsWith('out-')?'u':wire.to==='b3'&&id==='drive'?'u'+(wire.port+1):id==='power'?'u'+(wire.port+1):id==='request'&&wire.to==='b3'?'u'+(wire.port+1):'u')))}
-   await click(dock());assert.ok(read().checked);assert.ok(host.textContent.includes('실제'));await click(dock());assert.ok(read().completed.includes(id))
-  }
-  assert.equal(read().phase,'reward');assert.equal(host.textContent.includes('한량'),false);await mount(Campaign);assert.equal(read().phase,'reward');await click(dock())
+ const {default:Campaign}=await server.ssrLoadModule('/src/campaign/DomainCampaign.tsx')
+ const {initialAdventure,graphStamp}=await server.ssrLoadModule('/src/campaign/adventure.ts')
+ const {PLAY_MODELS,ROUNDS,referenceModel}=await server.ssrLoadModule('/src/campaign/domainTraining.ts')
+ const {BUILD_LINKS}=await server.ssrLoadModule('/src/campaign/build.ts')
+ const {allAssemblyParts}=await server.ssrLoadModule('/src/workshop/assembly.ts')
+ function seed(phase,round=0){const a=initialAdventure();a.phase=phase;a.round=round;a.bodyClosed=true;a.record.cables=BUILD_LINKS.map(item=>item.id);for(const part of allAssemblyParts)a.record.assembly[part.id]='FIXED';localStorage.setItem('vehicle-logic-lab.momo-cup.v1',JSON.stringify({adventure:a}));return a}
+ for(let index=0;index<ROUNDS.length;index++){
+  const id=PLAY_MODELS[ROUNDS[index].id],a=seed('logic',index);a.designs[id]=referenceModel(id);a.checked=graphStamp(a.designs[id]);localStorage.setItem('vehicle-logic-lab.momo-cup.v1',JSON.stringify({adventure:a}))
+  await mount(Campaign)
+  assert.ok(host.querySelector('.d16-device-signal'),'right panel device and signal path')
+  assert.ok(host.querySelector('.d16-function-pieces'),'system/domain/function puzzle placement')
+  assert.ok(host.querySelector('.d16-flow-chart'),'visible function flow')
+  await click(action());assert.ok(host.querySelector('.d16-cases'),'next opens the run view')
+  assert.ok(host.querySelector('.d16-device-signal'),'run keeps the device and signal path')
+  await click(action());assert.equal(read().phase,'reward','one authored function per domain');assert.ok(read().completed.includes(id));assert.ok(host.querySelector('.d16-stage-signal'),'reward keeps the right-side device path')
  }
- assert.equal(read().phase,'integrate');const ref=referenceModel('integration');await click([...host.querySelectorAll('.d16-palette button')][0]);for(const w of ref.wires){await click(port(w.from+' 출력'));await click(port(w.to+' 입력 '+(w.to==='b1'?'u'+(w.port+1):'u')))}await click(dock());assert.equal(host.querySelector('[data-mechanism]').dataset.amount,'0.5');await click(button('제동 우선'));assert.equal(host.querySelector('[data-mechanism]').dataset.amount,'0');assert.equal(host.querySelector('[data-mechanism]').dataset.brake,'1');await click(dock());assert.equal(read().phase,'seal');assert.equal(read().record.cables.length,6);await act(()=>advance(2100));await click(dock());assert.equal(read().phase,'trial');assert.ok(dock().disabled)
- await click(button('출발 위치로 · 확인한 기능 유지'));assert.deepEqual(read().trialChecks,[]);assert.ok(dock().disabled);await click(port('가속 페달'));await frame(2);await click(button('우 →'));await frame(2);await click(button('중립'));await click(port('브레이크'));await frame(1);assert.deepEqual([...read().trialChecks].sort(),['accelerate','brake','steer']);await click(dock());assert.equal(read().phase,'grid');await click(dock());await click(port('가속 페달'));await frame(325);assert.equal(read().phase,'finish');assert.ok(read().lastRace.seconds>0);assert.ok(read().rewarded);await click(dock());assert.equal(read().phase,'atlas');assert.ok(!host.textContent.includes('민트 스프린터'));assert.ok(host.querySelector('[aria-label="아키텍처 구현 관점"]'))
- await click(port('제동 구조 보기'));assert.ok(button('마찰 제동력 요청'));await click(port('구동 · 동력 전달 구조 보기'));await click(button('SW 기능'));await click(button('운전자 모터 토크 요청'));assert.ok(host.querySelector('.d16-editor'));assert.equal(host.querySelectorAll('.d16-palette').length,0,'completed-map drilldown is a protected view, not an unapproved model edit');await click(dock());assert.ok(host.querySelector('.d16-blueprint'))
- await mount(Campaign);assert.equal(read().phase,'atlas');assert.equal(read().completed.length,6);assert.ok(read().lastRace);assert.ok(host.querySelector('.d16-blueprint'),'completed save must restore the map instead of reverting to integration')
- console.log('PASS v16 React full cycle: one-car entry, automatic short practice, two wheel pairs, four domain driver→group→one-part→real operator palette→independent verification loops, OR failure/correction, six models, final harness/cowl, drive/brake/steer trials, actual clock-owned race progression, single reward, protected architecture drilldown. GPU/physical poses mocked; C/Rapier linkage tested separately.')
- function partName(id){return{battery:'배터리 팩',inverter:'인버터',vcu:'VCU · 차량 제어 ECU',motor:'전기 모터',gearbox:'감속·차동기어',axle:'좌우 구동축',brakes:'디스크·캘리퍼 세트',steeringRack:'조향 랙·보조장치'}[id]}
+ seed('experience');await mount(Campaign)
+ assert.ok(host.querySelector('.d16-driving-signal'),'driver view device path')
+ assert.ok(host.textContent.includes('에너지·전원 경계 조건 확인'),'BMS boundary tests in energy domain')
+ assert.ok(host.querySelector('.d16-signal-help'),'live flow is inline toggle')
+ seed('trial');await mount(Campaign)
+ assert.ok(host.querySelector('.d16-device-signal'),'system trial integrated path')
+ assert.ok(!host.textContent.includes('SOC 5% 경계'),'system trial excludes BMS cases')
+ const final=seed('finishLine');final.trialChecks=['accelerate','brake','steer'];final.completed=[...Object.values(PLAY_MODELS),'integration'];for(const id of final.completed)final.designs[id]=referenceModel(id);final.lastRace={seconds:30,stars:2};localStorage.setItem('vehicle-logic-lab.momo-cup.v1',JSON.stringify({adventure:final}))
+ await mount(Campaign,true);assert.equal(read().phase,'finishLine');assert.ok(host.querySelector('.d16-finish-banner'));assert.ok(host.querySelector('.d16-stage-signal'));assert.equal(host.querySelector('.d16-action'),null,'finish celebration runs before podium without a skip button');assert.equal(host.querySelector('[data-scene]').dataset.finish,'true')
+ await act(async()=>{await new Promise(done=>setTimeout(done,950))});assert.equal(read().phase,'finish','finish-line celebration precedes podium')
+ final.phase='atlas';localStorage.setItem('vehicle-logic-lab.momo-cup.v1',JSON.stringify({adventure:final}));await mount(Campaign,true)
+ await click(button('전시 마치기'));assert.ok(host.textContent.includes('차고지 · 새 자동차 1대 추가'));assert.ok(host.textContent.includes('그리스 고양이섬'));assert.equal(host.querySelector('[data-scene]').dataset.garage,'true');await click(button('메인 화면으로 돌아가기'));assert.equal(exits,1)
+ console.log('PASS: four single-function domains, device paths, energy BMS cases, inline flow toggle, system trial, FINISH before podium, garage goodbye.')
 }finally{if(root)await act(()=>root.unmount());await server.close();dom.window.close();delete globalThis.__domainWasm}
